@@ -1,6 +1,31 @@
-Apply on the Mac logbook tree whose HEAD is exactly 1ec30a084b39e80b2de277ab240ddfcc493320af (Logbook build 61).
-From that directory: patch -p1 < logbook-b61-phase1.patch
-Then: node scripts/phase1-photos-tags.test.js
-Do not replace assets/, mascots/, icon PNGs, or the user manual. This patch does not include them.
-Do not install over live data until the safety notes in the pull request are read.
-Build stays 61 (APP_BUILD and CURRENT_PROJECT_VERSION). No TestFlight upload.
+Apply on an unmodified copy of the Mac b61 source
+(~/Documents/Apps/Logbook/Builds/logbook-b61, or the matching logbook-b61rel / logbook-b61-phase1 copy).
+Do not use the earlier logbook-b61-phase1.patch. Its service-worker hunk expects cache v79 and fails on this tree.
+
+From that directory:
+  patch -p1 --dry-run < logbook-b61-phase1-mac.patch
+  patch -p1 < logbook-b61-phase1-mac.patch
+  node scripts/phase1-photos-tags.test.js
+
+Input SHA-256 (Mac b61 and b61rel, verified identical):
+  media-store.js     a454523fbff81e28e5019b1bcb21e961b8fc963468af5574330082e300b7f340
+  styles.css         8ee58334e122d64a1de28ba7500d80c6e949db4f2c5acb3a5fbb31362a309c31
+  service-worker.js  bdf9358a30d7262699d3059654d929e2598e45dd8cf69acddbbd8bbf8cded0bf
+
+Output SHA-256 after a clean apply:
+  media-store.js     484b53d4ba7520165ce81263701045317f36e82e578a7e64934a6cbb5ab45895
+  styles.css         2c17ab69692526da8dc4eb89b1de088e4f4b10581b520bf689d7a3f0cbe3aad3
+  service-worker.js  f6825ca93fda9bd109d69b85cb63aeb488c9935b8f0b7cf1207d0e35b0d3f60d
+  scripts/phase1-photos-tags.test.js
+                     fd76110ec14c4be0f0d80cb9ad878c0459c02ce5a5aa8b09019742ef615c6b28
+
+The service worker change is only the cache name, v78 to v80.
+build61.js and build61.css stay out of the Mac shell list.
+Do not force-apply and do not edit the cache line by hand.
+
+Build number stays 61. No TestFlight upload.
+Do not build or launch this against the production bundle
+com.borikengenetics.logbookapp. That bundle shares live data, and its
+iCloud container is iCloud.com.borikengenetics.logbookapp.
+This patch does not change either id. The Mac project files were not in
+the baseline, so a test bundle was not guessed from the other tree.

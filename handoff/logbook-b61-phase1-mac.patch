@@ -1,6 +1,5 @@
-diff -ruN -x SOURCE_SAFE_MANIFEST.json /tmp/b61-base/media-store.js /tmp/b61-src/media-store.js
---- a/media-store.js	1970-01-01 00:00:00.000000000 +0000
-+++ b/media-store.js	2026-11-06 23:32:01.576459882 +0000
+--- a/media-store.js	2026-11-06 23:53:42.507570523 +0000
++++ b/media-store.js	2026-11-06 23:53:42.507570523 +0000
 @@ -96,6 +96,12 @@
      }
    }
@@ -69,9 +68,34 @@ diff -ruN -x SOURCE_SAFE_MANIFEST.json /tmp/b61-base/media-store.js /tmp/b61-src
      plants.forEach((plant) => {
        (plant.logs || []).forEach((log) => { if (log && log.photoId) ids.add(log.photoId); });
        if (plant && typeof plant.headerPhotoId === 'string' && plant.headerPhotoId) ids.add(plant.headerPhotoId); // Build 38: chosen profile header photo
-diff -ruN -x SOURCE_SAFE_MANIFEST.json /tmp/b61-base/scripts/phase1-photos-tags.test.js /tmp/b61-src/scripts/phase1-photos-tags.test.js
---- a/scripts/phase1-photos-tags.test.js	1970-01-01 00:00:00.000000000 +0000
-+++ b/scripts/phase1-photos-tags.test.js	2026-11-06 23:45:43.690620924 +0000
+--- a/styles.css	2026-11-06 23:53:42.507570523 +0000
++++ b/styles.css	2026-11-06 23:53:42.507570523 +0000
+@@ -2398,8 +2398,10 @@
+ .st-row.green { background: var(--bk-ok-bg); color: var(--bk-ok); } .st-row.green i { background: #6fa04a; }
+ .tag-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+ .tag-card { background: var(--color-surface); border-radius: 18px; padding: 0.65rem 0.8rem; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05); cursor: pointer; min-width: 0; }
+-.tag-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 6px; }
+-.tag-top .m-t { overflow-wrap: anywhere; }
++.tag-top { display: flex; flex-wrap: wrap; justify-content: flex-start; align-items: flex-start; gap: 4px 6px; }
++.tag-top .m-t { flex: 1 1 auto; min-width: auto; max-width: 100%; overflow-wrap: break-word; word-break: normal; hyphens: manual; }
++.tag-top .m-pill { flex: 0 0 auto; margin-left: auto; max-width: 100%; }
++.tag-top .b49-par { flex: 1 0 100%; max-width: 100%; overflow-wrap: break-word; word-break: normal; hyphens: manual; }
+ .tag-code { font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 0.75rem; color: var(--bk-sub); margin-top: 3px; }
+ .br-link { background: none; border: 0; color: var(--cu); font: inherit; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; padding: 0; }
+ .br-link.dark { color: var(--color-text); }
+--- a/service-worker.js	2026-11-06 23:53:42.507570523 +0000
++++ b/service-worker.js	2026-11-06 23:53:42.531570343 +0000
+@@ -6,7 +6,7 @@
+   so users should still export JSON backups for long-term records.
+ */
+ 
+-const CACHE_NAME = 'boriken-genetics-logbook-app-v78';
++const CACHE_NAME = 'boriken-genetics-logbook-app-v80';
+ const APP_SHELL = [
+   './',
+   './index.html',
+--- a/scripts/phase1-photos-tags.test.js	2026-11-06 07:58:44.288743085 +0000
++++ b/scripts/phase1-photos-tags.test.js	2026-11-06 23:53:42.507570523 +0000
 @@ -0,0 +1,354 @@
 +/*
 +  Phase 1 regression tests (Nov 6). Isolated synthetic storage only.
@@ -427,31 +451,3 @@ diff -ruN -x SOURCE_SAFE_MANIFEST.json /tmp/b61-base/scripts/phase1-photos-tags.
 +  console.error('FAIL harness', error && error.stack || error);
 +  process.exit(1);
 +});
-diff -ruN -x SOURCE_SAFE_MANIFEST.json /tmp/b61-base/service-worker.js /tmp/b61-src/service-worker.js
---- a/service-worker.js	1970-01-01 00:00:00.000000000 +0000
-+++ b/service-worker.js	2026-11-06 23:32:03.064449570 +0000
-@@ -6,7 +6,7 @@
-   so users should still export JSON backups for long-term records.
- */
- 
--const CACHE_NAME = 'boriken-genetics-logbook-app-v79';
-+const CACHE_NAME = 'boriken-genetics-logbook-app-v80';
- const APP_SHELL = [
-   './',
-   './index.html',
-diff -ruN -x SOURCE_SAFE_MANIFEST.json /tmp/b61-base/styles.css /tmp/b61-src/styles.css
---- a/styles.css	1970-01-01 00:00:00.000000000 +0000
-+++ b/styles.css	2026-11-06 23:47:12.354186997 +0000
-@@ -2398,8 +2398,10 @@
- .st-row.green { background: var(--bk-ok-bg); color: var(--bk-ok); } .st-row.green i { background: #6fa04a; }
- .tag-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
- .tag-card { background: var(--color-surface); border-radius: 18px; padding: 0.65rem 0.8rem; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05); cursor: pointer; min-width: 0; }
--.tag-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 6px; }
--.tag-top .m-t { overflow-wrap: anywhere; }
-+.tag-top { display: flex; flex-wrap: wrap; justify-content: flex-start; align-items: flex-start; gap: 4px 6px; }
-+.tag-top .m-t { flex: 1 1 auto; min-width: auto; max-width: 100%; overflow-wrap: break-word; word-break: normal; hyphens: manual; }
-+.tag-top .m-pill { flex: 0 0 auto; margin-left: auto; max-width: 100%; }
-+.tag-top .b49-par { flex: 1 0 100%; max-width: 100%; overflow-wrap: break-word; word-break: normal; hyphens: manual; }
- .tag-code { font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 0.75rem; color: var(--bk-sub); margin-top: 3px; }
- .br-link { background: none; border: 0; color: var(--cu); font: inherit; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; padding: 0; }
- .br-link.dark { color: var(--color-text); }
