@@ -1,0 +1,6 @@
+Apply on the Mac logbook tree whose HEAD is exactly 1ec30a084b39e80b2de277ab240ddfcc493320af (Logbook build 61).
+From that directory: patch -p1 < logbook-b61-phase1.patch
+Then: node scripts/phase1-photos-tags.test.js
+Do not replace assets/, mascots/, icon PNGs, or the user manual. This patch does not include them.
+Do not install over live data until the safety notes in the pull request are read.
+Build stays 61 (APP_BUILD and CURRENT_PROJECT_VERSION). No TestFlight upload.
