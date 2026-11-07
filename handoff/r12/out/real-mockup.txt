@@ -1,0 +1,11 @@
+PASS a required package with no file fails
+PASS packaging does not print the record id
+PASS the committed repair file is empty
+PASS a tree screen shows the fixture record
+PASS the packaged repair clears only that plant father
+PASS plants renders
+PASS mf renders
+PASS compliance renders
+PASS inspection renders
+PASS a missing record fails instead of drawing another page
+b63 real mockup: screens and packaging held

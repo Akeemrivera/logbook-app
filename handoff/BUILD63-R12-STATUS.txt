@@ -1,0 +1,33 @@
+BUILD 63 revision 12. Not compiled here. No device is claimed fixed. No upload.
+
+Patch SHA-256 86e29319bafe96cde1f079b3da22844bcf2acb0cf574eb4397daeb93df5b17e1
+build63.js SHA-256 09ca494827b6ec78c80ea65b84d94b2bee7271eea51e1b9b1922803db89ab860
+service-worker.js SHA-256 0e3261eec6ab2cd188ec9aeba5feb720c339c6a64823c0d633958ac9cbd88e3f
+b63-repair.json SHA-256 c77274ddbd6f3cdcfda84f52c71e98068da3b6b5504bef2df8994599c1c6b76f
+Three copies match.
+Cache name boriken-genetics-logbook-app-v85
+
+scripts/b63-package-repair.js SHA-256 2a8ea3f7e0de6e4aae19b7ea2b99a7f579470491784a2c2c933858d5d8f2dd8c
+scripts/b63-real-mockup.js SHA-256 8060b1ee4e20c7bba50b9e8a4a1f63a4c5068ff5e1e5f5e3a79420958d983360
+scripts/b63-real-mockup.test.js SHA-256 daf95bfa25b2208a08a0718432d1f143a736fa1bacfae62de7e0375ad61aed01
+scripts/b63-father-repair.test.js SHA-256 351cc85c11905d6e96b12110819de1f3ebf57964cf5abc817a28afac71d269f0
+
+Outputs, each exit 0:
+  father.txt SHA-256 005f7ee68a70abd07c58b201e7f8b0afa9e17f6a41a17fef33c0297fc3a88020 exit 0
+  real-mockup.txt SHA-256 cecd2852d7056132e583abe9f82ee212aee7348e8a710f2a08972adbb588a17e exit 0
+  no-sample.txt SHA-256 46686e551aea5424feed836cb467da6c607c26eb1f1a960f4b52014c750b9f7b exit 0
+  integration.txt SHA-256 2d828e559a15418b43507b0ca8469ff462315de36d534adc7a18566e17110bae exit 0
+  remaining.txt SHA-256 d3b5294f09637a05880e2bf007791487a3a129618c5222f3bfe2a761151aebef exit 0
+  photo.txt SHA-256 991db12ba0540e9274a0cc3911512de7844f24573b2250c791a50ae3de8a59aa exit 0
+  r5.txt SHA-256 74d686f72a41a6e25bcc0c2ddafe6bfe774e5b5ac42a67883a4ff189332a1957 exit 0
+  sw-browser.txt SHA-256 24257f99c5f455f42498c61cbf1299fbc98a3d202c66ed72fe7c2499243304ec exit 0
+  fullapp.txt SHA-256 c0d99c94f1d1d13ed033e12917f11bcf1653109a41dae8e3f9897debb307fabc exit 0
+  r3-1.txt SHA-256 42d012134fa8f1d5798020daa4c341a5c2ceee07cfb7a533287e110766c3baec exit 0
+  r3-2.txt SHA-256 42d012134fa8f1d5798020daa4c341a5c2ceee07cfb7a533287e110766c3baec exit 0
+  r3-3.txt SHA-256 42d012134fa8f1d5798020daa4c341a5c2ceee07cfb7a533287e110766c3baec exit 0
+  r3-4.txt SHA-256 42d012134fa8f1d5798020daa4c341a5c2ceee07cfb7a533287e110766c3baec exit 0
+  r3-5.txt SHA-256 42d012134fa8f1d5798020daa4c341a5c2ceee07cfb7a533287e110766c3baec exit 0
+  r3-6.txt SHA-256 42d012134fa8f1d5798020daa4c341a5c2ceee07cfb7a533287e110766c3baec exit 0
+  r3-7.txt SHA-256 42d012134fa8f1d5798020daa4c341a5c2ceee07cfb7a533287e110766c3baec exit 0
+  r3-8.txt SHA-256 42d012134fa8f1d5798020daa4c341a5c2ceee07cfb7a533287e110766c3baec exit 0
+r3 eight launches identical 42d012134fa8f1d5798020daa4c341a5c2ceee07cfb7a533287e110766c3baec

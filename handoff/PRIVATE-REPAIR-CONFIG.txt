@@ -1,55 +1,61 @@
-Local parent-reference repair. Do not commit this file after you fill in the real id.
+Packaged parent-reference repair. Do not commit a filled b63-repair.json.
 Do not put a backup, a photo, a patient record, or the real id in the repo or in chat.
 
-The shipped app does not contain the plant id. After the revision 11 candidate is built,
-on that private machine only, set one localStorage value in the app origin
-(the installed app's WebView storage, or Safari's storage for that origin):
+The public file b63-repair.json is empty. A normal launch reads that file before the repair runs.
+An empty file changes nothing. There is no WebView console step.
 
-key: boriken-b63-repair
-
-value, as one JSON object:
+On the private machine, write a file that is not in the repo, for example private/b63-repair.json:
 
 {
   "repairs": [
     {
       "recordId": "<the exact plant id held privately>",
-      "collection": "motherFatherPlants",
+      "collection": "plants",
       "field": "b49Father",
       "expect": "dx:Rocco"
     }
-  ]
+  ],
+  "undos": []
 }
 
-Use collection "plants" or "breedingPlants" instead if that is the list that holds the id.
-The field must be b49Father. expect must be the current stored father string, exactly.
-If the stored father is no longer that string, the app changes nothing.
+Then, before the native build:
 
-On the next launch the app sets that one field to the existing unknown marker "-"
-and marks only the father side as a hand edit. The mother, the name, the other
-fields, other plants, and other dx: links stay. The father is shown as not recorded.
-No new father is invented. A second launch does not write again.
+B63_REPAIR_REQUIRED=1 node scripts/b63-package-repair.js --file private/b63-repair.json
 
-Undo, only while that field is still "-", by replacing the config with:
+That copies the file into the source tree, www, and ios/App/App/public. If the file is missing, the script exits 1 and does not package an empty repair. It does not print the id and it does not write localStorage.
+
+The next normal launch clears that one plants record's b49Father only when the stored value is still dx:Rocco. The field becomes the unknown marker. The saved mother stays. Other plants, crosses, and other dx: links stay. A mismatch or a second launch does nothing.
+
+Undo, only while that field is still the unknown marker, by packaging:
 
 {
+  "repairs": [],
   "undos": [
-    { "recordId": "<the same private id>", "collection": "motherFatherPlants", "field": "b49Father" }
+    { "recordId": "<the same private id>", "collection": "plants", "field": "b49Father" }
   ]
 }
 
-The previous value is kept only in that device's localStorage under boriken-b63-repair-undo.
-If the father was changed again after the repair, undo does nothing.
+Real-record browser pictures use the same packaged path inside an isolated browser. They are not written to the repo.
 
-Remove the boriken-b63-repair value after the launch you intended. Leave boriken-b63-view alone.
-This does not merge records and does not restore any other plant.
+node scripts/b63-real-mockup.js --list-screens
 
-Real-record browser mockups, separate from this repair, use scripts/b63-real-mockup.js
-on the private machine. Pass the sanitized plant-only file and the snapshot date
-the parent already has. Example shape, with no real values:
+node scripts/b63-real-mockup.js \
+  --fixture /private/plant-only.json \
+  --snapshot-date 2026-11-06 \
+  --screen tree \
+  --record-id <private-plant-id> \
+  --phase before \
+  --viewport 390x844 \
+  --out /private/mockups
 
-node scripts/b63-real-mockup.js --fixture /private/plant-only.json --snapshot-date YYYY-MM-DD --out /private/mockups
+node scripts/b63-real-mockup.js \
+  --fixture /private/plant-only.json \
+  --snapshot-date 2026-11-06 \
+  --screen tree \
+  --record-id <private-plant-id> \
+  --repair-config /private/b63-repair.json \
+  --phase after \
+  --viewport 390x844 \
+  --out /private/mockups
 
-The file may contain only plants, breedingPlants, motherFatherPlants, breedingProjects,
-and cloneRuns, and only relationship fields. If the file is missing, or it contains
-notes, photos, patients, or any other section, the script stops and does not draw
-a substitute. Do not commit the fixture or the pictures.
+Screens are tree, plants, mf, compliance, and inspection. tree requires a record id that is in the fixture. Omit --viewport to also write 1024x768 and 1024x1366. The date must be the snapshot date you already have. A missing fixture, a missing record, or a page that does not show that record stops the script.

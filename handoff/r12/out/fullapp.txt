@@ -1,0 +1,6 @@
+PASS full app 390x844 {"side":null,"zoom":"1","weff":"n2","doc":390,"gen":"1 generation recorded","sub":"Synthetic Gran × Synthetic Grandfather · Ceiba tree"}
+PASS full app 768x1024 {"side":null,"zoom":"1","weff":"n2","doc":768,"gen":"1 generation recorded","sub":"Synthetic Gran × Synthetic Grandfather · Ceiba tree"}
+PASS full app 1024x768 {"side":"247.998px","zoom":"1.28","weff":"n2","doc":1009,"gen":"1 generation recorded","sub":"Synthetic Gran × Synthetic Grandfather · Ceiba tree"}
+PASS full app 1024x1366 {"side":"247.998px","zoom":"1.28","weff":"n2","doc":1009,"gen":"1 generation recorded","sub":"Synthetic Gran × Synthetic Grandfather · Ceiba tree"}
+PASS full app 1366x1024 {"side":"247.998px","zoom":"1.28","weff":"n1","doc":1351,"gen":"1 generation recorded","sub":"Synthetic Gran × Synthetic Grandfather · Ceiba tree"}
+b63 r9: full app layout passed
