@@ -39,6 +39,8 @@ const requests = new Map();
 const workerLogs = [];
 const swPosts = [];
 const chromeErr = [];
+const targetLog = [];
+let workerMemory = null;
 const serverLog = [];
 const inflight = new Map();
 const workers = new Set();
@@ -52,10 +54,19 @@ function mark(label) { phase = label; since = stamp(); }
 function note(msg) {
   if (!active() || !msg) return;
   const method = msg.method || '';
+  const params = msg.params || {};
+  if (method.indexOf('Target.') === 0) {
+    const info = params && (params.targetInfo || {});
+    targetLog.push({ method: method, type: info.type || params.type || '', url: info.url || '', session: (msg.sessionId || params.sessionId || '').slice(0, 8) });
+    if (targetLog.length > 40) targetLog.shift();
+  }
   if (method === 'Target.attachedToTarget') {
     const info = msg.params && msg.params.targetInfo;
     const sid = msg.params && msg.params.sessionId;
     if (sid && info && (info.type === 'service_worker' || info.type === 'worker')) workers.add(sid);
+    return;
+  }
+  if (method === 'Target.detachedFromTarget' || method === 'Target.targetDestroyed' || method === 'Target.targetCrashed') {
     return;
   }
   if (method === 'Runtime.consoleAPICalled' || method === 'Runtime.exceptionThrown') {
@@ -68,7 +79,6 @@ function note(msg) {
     return;
   }
   if (method !== 'Network.requestWillBeSent' && method !== 'Network.responseReceived' && method !== 'Network.loadingFinished' && method !== 'Network.loadingFailed' && method !== 'Network.requestServedFromCache') return;
-  const params = msg.params || {};
   const id = params.requestId;
   if (!id) return;
   const key = (msg.sessionId || 'page') + ':' + id;
@@ -166,12 +176,47 @@ function dump(label) {
   console.error('TRACE server-inflight ' + JSON.stringify(open));
   console.error('TRACE server ' + served.map((row) => row.status + ' ' + row.ms + 'ms ' + row.url).join(' || '));
   console.error('TRACE page ' + JSON.stringify(pageCache));
-  console.error('TRACE worker ' + (workerLogs.join(' || ') || '(none)'));
-  console.error('TRACE sw-post ' + (swPosts.join(' || ') || '(none)'));
+  console.error('TRACE targets ' + JSON.stringify(targetLog));
+  console.error('TRACE sw-mem ' + summarizeMemory(workerMemory));
   console.error('TRACE chrome-stderr ' + (chromeErr.join(' | ') || '(none)'));
 }
+function summarizeMemory(memory) {
+  if (!memory) return '(not read)';
+  const interesting = /build18\.js|build49\.js|build57\.js|build63\.js|\/app\.js|respond-reject|deliver-error|unhandled|phase":"error/;
+  const parts = ['sessions=' + memory.sessions, 'targets=' + JSON.stringify(memory.targets)];
+  (memory.logs || []).forEach((item) => {
+    if (item.error) { parts.push('read-error ' + item.error); return; }
+    const rows = Array.isArray(item.log) ? item.log : [];
+    const events = rows.filter((row) => row && row.phase === 'event').length;
+    const focus = rows.filter((row) => interesting.test(JSON.stringify(row)));
+    parts.push('events=' + events + ' focus=' + JSON.stringify(focus));
+  });
+  return parts.join(' ');
+}
 
+async function readWorkerMemory(send) {
+  const targets = [];
+  try {
+    const listed = await send('Target.getTargets', {}, '', 3000);
+    (listed.targetInfos || []).forEach((info) => {
+      if (info.type === 'service_worker' || info.type === 'worker' || info.type === 'page') {
+        targets.push({ type: info.type, url: info.url || '', attached: !!info.attached });
+      }
+    });
+  } catch (e) { targets.push({ error: String(e && e.message || e) }); }
+  const logs = [];
+  if (!workers.size) logs.push({ error: 'no worker target session was attached' });
+  for (const sid of workers) {
+    try {
+      const res = await send('Runtime.evaluate', { expression: 'JSON.stringify(self.__b63SwLog||null)', returnByValue: true }, sid, 3000);
+      const raw = res && res.result ? res.result.value : null;
+      logs.push({ session: sid.slice(0, 8), log: raw ? JSON.parse(raw) : null, exception: !!(res && res.exceptionDetails) });
+    } catch (e) { logs.push({ session: sid.slice(0, 8), error: String(e && e.message || e) }); }
+  }
+  workerMemory = { targets: targets, sessions: workers.size, logs: logs };
+}
 function noteSw(body) { if (swPosts.length < 200) swPosts.push(String(body).slice(0, 900)); }
 function noteChrome(text) { const line = String(text).replace(/\s+/g, ' ').trim(); if (line && chromeErr.length < 40) chromeErr.push(line.slice(0, 400)); }
 function workerTrace() { return workerLogs.slice(); }
-module.exports = { applyArgs, active, cpuRate, mark, note, noteSw, noteChrome, server, arm, enableWorker, applyCpu, readPage, dump, workerTrace };
+function memoryText() { return summarizeMemory(workerMemory); }
+module.exports = { applyArgs, active, cpuRate, mark, note, noteSw, noteChrome, server, arm, enableWorker, applyCpu, readPage, readWorkerMemory, dump, workerTrace, memoryText };

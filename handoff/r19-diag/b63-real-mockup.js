@@ -256,10 +256,13 @@ async function runBrowser(opts) {
         ready = await evaluate('(() => { const boot = window.__b63Boot || null; const errors = window.__b63Errors || []; const deps = { switchView: typeof switchView, b18BrPageHtml: typeof b18BrPageHtml, B49: !!(window.B49 && window.B49.openPage), B57: typeof B57 !== "undefined", B63: typeof B63 !== "undefined" }; return { repair: window.__b63RepairReady === true, detail: window.__b63RepairState || null, controller: !!(navigator.serviceWorker && navigator.serviceWorker.controller), boot: boot, deps: deps, errors: errors, ok: !!(boot && boot.ready && window.__b63RepairReady === true && deps.switchView === "function" && deps.b18BrPageHtml === "function" && deps.B49 && deps.B57 && deps.B63 && errors.length === 0) }; })()');
         if (!ready || !ready.ok) await sleep(50);
       }
-      if (!ready || !ready.ok) { if (trace.active()) await trace.readPage(send); fail('the app did not finish loading ' + JSON.stringify(ready) + ' ' + logs.slice(-6).join(' | ')); }
-      if (process.env.B63_SW_DIAG === '1' && trace.workerTrace) {
-        const lines = trace.workerTrace().filter((line) => /build18\.js|app\.js|unhandled|"event"/.test(line));
-        console.error('SWDIAG captured ' + trace.workerTrace().length + ' sample ' + lines.slice(-4).join(' || '));
+      if (!ready || !ready.ok) {
+        if (trace.active()) { await trace.readPage(send); if (trace.readWorkerMemory) await trace.readWorkerMemory(send); }
+        fail('the app did not finish loading ' + JSON.stringify(ready) + ' ' + logs.slice(-6).join(' | '));
+      }
+      if (process.env.B63_SW_DIAG === '1' && trace.readWorkerMemory) {
+        await trace.readWorkerMemory(send);
+        console.error('SWMEM ' + (trace.memoryText ? trace.memoryText() : 'unread'));
       }
       await send('Emulation.setDeviceMetricsOverride', { width: w, height: h, deviceScaleFactor: 1, mobile: w < 900 });
       const opened = await evaluate(`(() => {

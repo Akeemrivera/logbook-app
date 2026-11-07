@@ -229,10 +229,12 @@ function describeRequest(request) {
   try { request.headers.forEach((value, name) => { if (/range|accept|cache|purpose|sec-fetch/i.test(name)) headers[name] = value; }); } catch (e) {}
   return { url: request.url, mode: request.mode, destination: request.destination, cache: request.cache, credentials: request.credentials, redirect: request.redirect, integrity: request.integrity || '', headers: headers };
 }
-function swdiag(entry) {
-  let line = '';
-  try { line = JSON.stringify(entry); console.log('SWDIAG ' + line); } catch (e) { return; }
-  try { fetch(new URL('/__swdiag', self.location).href, { method: 'POST', body: line, headers: { 'content-type': 'application/json' } }).catch(() => {}); } catch (e) {}
+function mem(entry) {
+  try {
+    const log = self.__b63SwLog || (self.__b63SwLog = []);
+    log.push(entry);
+    if (log.length > 400) log.shift();
+  } catch (e) {}
 }
 function matchUrlDiag(request, bag) {
   const started = Date.now();
@@ -249,9 +251,10 @@ function matchUrlDiag(request, bag) {
     return caches.match(request.url).then((byUrl) => { bag.urlMatch = describeResponse(byUrl); return byUrl; }, (error2) => { bag.urlMatch = { error: String(error2 && error2.message || error2) }; return null; });
   });
 }
-self.addEventListener('error', (event) => swdiag({ event: 'error', message: String(event.message || (event.error && event.error.stack) || event.error || '') }));
-self.addEventListener('unhandledrejection', (event) => swdiag({ event: 'unhandledrejection', message: String(event.reason && (event.reason.stack || event.reason.message) || event.reason || '') }));
+self.addEventListener('error', (event) => mem({ phase: 'error', message: String(event.message || (event.error && event.error.stack) || event.error || '') }));
+self.addEventListener('unhandledrejection', (event) => mem({ phase: 'unhandledrejection', message: String(event.reason && (event.reason.stack || event.reason.message) || event.reason || '') }));
 self.addEventListener('fetch', (event) => {
+  mem({ phase: 'event', url: event.request.url, destination: event.request.destination, mode: event.request.mode, cache: event.request.cache });
   if (event.request.method !== 'GET' || !sameOrigin(event.request)) return;
   if (repairRequest(event.request)) {
     event.respondWith(repairResponse(event.request));
@@ -261,41 +264,39 @@ self.addEventListener('fetch', (event) => {
   const copy = copyBody(event.request);
   let networkRequest = event.request;
   try { networkRequest = event.request.clone(); bag.clone = 'ok'; } catch (e) { networkRequest = event.request; bag.clone = String(e && e.message || e); }
-  const watched = bag.destination === 'script' || bag.destination === 'document' || bag.destination === 'style';
   event.respondWith(matchUrlDiag(event.request, bag).then((found) => {
     if (found) {
       bag.outcome = bag.requestMatch && bag.requestMatch.hit ? 'request-hit' : 'url-hit';
-      if (!copy) { if (watched) swdiag(bag); return found; }
-      return deliver(found, event.request.url).then((out) => { bag.deliver = describeResponse(out); bag.deliverSame = out === found; if (watched) swdiag(bag); return out; });
+      mem({ phase: 'match', url: bag.url, outcome: bag.outcome, requestMatch: bag.requestMatch, urlMatch: bag.urlMatch });
+      if (!copy) return found;
+      return deliver(found, event.request.url).then((out) => { mem({ phase: 'deliver', url: bag.url, deliver: describeResponse(out), same: out === found }); return out; }, (error) => { mem({ phase: 'deliver-error', url: bag.url, message: String(error && error.message || error) }); return Promise.reject(error); });
     }
     return fetch(networkRequest).then((response) => {
       bag.fetch = describeResponse(response);
       bag.outcome = 'network';
       remember(event.request, response);
-      if (!copy) { if (watched) swdiag(bag); return response; }
-      return deliver(response, event.request.url).then((out) => { bag.deliver = describeResponse(out); if (watched) swdiag(bag); return out; });
+      mem({ phase: 'network', url: bag.url, fetch: bag.fetch });
+      if (!copy) return response;
+      return deliver(response, event.request.url).then((out) => { mem({ phase: 'deliver', url: bag.url, deliver: describeResponse(out) }); return out; });
     }).catch((error) => matchUrlDiag(event.request, bag).then((again) => {
       bag.fetchError = String(error && (error.stack || error.message) || error);
       if (again) {
         bag.outcome = 'recovered';
-        if (!copy) { swdiag(bag); return again; }
-        return deliver(again, event.request.url).then((out) => { bag.deliver = describeResponse(out); swdiag(bag); return out; });
+        mem({ phase: 'recovered', url: bag.url, fetchError: bag.fetchError });
+        if (!copy) return again;
+        return deliver(again, event.request.url).then((out) => out);
       }
       if (event.request.mode === 'navigate') {
         return caches.match('./index.html').then((shell) => {
-          bag.outcome = shell ? 'navigation-shell' : 'reject';
-          swdiag(bag);
+          mem({ phase: shell ? 'navigation-shell' : 'reject', url: bag.url, fetchError: bag.fetchError });
           return shell ? deliver(shell, event.request.url) : Promise.reject(new Error('unavailable'));
         });
       }
-      bag.outcome = 'reject';
-      swdiag(bag);
+      mem({ phase: 'reject', url: bag.url, fetchError: bag.fetchError });
       return Promise.reject(error);
     }));
   }).then((response) => response, (error) => {
-    bag.outcome = bag.outcome || 'respond-reject';
-    bag.respondError = String(error && (error.stack || error.message) || error);
-    swdiag(bag);
+    mem({ phase: 'respond-reject', url: bag.url, message: String(error && (error.stack || error.message) || error) });
     return Promise.reject(error);
   }));
 });
