@@ -14,7 +14,15 @@ function check(name, fn) {
   } catch (error) {
     FAIL.push(name);
     console.error('FAIL', name, error.message);
+    console.error('FAILED', FAIL.length);
+    process.exit(1);
   }
+}
+function fixtureAppAt61(text) {
+  const found = String(text).match(/const APP_BUILD = '(\d+)';/);
+  if (!found) throw new Error('sample app.js has no APP_BUILD line');
+  if (found[1] !== '61' && found[1] !== '62') throw new Error(`sample APP_BUILD ${found[1]} is not 61 or 62`);
+  return String(text).replace(/const APP_BUILD = '\d+';/, "const APP_BUILD = '61';");
 }
 function throws(fn) {
   try { fn(); return ''; } catch (error) { return error.message; }
@@ -31,6 +39,8 @@ function tree(name) {
     if (!fs.existsSync(from)) throw new Error(`PHASE1_SAMPLE_ROOT is missing ${rel} (${SAMPLE_ROOT})`);
     fs.copyFileSync(from, path.join(root, rel));
   }
+  const copiedApp = path.join(root, 'app.js');
+  fs.writeFileSync(copiedApp, fixtureAppAt61(fs.readFileSync(copiedApp, 'utf8')));
   fs.mkdirSync(path.join(root, 'ios/App/App.xcodeproj/xcshareddata/xcschemes'), { recursive: true });
   fs.mkdirSync(path.join(root, 'ios/App/App'), { recursive: true });
   fs.mkdirSync(path.join(root, 'scripts'), { recursive: true });
@@ -98,10 +108,17 @@ if (!SAMPLE_ROOT) {
   console.log('SAMPLE NOT RUN. Set PHASE1_SAMPLE_ROOT to the phase 1 directory that contains app.js and build13.js, then rerun.');
   console.log('Example: PHASE1_SAMPLE_ROOT="$HOME/Documents/Apps/Logbook/Builds/logbook-b61-phase1" node phase1-release-prep.test.js');
 } else {
+const sampleAppPath = path.join(SAMPLE_ROOT, 'app.js');
+const samplePbxPath = path.join(SAMPLE_ROOT, 'ios/App/App.xcodeproj/project.pbxproj');
+const sampleAppBefore = fs.readFileSync(sampleAppPath);
+const samplePbxBefore = fs.existsSync(samplePbxPath) ? fs.readFileSync(samplePbxPath) : null;
 const root = tree('phase1-prep-');
 check('check leaves build 61 in place', () => {
   prep.assertTree(root);
-  if (!fs.readFileSync(path.join(root, 'app.js'), 'utf8').includes("const APP_BUILD = '61';")) throw new Error('build changed');
+  if (!fs.readFileSync(path.join(root, 'app.js'), 'utf8').includes("const APP_BUILD = '61';")) throw new Error('fixture app.js was not normalized to 61');
+  if (!fs.readFileSync(path.join(root, 'ios/App/App.xcodeproj/project.pbxproj'), 'utf8').includes('CURRENT_PROJECT_VERSION = 61;')) throw new Error('fixture project was not 61');
+  if (!fs.readFileSync(sampleAppPath).equals(sampleAppBefore)) throw new Error('real sample app.js changed');
+  if (samplePbxBefore && !fs.readFileSync(samplePbxPath).equals(samplePbxBefore)) throw new Error('real sample project changed');
 });
 check('prep sets the given build and keeps production ids', () => {
   const result = prep.prep({ root, build: '62', confirm: true });
@@ -121,8 +138,16 @@ check('prep sets the given build and keeps production ids', () => {
   if (!result.manifest.includes('6820774919') || !result.manifest.includes('no build 62')) throw new Error('manifest');
   if (!result.manifest.includes('upload: not performed')) throw new Error('manifest upload');
   prep.assertInternalPlist(fs.readFileSync(result.plistPath, 'utf8'));
+  if (!fs.readFileSync(sampleAppPath).equals(sampleAppBefore)) throw new Error('real sample app.js changed');
+  if (samplePbxBefore && !fs.readFileSync(samplePbxPath).equals(samplePbxBefore)) throw new Error('real sample project changed');
 });
 }
+check('a copied build 62 app.js becomes fixture build 61', () => {
+  const text = "const APP_VERSION = '1.0';\nconst APP_BUILD = '62';\n";
+  const normalized = fixtureAppAt61(text);
+  if (text !== "const APP_VERSION = '1.0';\nconst APP_BUILD = '62';\n") throw new Error('source text changed');
+  if (!normalized.includes("const APP_BUILD = '61';")) throw new Error(normalized);
+});
 check('build 61 is refused', () => {
   const msg = throws(() => prep.requireBuild({ build: '61', confirm: true }));
   if (!msg.includes('62')) throw new Error(msg || 'no error');
@@ -347,7 +372,7 @@ if (SAMPLE_ROOT) {
     for (const rel of ['media-store.js', 'styles.css', 'service-worker.js', 'build59.css', 'build59.js', 'build13.js']) {
       fs.copyFileSync(path.join(SAMPLE_ROOT, rel), path.join(pub, rel));
     }
-    const appJs = fs.readFileSync(path.join(SAMPLE_ROOT, 'app.js'), 'utf8').replace("const APP_BUILD = '61';", "const APP_BUILD = '62';");
+    const appJs = fixtureAppAt61(fs.readFileSync(path.join(SAMPLE_ROOT, 'app.js'), 'utf8')).replace("const APP_BUILD = '61';", "const APP_BUILD = '62';");
     fs.writeFileSync(path.join(pub, 'app.js'), appJs);
     const result = prep.adoptArchive({ root, archive: archivePath, home });
     const record = path.join(root, 'build/release/archive-path.txt');
