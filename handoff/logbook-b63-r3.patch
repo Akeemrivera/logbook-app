@@ -1,0 +1,295 @@
+diff -ruN -U3 --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b63-rev2/build57.js b62-app/build57.js
+--- a/build57.js	2026-11-07 14:55:02.725006539 +0000
++++ b/build57.js	2026-11-07 15:24:57.918268302 +0000
+@@ -162,7 +162,7 @@
+     if (g.key === '?') return `<div class="b59-pc pt" data-partner="?" data-node="?"><span class="b57-ph mono big" aria-hidden="true">?</span></div>`;
+     return `<button type="button" class="b59-pc pt" data-b57="sel" data-node="${esc(g.key)}" data-k="${esc(g.key)}" data-partner="${esc(g.key)}" aria-label="${esc(name(g.key))}, bred with this plant">${ph(g.key, 1)}</button>`;
+   }
+-  const pLab = (g) => `<div class="b59-plab"><b>${esc(g.self ? 'Itself' : g.key === '?' ? 'Unknown' : name(g.key))}</b><small>${g.self ? 'Self-pollinated · S1' : `Also crossed with · ${g.side}`}</small></div>`;
++  const pLab = (g) => `<div class="b59-plab"><b>${esc(g.self ? 'Itself' : g.key === '?' ? 'Unknown' : name(g.key))}</b><small>${g.self ? 'Self-pollinated · S1' : `Bred with · ${g.side}`}</small></div>`;
+   function fam(k, ks, o = {}) {
+     const G = partners(k, ks); const rest = ks.filter((x) => !G.some((g) => g.kids.includes(x)));
+     const ban = `<div class="b57-ban"><b>${esc(name(k))}${gen(k) ? ` · ${esc(gen(k))}` : ''}</b><small>${esc(crossTxt(k))}</small></div>`;
+diff -ruN -U3 --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b63-rev2/build63.css b62-app/build63.css
+--- a/build63.css	2026-11-07 15:15:10.202496324 +0000
++++ b/build63.css	2026-11-07 15:24:58.874270900 +0000
+@@ -61,7 +61,7 @@
+   scroll-snap-type: none;
+ }
+ .b57-row, .b59-kids, .b60-col { flex-wrap: wrap; max-width: 100%; }
+-.b57-n, .b60-col > .b60-c { flex: 1 1 8rem; width: auto; max-width: 100%; min-width: 0; }
++.b57-n { flex: 1 1 8rem; width: auto; max-width: 100%; min-width: 0; }
+ .b57-n b, .b57-n small {
+   white-space: normal;
+   overflow-wrap: break-word;
+@@ -69,8 +69,10 @@
+   hyphens: manual;
+   max-width: 100%;
+ }
+-.b60-full { max-width: 100%; }
+-.b60-c { flex: 1 1 100%; min-width: 0; max-width: 100%; }
++.b60-full, .b60-cols { width: 100%; max-width: 100%; }
++.b60-col { flex: 1 1 0; min-width: 0; }
++.b60-col > .b60-c { flex: 1 1 calc(50% - 8px); width: auto; min-width: 0; max-width: 100%; box-sizing: border-box; }
++.b60-col > .b60-c:only-child { flex: 1 1 100%; }
+ .b57 .b18-h1, .b57-subt, .b57-tools { max-width: 100%; overflow-wrap: break-word; word-break: normal; }
+ @media (max-width: 720px) {
+   .b60-cols { gap: 8px; }
+diff -ruN -U3 --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b63-rev2/ios/App/App/public/build57.js b62-app/ios/App/App/public/build57.js
+--- a/ios/App/App/public/build57.js	2026-11-07 15:15:46.778330645 +0000
++++ b/ios/App/App/public/build57.js	2026-11-07 15:25:22.482337013 +0000
+@@ -162,7 +162,7 @@
+     if (g.key === '?') return `<div class="b59-pc pt" data-partner="?" data-node="?"><span class="b57-ph mono big" aria-hidden="true">?</span></div>`;
+     return `<button type="button" class="b59-pc pt" data-b57="sel" data-node="${esc(g.key)}" data-k="${esc(g.key)}" data-partner="${esc(g.key)}" aria-label="${esc(name(g.key))}, bred with this plant">${ph(g.key, 1)}</button>`;
+   }
+-  const pLab = (g) => `<div class="b59-plab"><b>${esc(g.self ? 'Itself' : g.key === '?' ? 'Unknown' : name(g.key))}</b><small>${g.self ? 'Self-pollinated · S1' : `Also crossed with · ${g.side}`}</small></div>`;
++  const pLab = (g) => `<div class="b59-plab"><b>${esc(g.self ? 'Itself' : g.key === '?' ? 'Unknown' : name(g.key))}</b><small>${g.self ? 'Self-pollinated · S1' : `Bred with · ${g.side}`}</small></div>`;
+   function fam(k, ks, o = {}) {
+     const G = partners(k, ks); const rest = ks.filter((x) => !G.some((g) => g.kids.includes(x)));
+     const ban = `<div class="b57-ban"><b>${esc(name(k))}${gen(k) ? ` · ${esc(gen(k))}` : ''}</b><small>${esc(crossTxt(k))}</small></div>`;
+diff -ruN -U3 --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b63-rev2/ios/App/App/public/build63.css b62-app/ios/App/App/public/build63.css
+--- a/ios/App/App/public/build63.css	2026-11-07 15:15:46.786330613 +0000
++++ b/ios/App/App/public/build63.css	2026-11-07 15:25:22.482337013 +0000
+@@ -61,7 +61,7 @@
+   scroll-snap-type: none;
+ }
+ .b57-row, .b59-kids, .b60-col { flex-wrap: wrap; max-width: 100%; }
+-.b57-n, .b60-col > .b60-c { flex: 1 1 8rem; width: auto; max-width: 100%; min-width: 0; }
++.b57-n { flex: 1 1 8rem; width: auto; max-width: 100%; min-width: 0; }
+ .b57-n b, .b57-n small {
+   white-space: normal;
+   overflow-wrap: break-word;
+@@ -69,8 +69,10 @@
+   hyphens: manual;
+   max-width: 100%;
+ }
+-.b60-full { max-width: 100%; }
+-.b60-c { flex: 1 1 100%; min-width: 0; max-width: 100%; }
++.b60-full, .b60-cols { width: 100%; max-width: 100%; }
++.b60-col { flex: 1 1 0; min-width: 0; }
++.b60-col > .b60-c { flex: 1 1 calc(50% - 8px); width: auto; min-width: 0; max-width: 100%; box-sizing: border-box; }
++.b60-col > .b60-c:only-child { flex: 1 1 100%; }
+ .b57 .b18-h1, .b57-subt, .b57-tools { max-width: 100%; overflow-wrap: break-word; word-break: normal; }
+ @media (max-width: 720px) {
+   .b60-cols { gap: 8px; }
+diff -ruN -U3 --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b63-rev2/scripts/b63-integration.test.js b62-app/scripts/b63-integration.test.js
+--- a/scripts/b63-integration.test.js	2026-11-07 15:15:22.442437730 +0000
++++ b/scripts/b63-integration.test.js	2026-11-07 15:25:01.486278026 +0000
+@@ -207,12 +207,15 @@
+   const ids = lines.map((x) => x.k).filter(Boolean);
+   if (ids.filter((k) => k === 'tx:Typed Parent').length > 1) throw new Error('repeated ' + ids.join(','));
+ });
+-check('tree page hides the configured partner and says Also crossed with', () => {
++check('tree page hides the configured partner and uses the documented partner label', () => {
+   g.B18.brPage = { type: 'b49tree', key: 'mf:m-live', forceStyle: 2 };
+   const html = g.b18BrPageHtml();
+   if (!html.includes('Family tree')) throw new Error('header');
+   if (html.includes('scroll sideways')) throw new Error('scroll wording');
+-  if (!html.includes('Also crossed with')) throw new Error(html.slice(0, 500));
++  if (!html.includes('Bred with')) throw new Error(html.slice(0, 500));
++  const mark = g.B57.ph('mf:m-live');
++  if (!mark.includes('b57-ph mono') || mark.includes('background-image')) throw new Error(mark);
++  if (!/[A-Za-z?]/.test(mark.replace(/<[^>]+>/g, ''))) throw new Error('empty circle');
+   if (html.includes('m-hide') || html.includes('Mother Hide')) throw new Error('hidden partner');
+   if (html.includes('data-k="mf:f-other"') && html.includes('pr:pr-linked')) throw new Error('wrong partner');
+ });
+@@ -226,7 +229,13 @@
+   const right = cols.filter((c) => c.startsWith('r"')).join('\n');
+   if (!right.includes('b60-c origin') || !right.includes('District One')) throw new Error(right);
+   if (left.includes('b60-c origin') || left.includes('District One')) throw new Error(left);
+-  if (!html.includes('Not recorded')) throw new Error('placeholder');
++  if (!html.includes('Not recorded') || !html.includes('Parents of')) throw new Error('placeholder');
++  state.motherFatherPlants.push({ id: 'm-twice', name: 'Twice', role: 'mother', status: 'Active', treeStyle: 2, b49Mother: 'mf:f-origin', b49Father: 'mf:f-origin' });
++  const twice = g.B60.line('mf:m-twice').flat();
++  state.motherFatherPlants.pop();
++  const full = twice.filter((c) => c.t === 'plant' && c.k === 'mf:f-origin');
++  const refs = twice.filter((c) => c.t === 'ref' && c.k === 'mf:f-origin');
++  if (full.length !== 1 || !refs.length) throw new Error(JSON.stringify(twice.map((c) => c.t + ':' + (c.k || c.of))));
+   const record = state.motherFatherPlants.find((m) => m.id === 'f-other');
+   g.B63.configure({ hideIds: ['m-hide', 'p-hide'], originById: { 'f-other': { originRegion: 'View Region', landrace: true } } });
+   const over = g.B60.line('mf:f-other').flat();
+diff -ruN -U3 --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b63-rev2/scripts/b63-r3.test.js b62-app/scripts/b63-r3.test.js
+--- a/scripts/b63-r3.test.js	1970-01-01 00:00:00.000000000 +0000
++++ b/scripts/b63-r3.test.js	2026-11-07 15:25:38.390383648 +0000
+@@ -0,0 +1,109 @@
++'use strict';
++const fs = require('fs');
++const path = require('path');
++const { spawnSync } = require('child_process');
++const ROOT = path.join(__dirname, '..');
++const FAIL = [];
++function check(name, fn) {
++  try { fn(); console.log('PASS', name); }
++  catch (e) { FAIL.push(name); console.error('FAIL', name, e && e.stack || e); process.exit(1); }
++}
++check('qa config accepts build 63 and still isolates QA', () => {
++  const py = fs.readFileSync(path.join(ROOT, 'scripts/verify-qa-config.py'), 'utf8');
++  ['QA_ISOLATION', 'App/App.qa.entitlements', 'com.borikengenetics.logbookapp.qa', 'qa_ent', 'This QA build cannot use iCloud.'].forEach((s) => {
++    if (!py.includes(s)) throw new Error('isolation check removed: ' + s);
++  });
++  const run = spawnSync('python3', ['scripts/verify-qa-config.py'], { cwd: ROOT, encoding: 'utf8' });
++  if (run.status !== 0) throw new Error((run.stdout || '') + (run.stderr || ''));
++  if (!/PASS qa config/.test(run.stdout)) throw new Error(run.stdout);
++});
++check('documented sidebar is 248px with the device footer and Lineage loads after it', () => {
++  const index = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
++  const wideAt = index.indexOf('src="wide.js"');
++  const treeAt = index.indexOf('src="build57.js"');
++  if (wideAt < 0 || treeAt < wideAt) throw new Error('wide.js is not before build57.js');
++  const wide = fs.readFileSync(path.join(ROOT, 'wide.js'), 'utf8');
++  const css = fs.readFileSync(path.join(ROOT, 'wide.css'), 'utf8');
++  const tree = fs.readFileSync(path.join(ROOT, 'build57.js'), 'utf8');
++  if (!wide.includes('Saved on this device')) throw new Error('footer');
++  if (!/width:\s*248px/.test(css)) throw new Error('sidebar width');
++  if (!tree.includes("id === 'lineage'")) throw new Error('lineage not inserted into the sidebar list');
++  if (!tree.includes('Bred with')) throw new Error('partner label');
++});
++function sleep(ms) { return new Promise((r) => setTimeout(r, ms)); }
++async function halves() {
++  const html = '/tmp/b63-r3-halves.html';
++  const css = ['build57.css', 'build60.css', 'build63.css'].map((f) => '<link rel="stylesheet" href="file://' + path.join(ROOT, f) + '">').join('');
++  fs.writeFileSync(html, '<!doctype html><html><head><meta name="viewport" content="width=device-width, initial-scale=1">' + css + '</head><body style="margin:0">'
++    + '<div class="b60-cols"><div class="b60-col l"><button class="b60-c">Left one</button><button class="b60-c">Left two</button></div>'
++    + '<div class="b60-col r"><button class="b60-c">Wide card</button></div></div></body></html>');
++  const port = 9334;
++  const dir = '/tmp/b63-r3-chrome';
++  fs.rmSync(dir, { recursive: true, force: true });
++  const proc = require('child_process').spawn('/opt/google/chrome/chrome', [
++    '--headless=new', '--disable-gpu', '--no-sandbox', '--disable-dev-shm-usage',
++    '--user-data-dir=' + dir, '--remote-debugging-port=' + port, 'about:blank',
++  ], { stdio: 'ignore' });
++  const pending = new Map();
++  let n = 0;
++  try {
++    let page = null;
++    for (let i = 0; i < 50 && !page; i++) {
++      try {
++        const list = await (await fetch('http://127.0.0.1:' + port + '/json/list')).json();
++        page = list.find((t) => t.type === 'page' && t.webSocketDebuggerUrl);
++      } catch (e) { await sleep(100); }
++    }
++    if (!page) throw new Error('chrome did not open');
++    const ws = new WebSocket(page.webSocketDebuggerUrl);
++    await new Promise((resolve, reject) => { ws.addEventListener('open', resolve); ws.addEventListener('error', reject); });
++    ws.addEventListener('message', (ev) => {
++      const msg = JSON.parse(ev.data);
++      if (msg.id && pending.has(msg.id)) { const done = pending.get(msg.id); pending.delete(msg.id); done(msg); }
++    });
++    function send(method, params) {
++      const id = ++n;
++      return new Promise((resolve, reject) => {
++        const timer = setTimeout(() => reject(new Error('timeout ' + method)), 8000);
++        pending.set(id, (msg) => { clearTimeout(timer); if (msg.error) reject(new Error(JSON.stringify(msg.error))); else resolve(msg.result); });
++        ws.send(JSON.stringify({ id, method, params: params || {} }));
++      });
++    }
++    await send('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: true, scale: 1 });
++    await send('Page.enable');
++    await send('Page.navigate', { url: 'file://' + html });
++    for (let i = 0; i < 80; i++) {
++      const ready = await send('Runtime.evaluate', { expression: 'document.querySelectorAll(".b60-c").length', returnByValue: true });
++      if (ready.result && ready.result.value === 3) break;
++      await sleep(50);
++    }
++    await send('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: true, scale: 1 });
++    const measured = await send('Runtime.evaluate', { expression: `(() => {
++      const view = window.innerWidth;
++      const cols = [...document.querySelectorAll('.b60-col')].map((c) => {
++        const r = c.getBoundingClientRect();
++        const cards = [...c.querySelectorAll('.b60-c')].map((el) => el.getBoundingClientRect());
++        return { w: r.width, left: r.left, right: r.right, scroll: c.scrollWidth > c.clientWidth + 1, cards: cards.map((x) => ({ l: x.left, r: x.right, w: x.width, t: x.top })) };
++      });
++      return { view, doc: document.documentElement.scrollWidth, cols };
++    })()`, returnByValue: true });
++    return measured.result.value;
++  } finally { proc.kill('SIGKILL'); }
++}
++halves().then((d) => {
++  if (d.view !== 390 || d.doc > 390) throw new Error('page ' + JSON.stringify(d));
++  const [left, right] = d.cols;
++  if (!left || !right) throw new Error('columns');
++  if (Math.abs(left.w - right.w) > 2) throw new Error('halves ' + JSON.stringify(d));
++  if (left.scroll || right.scroll) throw new Error('column scroll ' + JSON.stringify(d));
++  if (left.cards.length !== 2 || right.cards.length !== 1) throw new Error('cards');
++  if (Math.abs(left.cards[0].t - left.cards[1].t) > 1) throw new Error('left cards stacked ' + JSON.stringify(left));
++  if (left.cards[0].r > left.right + 1 || left.cards[1].r > left.right + 1) throw new Error('left overflow');
++  if (right.cards[0].w < right.w * 0.9) throw new Error('right card is not the wide card ' + JSON.stringify(right));
++  if (right.cards[0].r > 390.5) throw new Error('right past viewport');
++  console.log('PASS equal halves at 390', JSON.stringify({ left: Math.round(left.w), right: Math.round(right.w), wide: Math.round(right.cards[0].w), doc: d.doc }));
++  console.log('b63 r3: all checks passed');
++}).catch((e) => {
++  console.error('FAIL equal halves', e && e.stack || e);
++  process.exit(1);
++});
+diff -ruN -U3 --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b63-rev2/scripts/verify-qa-config.py b62-app/scripts/verify-qa-config.py
+--- a/scripts/verify-qa-config.py	2026-11-07 00:14:38.000000000 +0000
++++ b/scripts/verify-qa-config.py	2026-11-07 15:24:57.446267023 +0000
+@@ -1,6 +1,7 @@
+ #!/usr/bin/env python3
+ """Check the QA build mode in source. Does not compile or launch."""
+ import plistlib
++import re
+ import sys
+ from pathlib import Path
+ 
+@@ -45,13 +46,21 @@
+ cap = (root / "ios/App/App/capacitor.config.json").read_text()
+ need('"appId": "com.borikengenetics.logbookapp"' in cap, "capacitor appId was changed")
+ bw = (root / "scripts/build-www.js").read_text()
+-need("'build61.js'" in bw and "'build61.css'" in bw, "build-www.js does not pack build 61")
++need("'build61.js'" in bw and "'build61.css'" in bw, "build-www.js dropped the build 61 files")
+ rm_at = bw.find("fs.rmSync(www")
+ pre_at = bw.find("PREP REFUSED")
+ need(0 <= pre_at < rm_at, "www/ can still be deleted before the source check")
+ app = (root / "app.js").read_text()
+-need("const APP_BUILD = '61';" in app, "root app.js is not build 61")
++found = re.search(r"const APP_BUILD = '(\d+)';", app)
++need(bool(found), "root app.js has no numeric APP_BUILD")
++build = found.group(1) if found else ""
++versions = set(re.findall(r"CURRENT_PROJECT_VERSION = (\d+);", pbx))
++need(versions == {build}, f"APP_BUILD {build} does not match CURRENT_PROJECT_VERSION {', '.join(sorted(versions)) or 'none'}")
++need(f"'build{build}.js'" in bw and f"'build{build}.css'" in bw, f"build-www.js does not pack build {build}")
+ need("const APP_BUILD = '60';" not in app, "root app.js still says build 60")
++for rel in ("www/app.js", "ios/App/App/public/app.js"):
++    copy = (root / rel).read_text()
++    need(f"const APP_BUILD = '{build}';" in copy, f"{rel} is not build {build}")
+ 
+ if errors:
+     print("\n".join(f"FAIL {e}" for e in errors))
+diff -ruN -U3 --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b63-rev2/www/build57.js b62-app/www/build57.js
+--- a/www/build57.js	2026-11-07 15:15:46.778330645 +0000
++++ b/www/build57.js	2026-11-07 15:25:22.478337001 +0000
+@@ -162,7 +162,7 @@
+     if (g.key === '?') return `<div class="b59-pc pt" data-partner="?" data-node="?"><span class="b57-ph mono big" aria-hidden="true">?</span></div>`;
+     return `<button type="button" class="b59-pc pt" data-b57="sel" data-node="${esc(g.key)}" data-k="${esc(g.key)}" data-partner="${esc(g.key)}" aria-label="${esc(name(g.key))}, bred with this plant">${ph(g.key, 1)}</button>`;
+   }
+-  const pLab = (g) => `<div class="b59-plab"><b>${esc(g.self ? 'Itself' : g.key === '?' ? 'Unknown' : name(g.key))}</b><small>${g.self ? 'Self-pollinated · S1' : `Also crossed with · ${g.side}`}</small></div>`;
++  const pLab = (g) => `<div class="b59-plab"><b>${esc(g.self ? 'Itself' : g.key === '?' ? 'Unknown' : name(g.key))}</b><small>${g.self ? 'Self-pollinated · S1' : `Bred with · ${g.side}`}</small></div>`;
+   function fam(k, ks, o = {}) {
+     const G = partners(k, ks); const rest = ks.filter((x) => !G.some((g) => g.kids.includes(x)));
+     const ban = `<div class="b57-ban"><b>${esc(name(k))}${gen(k) ? ` · ${esc(gen(k))}` : ''}</b><small>${esc(crossTxt(k))}</small></div>`;
+diff -ruN -U3 --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b63-rev2/www/build63.css b62-app/www/build63.css
+--- a/www/build63.css	2026-11-07 15:15:46.786330613 +0000
++++ b/www/build63.css	2026-11-07 15:25:22.482337013 +0000
+@@ -61,7 +61,7 @@
+   scroll-snap-type: none;
+ }
+ .b57-row, .b59-kids, .b60-col { flex-wrap: wrap; max-width: 100%; }
+-.b57-n, .b60-col > .b60-c { flex: 1 1 8rem; width: auto; max-width: 100%; min-width: 0; }
++.b57-n { flex: 1 1 8rem; width: auto; max-width: 100%; min-width: 0; }
+ .b57-n b, .b57-n small {
+   white-space: normal;
+   overflow-wrap: break-word;
+@@ -69,8 +69,10 @@
+   hyphens: manual;
+   max-width: 100%;
+ }
+-.b60-full { max-width: 100%; }
+-.b60-c { flex: 1 1 100%; min-width: 0; max-width: 100%; }
++.b60-full, .b60-cols { width: 100%; max-width: 100%; }
++.b60-col { flex: 1 1 0; min-width: 0; }
++.b60-col > .b60-c { flex: 1 1 calc(50% - 8px); width: auto; min-width: 0; max-width: 100%; box-sizing: border-box; }
++.b60-col > .b60-c:only-child { flex: 1 1 100%; }
+ .b57 .b18-h1, .b57-subt, .b57-tools { max-width: 100%; overflow-wrap: break-word; word-break: normal; }
+ @media (max-width: 720px) {
+   .b60-cols { gap: 8px; }

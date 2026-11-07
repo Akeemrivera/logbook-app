@@ -1,0 +1,29 @@
+LATER UNBUILT. This is not applied to the native candidate and it is not a build.
+
+The handed-off snapshot stays revision 2. Patch SHA-256 37b268915cda56c30af0c78fc0b5db176d580aca2854fc7f1f8c5c056bf335ad. app.js SHA-256 b8bb53d61dd32dbf29aa5f62a0fb53bd72a5181670382801d3d87f1a9968d682. That tree is the one opened for the compile-only, signing-disabled Xcode session. Do not apply revision 3 onto it. The parent coordinates the next snapshot before any apply.
+
+Revision 3 incremental patch, against that frozen revision 2 tree: SHA-256 91a9540cd68fdf204030a4b463ccee2c18b6426b6d2062b1fb7f9eadca23fdfd. It applied cleanly onto a copy of revision 2. app.js is not in the patch and its hash is unchanged.
+
+Cumulative patch from the validated build 62 tree, including revision 2 plus revision 3: SHA-256 cead2d464c44a6f10d6b3994848ae8028b9b036129caf24b2c70a1b24c6bc5f4. Use the incremental patch to see only revision 3.
+
+Raw revision 3 test stdout SHA-256 ce42ece5d9239d4db45ffa90bc06987988c388d397720a5d5e1d3087a765f84d.
+Integration re-run after these edits also passed, including pagePast false and docWidth equal to the viewport at 320, 375, 390, 430, and 1024. That is a headless browser measurement. It is not device proof and it is not the native compile.
+
+What revision 3 changes:
+- scripts/verify-qa-config.py reads APP_BUILD from app.js, requires that number to match every CURRENT_PROJECT_VERSION, and requires build-www.js to pack build{N}.js and build{N}.css. It still requires the build 61 files to stay packed. The QA bundle, empty QA entitlements, QA_ISOLATION guards, and the iCloud rejection checks are the same. python3 scripts/verify-qa-config.py now prints PASS on this tree. It failed before only on the hardcoded 61.
+- build63.css lays the both-sides row as two equal columns. Two cards share a column. One card fills its column. At a 390 viewport the measured columns were 191 and 191, the single card was 191, and the document width was 390. This follows the build 60.1 note "equal width. Two left cards plus one wide right card" and the queue line that the cards fit the width without a per-side scroll.
+- build57.js partner label is back to the build 59 string "Bred with". "Also crossed with" was not an approved replacement.
+- Tests cover the monogram for a record with no photo, the exact "Not recorded" / "Parents of" slot, one full node plus a reference when the same parent id is on both sides, origin staying on the flagged side, and the sidebar facts below.
+
+Item by item:
+- Repeated branches. Implemented in revision 2 and checked again here. The same parent id on both sides is one full node and one reference, not two full nodes. Two different ids with the same display name stay two records. A record is not its own child.
+- Empty circles. The installed photo helper, when there is no photo, returns a monogram span with a letter and no background-image. The build 57 note says a missing photo is a neutral monogram, never a green ball. No separate empty-circle drawing was added.
+- Typed grandparent. Implemented. The rendered slot contains "Not recorded" and "Parents of".
+- Origin side. Implemented in revision 2. A flagged record's origin card is in that record's column. Writing origin text, or moving a card whose link is only a duplicate name, stays open because no record ids were supplied.
+- iPhone header. Not changed. The heading remains "Family tree". No file in this handoff gives a replacement sentence. The queue says "header wording" is open. The mockup folder named in CHANGES.md, mockups/2026-11-03_full-tree/optFull, is not in the handoff. The old "scroll sideways" instruction stays removed because the queue forbids that scroll. That is not a new title.
+- iPhone tree size. Equal halves and fit-width are implemented, as measured above. A larger card size that would "match the mockup" is not implemented. No pixel size for that mockup is in the handoff, so none was invented.
+- iPad sidebar. Not redesigned. The shipped sidebar is the documented 248px nav.w-side. The footer is "Saved on this device", which REVIEW_PREP.md records as the later wording after "Saved on this Mac". build57 inserts Lineage, and index.html loads wide.js before build57.js. The queue lists "iPad sidebar" with no replacement layout, so no new sidebar was written.
+- QA config. The stale build-61 check is updated as above. Isolation is unchanged.
+- Sample hide, record merge, origin write, name-only parent links, and the vanished-plant event. Still open. No record ids and no production metadata are in this patch. Local config remains boriken-b63-view or B63.configure, view only.
+
+No signing, keychain, account, archive, export, or upload work is in this revision.

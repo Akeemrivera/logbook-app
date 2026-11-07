@@ -1,0 +1,4 @@
+PASS qa config accepts build 63 and still isolates QA
+PASS documented sidebar is 248px with the device footer and Lineage loads after it
+PASS equal halves at 390 {"left":191,"right":191,"wide":191,"doc":390}
+b63 r3: all checks passed
