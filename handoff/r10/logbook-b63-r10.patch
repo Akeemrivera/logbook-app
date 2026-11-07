@@ -1,0 +1,541 @@
+--- a/scripts/b63-photo-missing.test.js	2026-11-07 16:57:55.331312284 +0000
++++ b/scripts/b63-photo-missing.test.js	2026-11-07 16:46:20.482972965 +0000
+@@ -184,7 +184,7 @@
+   });
+   const sw = fs.readFileSync(path.join(ROOT, 'service-worker.js'), 'utf8');
+   check('revision 5 cache name does not change this export path', () => {
+-    if (!sw.includes("boriken-genetics-logbook-app-v82")) throw new Error('worker');
++    if (!sw.includes("boriken-genetics-logbook-app-v83")) throw new Error('worker');
+     const fn = fs.readFileSync(path.join(ROOT, 'app.js'), 'utf8');
+     const start = fn.indexOf('async function buildFullBackupPayload');
+     const body = fn.slice(start, fn.indexOf('function snapshotCounts'));
+--- a/scripts/b63-r5.test.js	2026-11-07 16:57:55.331312284 +0000
++++ b/scripts/b63-r5.test.js	2026-11-07 16:46:20.150971685 +0000
+@@ -34,7 +34,8 @@
+   if (new Set(hashes).size !== 1) throw new Error(hashes.join(' '));
+   if (hashes[0] === REV4_SW_SHA) throw new Error('script bytes still match revision 4, so an update check would not install a worker');
+   const text = read('service-worker.js').toString('utf8');
+-  if (!text.includes("boriken-genetics-logbook-app-v82")) throw new Error('cache name');
++  if (!text.includes("boriken-genetics-logbook-app-v83")) throw new Error('cache name');
++  if (text.includes("boriken-genetics-logbook-app-v82")) throw new Error('v82 cache name still present');
+   if (text.includes("boriken-genetics-logbook-app-v81")) throw new Error('old cache name still present');
+   if (!text.includes("cache: 'reload'")) throw new Error('precache still uses the default HTTP cache');
+ });
+@@ -147,6 +148,9 @@
+   const oldCache = await scope.caches.open('boriken-genetics-logbook-app-v81');
+   await oldCache.put('https://localhost/build57.js', new Response('REV2-STALE', { status: 200 }));
+   await oldCache.put('https://localhost/build63.css', new Response('REV2-CSS', { status: 200 }));
++  const v82 = await scope.caches.open('boriken-genetics-logbook-app-v82');
++  await v82.put('https://localhost/build13.js', new Response('V82-STALE-BUILD13', { status: 200 }));
++  await v82.put('https://localhost/build58.js', new Response('V82-STALE-BUILD58', { status: 200 }));
+ 
+   const held = await scope.caches.match('https://localhost/build57.js');
+   if (!held || await held.text() !== 'REV2-STALE') throw new Error('seed failed');
+@@ -162,8 +166,9 @@
+   await fire(listeners, 'activate');
+   if (!scope.claimed) throw new Error('activate did not claim clients');
+   const names = await scope.caches.keys();
+-  if (names.includes('boriken-genetics-logbook-app-v81')) throw new Error('old cache kept ' + names.join(','));
+-  if (!names.includes('boriken-genetics-logbook-app-v82')) throw new Error('new cache missing ' + names.join(','));
++  if (names.includes('boriken-genetics-logbook-app-v81')) throw new Error('v81 cache kept ' + names.join(','));
++  if (names.includes('boriken-genetics-logbook-app-v82')) throw new Error('v82 cache kept ' + names.join(','));
++  if (!names.includes('boriken-genetics-logbook-app-v83')) throw new Error('new cache missing ' + names.join(','));
+ 
+   const precached = await scope.caches.match('https://localhost/build57.js');
+   const precachedBody = await precached.text();
+--- a/scripts/b63-sw-browser.test.js	2026-11-07 16:57:55.331312284 +0000
++++ b/scripts/b63-sw-browser.test.js	2026-11-07 16:57:47.367250456 +0000
+@@ -1,11 +1,11 @@
+ 'use strict';
+ /*
+-  Real Chrome service-worker update. This is not the revision 5 Node sandbox.
+-  A page registers a v81 worker that has already cached a stale build57.js.
+-  The server then serves the real service-worker.js (v82). Chrome must install
+-  that script, drop the v81 cache, and keep serving the new build57.js while
+-  the network is offline. If Chrome is missing, this test fails. It does not
+-  fall back to a simulated cache.
++  TEST FIXTURE. Not a user mockup and not part of the shipped app.
++  Real Chrome service-worker update. Not the Node sandbox.
++  One profile is already on v81. Another is already on v82, with stale
++  build13.js and build58.js. The server then serves the real worker (v83).
++  Chrome must install it, drop the old cache, and serve the on-disk files
++  online and offline. If Chrome is missing, this test fails.
+ */
+ const fs = require('fs');
+ const http = require('http');
+@@ -15,34 +15,43 @@
+ const ROOT = path.join(__dirname, '..');
+ const CHROME = '/opt/google/chrome/chrome';
+ const PORT = 9341;
+-const V81 = [
+-  "const CACHE_NAME = 'boriken-genetics-logbook-app-v81';",
+-  "self.addEventListener('install', (event) => {",
+-  "  event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.put('./build57.js', new Response('REV2-STALE', { status: 200, headers: { 'Content-Type': 'application/javascript' } }))).then(() => self.skipWaiting()));",
+-  '});',
+-  "self.addEventListener('activate', (event) => { event.waitUntil(self.clients.claim()); });",
+-  "self.addEventListener('fetch', (event) => {",
+-  "  if (event.request.method !== 'GET') return;",
+-  "  event.respondWith(caches.match(event.request).then((hit) => hit || fetch(event.request)));",
+-  '});',
+-  '',
+-].join('\n');
+-const PROBE = `<!doctype html><meta charset="utf-8"><title>sw probe</title><script>
+-navigator.serviceWorker.register('./service-worker.js').catch((e) => { window.__swErr = String(e); });
+-</script>`;
+-
+ if (!fs.existsSync(CHROME)) {
+   console.error('FAIL real Chrome is not installed at ' + CHROME + '. This test does not substitute a Node cache.');
+   process.exit(1);
+ }
+-
+-let swMode = 'v81';
++function sha(buf) { return crypto.createHash('sha256').update(buf).digest('hex'); }
++const EXPECT = {
++  'build13.js': sha(fs.readFileSync(path.join(ROOT, 'build13.js'))),
++  'build58.js': sha(fs.readFileSync(path.join(ROOT, 'build58.js'))),
++};
++function staleWorker(cacheName) {
++  return [
++    "const CACHE_NAME = '" + cacheName + "';",
++    "self.addEventListener('install', (event) => {",
++    "  event.waitUntil(caches.open(CACHE_NAME).then((cache) => Promise.all([",
++    "    cache.put('./build13.js', new Response('STALE-BUILD13', { status: 200, headers: { 'Content-Type': 'application/javascript' } })),",
++    "    cache.put('./build58.js', new Response('STALE-BUILD58', { status: 200, headers: { 'Content-Type': 'application/javascript' } }))",
++    "  ])).then(() => self.skipWaiting()));",
++    '});',
++    "self.addEventListener('activate', (event) => { event.waitUntil(self.clients.claim()); });",
++    "self.addEventListener('fetch', (event) => {",
++    "  if (event.request.method !== 'GET') return;",
++    "  event.respondWith(caches.match(event.request).then((hit) => hit || fetch(event.request)));",
++    '});',
++    '',
++  ].join('\n');
++}
++const PROBE = `<!doctype html><meta charset="utf-8"><title>sw probe</title><script>
++navigator.serviceWorker.register('./service-worker.js').catch((e) => { window.__swErr = String(e); });
++</script>`;
++let swMode = 'old';
++let oldCache = '';
+ const server = http.createServer((req, res) => {
+   const url = new URL(req.url, 'http://127.0.0.1:' + PORT);
+   let rel = decodeURIComponent(url.pathname);
+   res.setHeader('Cache-Control', 'no-store');
+   if (rel === '/service-worker.js') {
+-    const body = swMode === 'v81' ? V81 : fs.readFileSync(path.join(ROOT, 'service-worker.js'));
++    const body = swMode === 'old' ? staleWorker(oldCache) : fs.readFileSync(path.join(ROOT, 'service-worker.js'));
+     res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
+     res.end(body);
+     return;
+@@ -54,133 +63,112 @@
+   }
+   if (rel === '/') rel = '/index.html';
+   const file = path.normalize(path.join(ROOT, rel.replace(/^\/+/, '')));
+-  if (file !== ROOT && !file.startsWith(ROOT + path.sep)) {
+-    res.statusCode = 403;
+-    res.end('forbidden');
+-    return;
+-  }
+-  if (!fs.existsSync(file) || !fs.statSync(file).isFile()) {
+-    res.statusCode = 404;
+-    res.end('missing ' + rel);
+-    return;
+-  }
++  if (file !== ROOT && !file.startsWith(ROOT + path.sep)) { res.statusCode = 403; res.end('forbidden'); return; }
++  if (!fs.existsSync(file) || !fs.statSync(file).isFile()) { res.statusCode = 404; res.end('missing ' + rel); return; }
+   res.end(fs.readFileSync(file));
+ });
+-
+ function sleep(ms) { return new Promise((resolve) => setTimeout(resolve, ms)); }
+-function sha(text) { return crypto.createHash('sha256').update(text).digest('hex'); }
+-
+-const expected = sha(fs.readFileSync(path.join(ROOT, 'build57.js')));
+-
+-async function cdp(ws, method, params) {
+-  const id = cdp.next++;
+-  const result = new Promise((resolve, reject) => {
+-    const timer = setTimeout(() => reject(new Error('cdp timeout ' + method)), 20000);
+-    cdp.pending.set(id, (msg) => {
+-      clearTimeout(timer);
+-      if (msg.error) reject(new Error(method + ' ' + JSON.stringify(msg.error)));
+-      else resolve(msg.result || {});
+-    });
+-  });
+-  ws.send(JSON.stringify({ id, method, params: params || {} }));
+-  return result;
+-}
+-cdp.next = 1;
+-cdp.pending = new Map();
+-
+-async function main() {
+-  await new Promise((resolve) => server.listen(PORT, '127.0.0.1', resolve));
+-  const dir = '/tmp/b63-sw-chrome';
++const READ = `(async () => {
++  async function one(url) {
++    const res = await fetch(url);
++    const text = await res.text();
++    const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
++    const sum = [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('');
++    return { status: res.status, sum, stale: text.startsWith('STALE-') };
++  }
++  const keys = await caches.keys();
++  const a = await one('./build13.js');
++  const b = await one('./build58.js');
++  return { keys, build13: a, build58: b, err: window.__swErr || '' };
++})()`;
++
++async function chromeCase(cacheName, debugPort) {
++  oldCache = cacheName;
++  swMode = 'old';
++  const dir = '/tmp/b63-sw-chrome-' + cacheName.slice(-3);
+   fs.rmSync(dir, { recursive: true, force: true });
+   const proc = spawn(CHROME, [
+     '--headless=new', '--disable-gpu', '--no-sandbox', '--disable-dev-shm-usage',
+-    '--user-data-dir=' + dir, '--remote-debugging-port=9342', 'about:blank',
++    '--user-data-dir=' + dir, '--remote-debugging-port=' + debugPort, 'about:blank',
+   ], { stdio: 'ignore' });
+   const logs = [];
+   try {
+     let page = null;
+     for (let i = 0; i < 50 && !page; i++) {
+       try {
+-        const list = await (await fetch('http://127.0.0.1:9342/json/list')).json();
++        const list = await (await fetch('http://127.0.0.1:' + debugPort + '/json/list')).json();
+         page = list.find((t) => t.type === 'page' && t.webSocketDebuggerUrl);
+       } catch (e) { await sleep(100); }
+     }
+     if (!page) throw new Error('chrome debugging page did not open');
+     const ws = new WebSocket(page.webSocketDebuggerUrl);
+     await new Promise((resolve, reject) => { ws.addEventListener('open', resolve); ws.addEventListener('error', reject); });
++    const pending = new Map();
++    let n = 0;
+     ws.addEventListener('message', (ev) => {
+       const msg = JSON.parse(ev.data);
+-      if (msg.id && cdp.pending.has(msg.id)) {
+-        const done = cdp.pending.get(msg.id);
+-        cdp.pending.delete(msg.id);
+-        done(msg);
+-      } else if (msg.method === 'Runtime.consoleAPICalled') {
+-        logs.push(msg.params.args.map((a) => a.value || a.description || '').join(' '));
+-      } else if (msg.method === 'Runtime.exceptionThrown') {
+-        logs.push('exception ' + JSON.stringify(msg.params.exceptionDetails && msg.params.exceptionDetails.exception));
+-      }
++      if (msg.id && pending.has(msg.id)) { const done = pending.get(msg.id); pending.delete(msg.id); done(msg); }
++      else if (msg.method === 'Runtime.consoleAPICalled') logs.push((msg.params.args || []).map((a) => a.value || a.description || '').join(' '));
++      else if (msg.method === 'Runtime.exceptionThrown') logs.push('exception ' + JSON.stringify(msg.params.exceptionDetails && msg.params.exceptionDetails.exception));
+     });
+-    await cdp(ws, 'Runtime.enable');
+-    await cdp(ws, 'Network.enable');
+-    await cdp(ws, 'Page.enable');
+-    await cdp(ws, 'Page.navigate', { url: 'http://127.0.0.1:' + PORT + '/sw-probe.html' });
+-    const read = `(async () => {
+-      const reg = await navigator.serviceWorker.getRegistration();
+-      const keys = await caches.keys();
+-      let text = '';
+-      let status = 0;
+-      try {
+-        const res = await fetch('./build57.js');
+-        status = res.status;
+-        text = await res.text();
+-      } catch (e) { text = 'FETCH ' + e; }
+-      let sum = '';
+-      if (text && !text.startsWith('FETCH ')) {
+-        const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
+-        sum = [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('');
+-      }
+-      return { keys, status, sum, stale: text === 'REV2-STALE', controller: !!(navigator.serviceWorker.controller), err: window.__swErr || '' };
+-    })()`;
++    function send(method, params) {
++      const id = ++n;
++      return new Promise((resolve, reject) => {
++        const timer = setTimeout(() => reject(new Error('cdp timeout ' + method)), 20000);
++        pending.set(id, (msg) => { clearTimeout(timer); if (msg.error) reject(new Error(method + ' ' + JSON.stringify(msg.error))); else resolve(msg.result || {}); });
++        ws.send(JSON.stringify({ id, method, params: params || {} }));
++      });
++    }
++    await send('Runtime.enable');
++    await send('Network.enable');
++    await send('Page.enable');
++    await send('Page.navigate', { url: 'http://127.0.0.1:' + PORT + '/sw-probe.html' });
+     let seeded = null;
+     for (let i = 0; i < 40; i++) {
+-      const out = await cdp(ws, 'Runtime.evaluate', { expression: read, awaitPromise: true, returnByValue: true });
++      const out = await send('Runtime.evaluate', { expression: READ, awaitPromise: true, returnByValue: true });
+       seeded = out.result && out.result.value;
+-      if (seeded && seeded.stale && seeded.keys.includes('boriken-genetics-logbook-app-v81')) break;
++      if (seeded && seeded.build13 && seeded.build13.stale && seeded.build58 && seeded.build58.stale && seeded.keys.includes(cacheName)) break;
+       await sleep(250);
+     }
+-    if (!seeded || !seeded.stale || !seeded.keys.includes('boriken-genetics-logbook-app-v81')) {
+-      throw new Error('v81 seed did not control the page ' + JSON.stringify(seeded) + ' ' + logs.join(' | '));
++    if (!seeded || !seeded.build13 || !seeded.build13.stale || !seeded.build58.stale || !seeded.keys.includes(cacheName)) {
++      throw new Error(cacheName + ' seed did not control the page ' + JSON.stringify(seeded) + ' ' + logs.join(' | '));
+     }
+-    console.log('PASS real Chrome served the seeded v81 build57.js before the update');
+-    swMode = 'v82';
+-    await cdp(ws, 'Runtime.evaluate', {
+-      expression: 'navigator.serviceWorker.getRegistration().then((reg) => reg.update())',
+-      awaitPromise: true,
+-    });
++    console.log('PASS real Chrome served stale build13.js and build58.js from ' + cacheName);
++    swMode = 'live';
++    await send('Runtime.evaluate', { expression: 'navigator.serviceWorker.getRegistration().then((reg) => reg.update())', awaitPromise: true });
+     let updated = null;
+     for (let i = 0; i < 80; i++) {
+-      const out = await cdp(ws, 'Runtime.evaluate', { expression: read, awaitPromise: true, returnByValue: true });
++      const out = await send('Runtime.evaluate', { expression: READ, awaitPromise: true, returnByValue: true });
+       updated = out.result && out.result.value;
+-      if (updated && updated.sum === expected && updated.keys.includes('boriken-genetics-logbook-app-v82') && !updated.keys.includes('boriken-genetics-logbook-app-v81')) break;
++      const fresh = updated && updated.build13 && updated.build13.sum === EXPECT['build13.js'] && updated.build58.sum === EXPECT['build58.js'];
++      if (fresh && updated.keys.includes('boriken-genetics-logbook-app-v83') && !updated.keys.includes(cacheName)) break;
+       await sleep(250);
+     }
+-    if (!updated || updated.sum !== expected || updated.keys.includes('boriken-genetics-logbook-app-v81') || !updated.keys.includes('boriken-genetics-logbook-app-v82')) {
+-      throw new Error('v82 update did not replace the shell ' + JSON.stringify(updated) + ' ' + logs.join(' | '));
++    if (!updated || updated.build13.sum !== EXPECT['build13.js'] || updated.build58.sum !== EXPECT['build58.js'] || updated.keys.includes(cacheName) || !updated.keys.includes('boriken-genetics-logbook-app-v83')) {
++      throw new Error(cacheName + ' did not install v83 ' + JSON.stringify(updated) + ' ' + logs.join(' | '));
+     }
+-    console.log('PASS real Chrome installed v82 and served the current build57.js');
+-    await cdp(ws, 'Network.emulateNetworkConditions', { offline: true, latency: 0, downloadThroughput: 0, uploadThroughput: 0 });
+-    const offline = await cdp(ws, 'Runtime.evaluate', { expression: read, awaitPromise: true, returnByValue: true });
++    console.log('PASS real Chrome replaced ' + cacheName + ' and served the current build13.js and build58.js');
++    await send('Network.emulateNetworkConditions', { offline: true, latency: 0, downloadThroughput: 0, uploadThroughput: 0 });
++    const offline = await send('Runtime.evaluate', { expression: READ, awaitPromise: true, returnByValue: true });
+     const off = offline.result && offline.result.value;
+-    if (!off || off.sum !== expected || off.stale) throw new Error('offline fetch was not the v82 shell ' + JSON.stringify(off));
+-    console.log('PASS real Chrome served the v82 build57.js while offline');
+-    console.log('b63 sw browser: update path passed');
++    if (!off || off.build13.sum !== EXPECT['build13.js'] || off.build58.sum !== EXPECT['build58.js'] || off.build13.stale || off.build58.stale) {
++      throw new Error(cacheName + ' offline was not the v83 shell ' + JSON.stringify(off));
++    }
++    console.log('PASS real Chrome served the v83 build13.js and build58.js offline after ' + cacheName);
+   } finally {
+     proc.kill('SIGKILL');
+-    server.close();
++    await sleep(300);
+   }
+ }
+ 
+-main().catch((e) => {
+-  console.error('FAIL', e && e.stack || e);
+-  process.exit(1);
+-});
++async function main() {
++  await new Promise((resolve) => server.listen(PORT, '127.0.0.1', resolve));
++  try {
++    await chromeCase('boriken-genetics-logbook-app-v81', 9342);
++    await chromeCase('boriken-genetics-logbook-app-v82', 9343);
++    console.log('b63 sw browser: v81 and v82 update paths passed');
++  } finally {
++    server.close();
++  }
++}
++main().catch((e) => { console.error('FAIL', e && e.stack || e); process.exit(1); });
+--- /dev/null
++++ b/scripts/b63-r9-fullapp.test.js
+@@ -0,0 +1,206 @@
++'use strict';
++/*
++  TEST FIXTURE. Not a user mockup. Not loaded by index.html and not copied
++  into the app bundle. The records below exist only in this script's
++  throwaway browser profile. Do not rename them to real plant names.
++  Full application, not the stripped layout fixture. Chrome loads index.html,
++  the real styles, and the default wide zoom. Names must stay whole words.
++  The agreed sidebar is 248px at a real 1024 and 1366 window. Text size stays
++  the default. Headings and the Parents label stay. This does not loosen
++  the stripped-fixture assertions.
++*/
++const fs = require('fs');
++const http = require('http');
++const path = require('path');
++const { spawn } = require('child_process');
++const ROOT = path.join(__dirname, '..');
++const CHROME = '/opt/google/chrome/chrome';
++const PORT = 9371;
++if (!fs.existsSync(CHROME)) {
++  console.error('FAIL real Chrome is not installed at ' + CHROME);
++  process.exit(1);
++}
++const SEED = {
++  plants: [
++    { id: 'syn-grow-long', name: 'SyntheticLongName AlphaBeta', cultivar: 'SyntheticLongName AlphaBeta', status: 'active', count: 1, complianceStage: 'immature', location: 'Tent A', areaOrRoom: 'Tent A', tagStatus: 'current', tagTextSnapshot: 'SYN-TAG-001', tagAttached: true, logs: [], internalPlantCode: 'SYN-001', treeStyle: 2 },
++    { id: 'syn-grow-short', name: 'Synthetic Sprout', cultivar: 'Synthetic Sprout', status: 'active', count: 1, complianceStage: 'mature', location: 'Tent B', areaOrRoom: 'Tent B', tagStatus: 'none', logs: [], internalPlantCode: 'SYN-002', treeStyle: 2 },
++  ],
++  motherFatherPlants: [
++    { id: 'syn-gran', name: 'Synthetic Gran', role: 'mother', status: 'Active', archived: false, treeStyle: 2, cuttings: [], pollen: [] },
++    { id: 'syn-granf', name: 'Synthetic Grandfather', role: 'father', status: 'Active', archived: false, treeStyle: 2, cuttings: [], pollen: [] },
++    { id: 'syn-mother', name: 'Synthetic Mother', role: 'mother', status: 'Active', archived: false, treeStyle: 2, cuttings: [], pollen: [], b49Mother: 'mf:syn-gran', b49Father: 'mf:syn-granf' },
++    { id: 'syn-father', name: 'Synthetic Father', role: 'father', status: 'Active', archived: false, treeStyle: 2, cuttings: [], pollen: [] },
++    { id: 'syn-sample', name: 'Synthetic Sample', role: 'father', status: 'Active', archived: false, treeStyle: 2, cuttings: [], pollen: [] },
++    { id: 'syn-retired', name: 'Synthetic Retired', role: 'mother', status: 'Retired', archived: false, treeStyle: 2, cuttings: [], pollen: [] },
++  ],
++  breedingProjects: [
++    { id: 'syn-cross', name: 'Synthetic Cross', motherId: 'syn-mother', fatherId: 'syn-sample', mother: 'Synthetic Mother', father: 'Synthetic Sample', status: 'Planning', treeStyle: 2 },
++    { id: 'syn-kept', name: 'Kept Cross', motherId: 'syn-mother', fatherId: 'syn-father', mother: 'Synthetic Mother', father: 'Synthetic Father', status: 'Planning', treeStyle: 2 },
++  ],
++  settings: { mfHelperDismissed: true },
++};
++const INIT = `
++localStorage.setItem('boriken-genetics-logbook-v1', ${JSON.stringify(JSON.stringify(SEED))});
++localStorage.setItem('boriken-onboard-done', '1');
++localStorage.setItem('boriken-theme-pref-v1', 'light');
++localStorage.setItem('boriken-b63-view', JSON.stringify({ hideIds: ['syn-sample'] }));
++`;
++const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.png': 'image/png', '.jpg': 'image/jpeg', '.svg': 'image/svg+xml', '.json': 'application/json', '.webmanifest': 'application/manifest+json', '.ttf': 'font/ttf', '.pdf': 'application/pdf' };
++const server = http.createServer((req, res) => {
++  const url = new URL(req.url, 'http://127.0.0.1:' + PORT);
++  let rel = decodeURIComponent(url.pathname);
++  if (rel === '/') rel = '/index.html';
++  const file = path.normalize(path.join(ROOT, rel.replace(/^\/+/, '')));
++  if (file !== ROOT && !file.startsWith(ROOT + path.sep)) { res.statusCode = 403; res.end('no'); return; }
++  if (!fs.existsSync(file) || !fs.statSync(file).isFile()) { res.statusCode = 404; res.end('missing'); return; }
++  res.setHeader('Content-Type', MIME[path.extname(file)] || 'application/octet-stream');
++  res.setHeader('Cache-Control', 'no-store');
++  res.end(fs.readFileSync(file));
++});
++function sleep(ms) { return new Promise((r) => setTimeout(r, ms)); }
++
++const READ = `(() => {
++  function splits(el) {
++    const node = [...el.childNodes].find((n) => n.nodeType === 3 && n.textContent.trim());
++    if (!node) return [];
++    const text = node.textContent;
++    const bad = [];
++    let top = null;
++    for (let i = 0; i < text.length; i++) {
++      const range = document.createRange();
++      range.setStart(node, i);
++      range.setEnd(node, i + 1);
++      const box = range.getClientRects()[0];
++      if (!box || !box.height) continue;
++      if (top == null) top = box.top;
++      else if (box.top > top + 1) {
++        const prev = text[i - 1] || '';
++        if (prev && !/[\\s×·\\-]/.test(prev)) bad.push(text.slice(Math.max(0, i - 14), i) + '|' + text.slice(i, i + 10));
++        top = box.top;
++      }
++    }
++    return bad;
++  }
++  const names = [...document.querySelectorAll('#breeding-view .b60-c b, #breeding-view .b60-c small, #breeding-view .b57-subt, #breeding-view .b57-ban small, #breeding-view .b59-plab b, #breeding-view .b59-plab small')];
++  const broken = names.flatMap((el) => splits(el).map((s) => el.textContent.trim() + ' :: ' + s));
++  const lab = document.querySelector('#breeding-view .b57-tools .m-s');
++  const labCs = lab ? getComputedStyle(lab) : null;
++  const card = document.querySelector('#breeding-view .b60-col > .b60-c:not(.slot)');
++  const cardCs = card ? getComputedStyle(card) : null;
++  const pairs = [...document.querySelectorAll('#breeding-view .b60-cols')].map((row) => {
++    const cols = [...row.querySelectorAll(':scope > .b60-col')].map((c) => Math.round(c.getBoundingClientRect().width));
++    return cols;
++  });
++  const side = document.querySelector('.w-side');
++  const sideCs = side ? getComputedStyle(side) : null;
++  const mother = (state.motherFatherPlants || []).find((m) => m.id === 'syn-mother');
++  return {
++    view: window.innerWidth,
++    height: window.innerHeight,
++    doc: document.documentElement.scrollWidth,
++    layout: document.documentElement.dataset.layout || '',
++    weff: document.documentElement.dataset.weff || '',
++    zoom: document.documentElement.style.zoom || '',
++    textSize: (state.settings && state.settings.textSize) || 'default',
++    who: ((document.querySelector('#breeding-view .b57-ban b') || {}).textContent) || '',
++    sub: (document.querySelector('#breeding-view .b57-subt') || {}).textContent || '',
++    mother: mother && mother.b49Mother,
++    father: mother && mother.b49Father,
++    broken,
++    gen: lab ? lab.textContent : '',
++    genClip: !!(lab && (labCs.whiteSpace === 'nowrap' || labCs.textOverflow === 'ellipsis' || lab.scrollWidth > lab.clientWidth + 2)),
++    minH: cardCs && cardCs.minHeight,
++    pairs,
++    side: sideCs && sideCs.width,
++    sidePos: sideCs && sideCs.position,
++    sample: document.body.innerText.includes('Synthetic Sample'),
++  };
++})()`;
++
++async function main() {
++  await new Promise((resolve) => server.listen(PORT, '127.0.0.1', resolve));
++  const dir = '/tmp/b63-r9-fullapp-chrome';
++  fs.rmSync(dir, { recursive: true, force: true });
++  const proc = spawn(CHROME, [
++    '--headless=new', '--disable-gpu', '--no-sandbox', '--disable-dev-shm-usage',
++    '--user-data-dir=' + dir, '--remote-debugging-port=9372', 'about:blank',
++  ], { stdio: 'ignore' });
++  try {
++    let page = null;
++    for (let i = 0; i < 50 && !page; i++) {
++      try {
++        const list = await (await fetch('http://127.0.0.1:9372/json/list')).json();
++        page = list.find((t) => t.type === 'page' && t.webSocketDebuggerUrl);
++      } catch (e) { await sleep(100); }
++    }
++    if (!page) throw new Error('chrome did not open');
++    const ws = new WebSocket(page.webSocketDebuggerUrl);
++    await new Promise((resolve, reject) => { ws.addEventListener('open', resolve); ws.addEventListener('error', reject); });
++    const pending = new Map();
++    let n = 0;
++    ws.addEventListener('message', (ev) => {
++      const msg = JSON.parse(ev.data);
++      if (msg.id && pending.has(msg.id)) { const done = pending.get(msg.id); pending.delete(msg.id); done(msg); }
++    });
++    function send(method, params) {
++      const id = ++n;
++      return new Promise((resolve, reject) => {
++        const timer = setTimeout(() => reject(new Error('timeout ' + method)), 20000);
++        pending.set(id, (msg) => { clearTimeout(timer); if (msg.error) reject(new Error(method + ' ' + JSON.stringify(msg.error))); else resolve(msg.result || {}); });
++        ws.send(JSON.stringify({ id, method, params: params || {} }));
++      });
++    }
++    await send('Page.enable');
++    await send('Runtime.enable');
++    await send('Page.addScriptToEvaluateOnNewDocument', { source: INIT });
++    const sizes = [[390, 844], [768, 1024], [1024, 768], [1024, 1366], [1366, 1024]];
++    for (const [w, h] of sizes) {
++      await send('Emulation.setDeviceMetricsOverride', { width: w, height: h, deviceScaleFactor: 1, mobile: w < 900 });
++      await send('Page.navigate', { url: 'http://127.0.0.1:' + PORT + '/index.html?w=' + w + '&h=' + h });
++      let ready = false;
++      for (let i = 0; i < 40 && !ready; i++) {
++        const out = await send('Runtime.evaluate', { expression: `document.readyState === 'complete' && !!document.querySelector('script[src="build63.js"]')`, returnByValue: true });
++        ready = out.result && out.result.value;
++        if (!ready) await sleep(50);
++      }
++      if (!ready) throw new Error('page did not load at ' + w);
++      await send('Emulation.setDeviceMetricsOverride', { width: w, height: h, deviceScaleFactor: 1, mobile: w < 900 });
++      await send('Runtime.evaluate', { expression: `(() => { switchView('breeding'); B49.openPage({ type: 'b49tree', key: 'mf:syn-mother', forceStyle: 2 }); return true; })()`, returnByValue: true });
++      let styled = false;
++      for (let i = 0; i < 40 && !styled; i++) {
++        const out = await send('Runtime.evaluate', { expression: `(() => { const c = document.querySelector('#breeding-view .b60-col > .b60-c:not(.slot)'); return !!(c && getComputedStyle(c).minHeight === '110px'); })()`, returnByValue: true });
++        styled = out.result && out.result.value;
++        if (!styled) await sleep(50);
++      }
++      if (!styled) throw new Error('tree styles were not applied at ' + w + 'x' + h);
++      await send('Runtime.evaluate', { expression: `new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(() => r(true))))`, awaitPromise: true, returnByValue: true });
++      const measured = await send('Runtime.evaluate', { expression: READ, returnByValue: true });
++      const d = measured.result && measured.result.value;
++      if (!d) throw new Error('no measure ' + w);
++      if (d.view !== w || d.doc > w + 1) throw new Error('overflow ' + JSON.stringify(d));
++      if (d.minH !== '110px') throw new Error('card min-height ' + JSON.stringify(d));
++      if (d.broken.length) throw new Error('name split inside a word at ' + w + 'x' + h + ' ' + JSON.stringify(d.broken));
++      if (!d.gen.includes('generation recorded') || d.genClip) throw new Error('generation control ' + JSON.stringify({ gen: d.gen, clip: d.genClip }));
++      if (!d.who.includes('Synthetic Mother') || d.mother !== 'mf:syn-gran' || d.father !== 'mf:syn-granf') throw new Error('selected record ' + JSON.stringify(d));
++      if (!d.sub.includes('Synthetic Gran') || !d.sub.includes('Synthetic Grandfather') || !d.sub.includes('×')) throw new Error('subtitle is not the selected mother parents ' + d.sub);
++      if (d.sample) throw new Error('hidden synthetic id is on the tree');
++      d.pairs.forEach((cols) => {
++        if (cols.length === 2 && Math.abs(cols[0] - cols[1]) > 2) throw new Error('halves ' + JSON.stringify(cols));
++      });
++      if (d.textSize !== 'default') throw new Error('text size changed ' + d.textSize);
++      if (w >= 1024) {
++        if (d.layout !== 'wide' || Math.abs(parseFloat(d.side) - 248) > 0.6 || d.sidePos !== 'fixed') throw new Error('sidebar ' + JSON.stringify(d));
++        if (d.zoom !== '1.28') throw new Error('zoom changed ' + JSON.stringify(d));
++        if (!d.weff) throw new Error('effective-width flag was cleared ' + JSON.stringify(d));
++      } else if (d.layout === 'wide') {
++        throw new Error('wide layout below 1024 ' + JSON.stringify(d));
++      }
++      console.log('PASS full app', w + 'x' + h, JSON.stringify({ side: d.side, zoom: d.zoom || '1', weff: d.weff, doc: d.doc, gen: d.gen, sub: d.sub }));
++    }
++    console.log('b63 r9: full app layout passed');
++  } finally {
++    proc.kill('SIGKILL');
++    server.close();
++  }
++}
++main().catch((e) => { console.error('FAIL', e && e.stack || e); process.exit(1); });
