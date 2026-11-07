@@ -1,4 +1,4 @@
-diff -ruN -U0 --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/app.js b62-app/app.js
+diff -ruN -U3 --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/app.js b62-app/app.js
 --- a/app.js	2026-11-07 02:47:28.000000000 +0000
 +++ b/app.js	2026-11-07 14:57:32.804712392 +0000
 @@ -24,7 +24,7 @@
@@ -75,7 +75,7 @@ diff -ruN -U0 --exclude assets --exclude mascots --exclude manual --exclude '*.j
    transitionPlant(id, 'archived', {
      title: `Archive ${plant.name}?`,
      message: 'Removes this genetic from Active Strains and the Harvest Archive, and files it under Archived Genetics. Nothing is deleted — every date, note, photo, yield, and test result is preserved, and you can return it to Active anytime.',
-diff -ruN -U0 --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/build13.js b62-app/build13.js
+diff -ruN -U3 --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/build13.js b62-app/build13.js
 --- a/build13.js	2026-11-07 02:04:25.000000000 +0000
 +++ b/build13.js	2026-11-07 14:55:15.156943191 +0000
 @@ -192,7 +192,7 @@
@@ -87,7 +87,7 @@ diff -ruN -U0 --exclude assets --exclude mascots --exclude manual --exclude '*.j
    const arch = all.filter((m) => m.archived);
    const pill = (t, c = 'c') => `<span class="m-pill ${c}">${escapeHtml(t)}</span>`;
    const card = (m) => `<div class="m-row" data-mf="open" data-id="${escapeHtml(m.id)}" role="button" tabindex="0">
-diff -ruN -U0 --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/build41.js b62-app/build41.js
+diff -ruN -U3 --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/build41.js b62-app/build41.js
 --- a/build41.js	2026-11-03 15:11:42.000000000 +0000
 +++ b/build41.js	2026-11-07 14:55:14.424946691 +0000
 @@ -164,7 +164,7 @@
@@ -99,7 +99,7 @@ diff -ruN -U0 --exclude assets --exclude mascots --exclude manual --exclude '*.j
    const tot = (a) => (a || []).reduce((n, e) => n + (Number(e.count) || 0), 0);
    const row = (m) => `<div class="m-row mfp-row" data-mf="open" data-id="${esc(m.id)}" role="button" tabindex="0"><div class="m-ph mf-ph ${m.role === 'father' ? 'father' : 'mother'}">${m.role === 'father' ? '♂' : '♀'}</div><div class="m-grow"><div class="m-t">${esc(m.name)}</div><div class="m-s">${esc([m.status || 'Active', m.role === 'father' ? `${(m.pollen || []).length} pollen lots` : `${tot(m.cuttings)} cuttings`].join(' · '))}</div></div><span class="m-pill c">${m.role === 'father' ? 'Father' : 'Mother'}</span><i aria-hidden="true">›</i></div>`;
    function entry() {
-diff -ruN -U0 --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/build42.js b62-app/build42.js
+diff -ruN -U3 --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/build42.js b62-app/build42.js
 --- a/build42.js	2026-11-03 15:11:43.000000000 +0000
 +++ b/build42.js	2026-11-07 14:55:21.204915370 +0000
 @@ -143,7 +143,7 @@
@@ -120,7 +120,7 @@ diff -ruN -U0 --exclude assets --exclude mascots --exclude manual --exclude '*.j
        return;
      }
      const el = e.target.closest('[data-mf]'); if (!el || el.closest('#breeding-mobile')) return; // build13 handles its own box
-diff -ruN -U0 --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/build49.js b62-app/build49.js
+diff -ruN -U3 --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/build49.js b62-app/build49.js
 --- a/build49.js	2026-11-03 15:11:43.000000000 +0000
 +++ b/build49.js	2026-11-07 14:54:58.085032367 +0000
 @@ -88,10 +88,30 @@
@@ -155,7 +155,7 @@ diff -ruN -U0 --exclude assets --exclude mascots --exclude manual --exclude '*.j
      return dedupeKids(out);
    }
    /* b59: a cross (pr) and the plant grown from it are one kid, not two. Same plant = linked by id (b49ProjectId / projFor)
-diff -ruN -U0 --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/build57.js b62-app/build57.js
+diff -ruN -U3 --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/build57.js b62-app/build57.js
 --- a/build57.js	2026-11-03 15:11:43.000000000 +0000
 +++ b/build57.js	2026-11-07 14:55:02.725006539 +0000
 @@ -25,7 +25,13 @@
@@ -218,7 +218,7 @@ diff -ruN -U0 --exclude assets --exclude mascots --exclude manual --exclude '*.j
    }
    function linHtml() {
      const L = lineageList();
-diff -ruN -U0 --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/build60.js b62-app/build60.js
+diff -ruN -U3 --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/build60.js b62-app/build60.js
 --- a/build60.js	2026-11-03 15:11:42.000000000 +0000
 +++ b/build60.js	2026-11-07 14:55:10.144967716 +0000
 @@ -12,7 +12,16 @@
@@ -274,10 +274,10 @@ diff -ruN -U0 --exclude assets --exclude mascots --exclude manual --exclude '*.j
      const order = [...Array(n).keys()].map((i) => i + 1); if (!up) order.reverse();
      const col = (rw, sd) => `<div class="b60-col ${sd}">${(rw || []).map(cell).join('') || '<span class="b60-gap" aria-hidden="true"></span>'}</div>`;
      const body = order.map((gi) => `<div class="b60-gen" data-gen="${gi}"><div class="b57-lab">${esc(RL(gi))}</div><div class="b60-cols">${col(L[gi - 1], 'l')}${col(R[gi - 1], 'r')}</div></div>`).join('');
-diff -ruN -U0 --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/build63.css b62-app/build63.css
+diff -ruN -U3 --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/build63.css b62-app/build63.css
 --- a/build63.css	1970-01-01 00:00:00.000000000 +0000
-+++ b/build63.css	2026-11-07 14:55:29.620879810 +0000
-@@ -0,0 +1,88 @@
++++ b/build63.css	2026-11-07 15:15:10.202496324 +0000
+@@ -0,0 +1,86 @@
 +/* Build 63. Narrow layouts reflow. They do not add a horizontal scroll port. */
 +#compliance-panel-inspection .table-wrap {
 +  overflow: visible;
@@ -327,13 +327,21 @@ diff -ruN -U0 --exclude assets --exclude mascots --exclude manual --exclude '*.j
 +  #compliance-panel-inspection .compliance-table td:nth-child(7)::before { content: "Tag status"; }
 +  #compliance-panel-inspection .compliance-table td:nth-child(8)::before { content: "Last updated"; }
 +}
-+.b57-scroll, .b57-row.scroll, .b59-kids {
-+  overflow-x: clip;
++.b57 {
++  margin-left: 0;
++  margin-right: 0;
++  width: auto;
++  max-width: 100%;
++  box-sizing: border-box;
++}
++.b57-scroll, .b57-row.scroll, .b59-kids, .b60-col {
++  overflow: visible;
 +  max-width: 100%;
 +  touch-action: pan-y;
++  scroll-snap-type: none;
 +}
-+.b57-row, .b59-kids { flex-wrap: wrap; max-width: 100%; }
-+.b57-n { flex: 1 1 8rem; width: auto; max-width: 100%; min-width: 0; }
++.b57-row, .b59-kids, .b60-col { flex-wrap: wrap; max-width: 100%; }
++.b57-n, .b60-col > .b60-c { flex: 1 1 8rem; width: auto; max-width: 100%; min-width: 0; }
 +.b57-n b, .b57-n small {
 +  white-space: normal;
 +  overflow-wrap: break-word;
@@ -342,12 +350,6 @@ diff -ruN -U0 --exclude assets --exclude mascots --exclude manual --exclude '*.j
 +  max-width: 100%;
 +}
 +.b60-full { max-width: 100%; }
-+.b60-col {
-+  overflow-x: clip;
-+  flex-wrap: wrap;
-+  touch-action: pan-y;
-+  scroll-snap-type: none;
-+}
 +.b60-c { flex: 1 1 100%; min-width: 0; max-width: 100%; }
 +.b57 .b18-h1, .b57-subt, .b57-tools { max-width: 100%; overflow-wrap: break-word; word-break: normal; }
 +@media (max-width: 720px) {
@@ -355,18 +357,14 @@ diff -ruN -U0 --exclude assets --exclude mascots --exclude manual --exclude '*.j
 +  .b60-c { min-height: 72px; }
 +  .b57-n { flex: 1 1 calc(50% - 8px); }
 +}
-+@media (min-width: 1024px) {
-+  .w-side, nav.w-side { min-width: 0; max-width: 100%; overflow-x: clip; }
-+  .w-side .w-l, .w-side .w-foot, .w-side .w-n, .w-side .w-li-t, .w-side .w-li-t b {
-+    min-width: 0;
-+    overflow-wrap: break-word;
-+    word-break: normal;
-+    white-space: normal;
-+  }
-+  .mfx-list, .w-list { min-width: 0; overflow-x: clip; }
-+  .mfx-list .w-li-t b { overflow-wrap: break-word; word-break: normal; }
++.w-side, nav.w-side, .mfx-list, .w-list { min-width: 0; max-width: 100%; overflow: visible; }
++.w-side .w-l, .w-side .w-foot, .w-side .w-n, .w-side .w-li-t, .w-side .w-li-t b, .mfx-list .w-li-t b {
++  min-width: 0;
++  overflow-wrap: break-word;
++  word-break: normal;
++  white-space: normal;
 +}
-diff -ruN -U0 --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/build63.js b62-app/build63.js
+diff -ruN -U3 --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/build63.js b62-app/build63.js
 --- a/build63.js	1970-01-01 00:00:00.000000000 +0000
 +++ b/build63.js	2026-11-07 14:59:40.753044058 +0000
 @@ -0,0 +1,164 @@
@@ -534,7 +532,7 @@ diff -ruN -U0 --exclude assets --exclude mascots --exclude manual --exclude '*.j
 +  install();
 +  readLocalConfig();
 +})();
-diff -ruN -U0 --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/index.html b62-app/index.html
+diff -ruN -U3 --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/index.html b62-app/index.html
 --- a/index.html	2026-11-03 15:11:42.000000000 +0000
 +++ b/index.html	2026-11-07 14:43:16.502706148 +0000
 @@ -60,6 +60,7 @@
@@ -552,9 +550,9 @@ diff -ruN -U0 --exclude assets --exclude mascots --exclude manual --exclude '*.j
 +    <script src="build63.js" defer></script>
    </body>
  </html>
-diff -ruN -U0 --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/ios/App/App/public/app.js b62-app/ios/App/App/public/app.js
+diff -ruN -U3 --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/ios/App/App/public/app.js b62-app/ios/App/App/public/app.js
 --- a/ios/App/App/public/app.js	2026-11-07 02:47:38.000000000 +0000
-+++ b/ios/App/App/public/app.js	2026-11-07 15:12:25.335639062 +0000
++++ b/ios/App/App/public/app.js	2026-11-07 15:15:46.766330696 +0000
 @@ -24,7 +24,7 @@
  const DRAFT_STORAGE_KEY = 'boriken-genetics-logbook-drafts-v1';
  const BACKUP_STORAGE_KEY = 'boriken-genetics-logbook-backups-v1';
@@ -629,9 +627,9 @@ diff -ruN -U0 --exclude assets --exclude mascots --exclude manual --exclude '*.j
    transitionPlant(id, 'archived', {
      title: `Archive ${plant.name}?`,
      message: 'Removes this genetic from Active Strains and the Harvest Archive, and files it under Archived Genetics. Nothing is deleted — every date, note, photo, yield, and test result is preserved, and you can return it to Active anytime.',
-diff -ruN -U0 --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/ios/App/App/public/build13.js b62-app/ios/App/App/public/build13.js
+diff -ruN -U3 --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/ios/App/App/public/build13.js b62-app/ios/App/App/public/build13.js
 --- a/ios/App/App/public/build13.js	2026-11-07 02:47:38.000000000 +0000
-+++ b/ios/App/App/public/build13.js	2026-11-07 15:12:25.339639025 +0000
++++ b/ios/App/App/public/build13.js	2026-11-07 15:15:46.770330679 +0000
 @@ -192,7 +192,7 @@
  
  function mfSectionHtml() {
@@ -641,9 +639,9 @@ diff -ruN -U0 --exclude assets --exclude mascots --exclude manual --exclude '*.j
    const arch = all.filter((m) => m.archived);
    const pill = (t, c = 'c') => `<span class="m-pill ${c}">${escapeHtml(t)}</span>`;
    const card = (m) => `<div class="m-row" data-mf="open" data-id="${escapeHtml(m.id)}" role="button" tabindex="0">
-diff -ruN -U0 --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/ios/App/App/public/build41.js b62-app/ios/App/App/public/build41.js
+diff -ruN -U3 --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/ios/App/App/public/build41.js b62-app/ios/App/App/public/build41.js
 --- a/ios/App/App/public/build41.js	2026-11-07 02:47:38.000000000 +0000
-+++ b/ios/App/App/public/build41.js	2026-11-07 15:12:25.343638988 +0000
++++ b/ios/App/App/public/build41.js	2026-11-07 15:15:46.770330679 +0000
 @@ -164,7 +164,7 @@
    /* Mothers & Fathers: its own page, opened from one row on Breeding (approved v3 mothers-fathers/mf-page.js). */
    let mfpOn = false; let mfpTab = 'm'; let mfpKeep = null; // Build 42: Mothers / Fathers tabs are real filters
@@ -653,9 +651,9 @@ diff -ruN -U0 --exclude assets --exclude mascots --exclude manual --exclude '*.j
    const tot = (a) => (a || []).reduce((n, e) => n + (Number(e.count) || 0), 0);
    const row = (m) => `<div class="m-row mfp-row" data-mf="open" data-id="${esc(m.id)}" role="button" tabindex="0"><div class="m-ph mf-ph ${m.role === 'father' ? 'father' : 'mother'}">${m.role === 'father' ? '♂' : '♀'}</div><div class="m-grow"><div class="m-t">${esc(m.name)}</div><div class="m-s">${esc([m.status || 'Active', m.role === 'father' ? `${(m.pollen || []).length} pollen lots` : `${tot(m.cuttings)} cuttings`].join(' · '))}</div></div><span class="m-pill c">${m.role === 'father' ? 'Father' : 'Mother'}</span><i aria-hidden="true">›</i></div>`;
    function entry() {
-diff -ruN -U0 --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/ios/App/App/public/build42.js b62-app/ios/App/App/public/build42.js
+diff -ruN -U3 --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/ios/App/App/public/build42.js b62-app/ios/App/App/public/build42.js
 --- a/ios/App/App/public/build42.js	2026-11-07 02:47:38.000000000 +0000
-+++ b/ios/App/App/public/build42.js	2026-11-07 15:12:25.343638988 +0000
++++ b/ios/App/App/public/build42.js	2026-11-07 15:15:46.774330662 +0000
 @@ -143,7 +143,7 @@
  
    /* ---- Mac list next to a mother / father profile: only that group, with the same tabs ---- */
@@ -674,9 +672,9 @@ diff -ruN -U0 --exclude assets --exclude mascots --exclude manual --exclude '*.j
        return;
      }
      const el = e.target.closest('[data-mf]'); if (!el || el.closest('#breeding-mobile')) return; // build13 handles its own box
-diff -ruN -U0 --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/ios/App/App/public/build49.js b62-app/ios/App/App/public/build49.js
+diff -ruN -U3 --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/ios/App/App/public/build49.js b62-app/ios/App/App/public/build49.js
 --- a/ios/App/App/public/build49.js	2026-11-07 02:47:38.000000000 +0000
-+++ b/ios/App/App/public/build49.js	2026-11-07 15:12:25.347638951 +0000
++++ b/ios/App/App/public/build49.js	2026-11-07 15:15:46.778330645 +0000
 @@ -88,10 +88,30 @@
    }
    const gcls = (g) => (g === 'F1' ? 'F1' : /^F/.test(g) ? 'F2' : g === 'S1' ? 'S1' : /^BX/.test(g) ? 'BX' : 'P');
@@ -709,9 +707,9 @@ diff -ruN -U0 --exclude assets --exclude mascots --exclude manual --exclude '*.j
      return dedupeKids(out);
    }
    /* b59: a cross (pr) and the plant grown from it are one kid, not two. Same plant = linked by id (b49ProjectId / projFor)
-diff -ruN -U0 --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/ios/App/App/public/build57.js b62-app/ios/App/App/public/build57.js
+diff -ruN -U3 --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/ios/App/App/public/build57.js b62-app/ios/App/App/public/build57.js
 --- a/ios/App/App/public/build57.js	2026-11-07 02:47:38.000000000 +0000
-+++ b/ios/App/App/public/build57.js	2026-11-07 15:12:25.351638915 +0000
++++ b/ios/App/App/public/build57.js	2026-11-07 15:15:46.778330645 +0000
 @@ -25,7 +25,13 @@
    const COLL = { pl: () => state.plants || [], bp: () => state.breedingPlants || [], mf: () => state.motherFatherPlants || [], pr: () => state.breedingProjects || [] };
    function rec(key) { const [t, ...r] = String(key || '').split(':'); const a = COLL[t]; return a ? a().find((x) => x.id === r.join(':')) || null : null; }
@@ -772,9 +770,9 @@ diff -ruN -U0 --exclude assets --exclude mascots --exclude manual --exclude '*.j
    }
    function linHtml() {
      const L = lineageList();
-diff -ruN -U0 --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/ios/App/App/public/build60.js b62-app/ios/App/App/public/build60.js
+diff -ruN -U3 --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/ios/App/App/public/build60.js b62-app/ios/App/App/public/build60.js
 --- a/ios/App/App/public/build60.js	2026-11-07 02:47:38.000000000 +0000
-+++ b/ios/App/App/public/build60.js	2026-11-07 15:12:25.351638915 +0000
++++ b/ios/App/App/public/build60.js	2026-11-07 15:15:46.782330629 +0000
 @@ -12,7 +12,16 @@
    const COUNTRY = [[/afghan/i, 'Afghanistan'], [/\bthai/i, 'Thailand'], [/colombi/i, 'Colombia'], [/mexic/i, 'Mexico'], [/jamaic/i, 'Jamaica'], [/nepal/i, 'Nepal'], [/pakistan/i, 'Pakistan'], [/hindu ?kush/i, 'Afghanistan / Pakistan'], [/malawi/i, 'Malawi'], [/durban|south africa/i, 'South Africa'], [/lebanes/i, 'Lebanon'], [/morocc/i, 'Morocco'], [/puerto ?ric|borinquen|boric?u?a/i, 'Puerto Rico']];
    const gen = (k) => { try { return B49.gen(k); } catch (e) { return ''; } };
@@ -828,10 +826,10 @@ diff -ruN -U0 --exclude assets --exclude mascots --exclude manual --exclude '*.j
      const order = [...Array(n).keys()].map((i) => i + 1); if (!up) order.reverse();
      const col = (rw, sd) => `<div class="b60-col ${sd}">${(rw || []).map(cell).join('') || '<span class="b60-gap" aria-hidden="true"></span>'}</div>`;
      const body = order.map((gi) => `<div class="b60-gen" data-gen="${gi}"><div class="b57-lab">${esc(RL(gi))}</div><div class="b60-cols">${col(L[gi - 1], 'l')}${col(R[gi - 1], 'r')}</div></div>`).join('');
-diff -ruN -U0 --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/ios/App/App/public/build63.css b62-app/ios/App/App/public/build63.css
+diff -ruN -U3 --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/ios/App/App/public/build63.css b62-app/ios/App/App/public/build63.css
 --- a/ios/App/App/public/build63.css	1970-01-01 00:00:00.000000000 +0000
-+++ b/ios/App/App/public/build63.css	2026-11-07 15:12:25.359638842 +0000
-@@ -0,0 +1,88 @@
++++ b/ios/App/App/public/build63.css	2026-11-07 15:15:46.786330613 +0000
+@@ -0,0 +1,86 @@
 +/* Build 63. Narrow layouts reflow. They do not add a horizontal scroll port. */
 +#compliance-panel-inspection .table-wrap {
 +  overflow: visible;
@@ -881,13 +879,21 @@ diff -ruN -U0 --exclude assets --exclude mascots --exclude manual --exclude '*.j
 +  #compliance-panel-inspection .compliance-table td:nth-child(7)::before { content: "Tag status"; }
 +  #compliance-panel-inspection .compliance-table td:nth-child(8)::before { content: "Last updated"; }
 +}
-+.b57-scroll, .b57-row.scroll, .b59-kids {
-+  overflow-x: clip;
++.b57 {
++  margin-left: 0;
++  margin-right: 0;
++  width: auto;
++  max-width: 100%;
++  box-sizing: border-box;
++}
++.b57-scroll, .b57-row.scroll, .b59-kids, .b60-col {
++  overflow: visible;
 +  max-width: 100%;
 +  touch-action: pan-y;
++  scroll-snap-type: none;
 +}
-+.b57-row, .b59-kids { flex-wrap: wrap; max-width: 100%; }
-+.b57-n { flex: 1 1 8rem; width: auto; max-width: 100%; min-width: 0; }
++.b57-row, .b59-kids, .b60-col { flex-wrap: wrap; max-width: 100%; }
++.b57-n, .b60-col > .b60-c { flex: 1 1 8rem; width: auto; max-width: 100%; min-width: 0; }
 +.b57-n b, .b57-n small {
 +  white-space: normal;
 +  overflow-wrap: break-word;
@@ -896,12 +902,6 @@ diff -ruN -U0 --exclude assets --exclude mascots --exclude manual --exclude '*.j
 +  max-width: 100%;
 +}
 +.b60-full { max-width: 100%; }
-+.b60-col {
-+  overflow-x: clip;
-+  flex-wrap: wrap;
-+  touch-action: pan-y;
-+  scroll-snap-type: none;
-+}
 +.b60-c { flex: 1 1 100%; min-width: 0; max-width: 100%; }
 +.b57 .b18-h1, .b57-subt, .b57-tools { max-width: 100%; overflow-wrap: break-word; word-break: normal; }
 +@media (max-width: 720px) {
@@ -909,20 +909,16 @@ diff -ruN -U0 --exclude assets --exclude mascots --exclude manual --exclude '*.j
 +  .b60-c { min-height: 72px; }
 +  .b57-n { flex: 1 1 calc(50% - 8px); }
 +}
-+@media (min-width: 1024px) {
-+  .w-side, nav.w-side { min-width: 0; max-width: 100%; overflow-x: clip; }
-+  .w-side .w-l, .w-side .w-foot, .w-side .w-n, .w-side .w-li-t, .w-side .w-li-t b {
-+    min-width: 0;
-+    overflow-wrap: break-word;
-+    word-break: normal;
-+    white-space: normal;
-+  }
-+  .mfx-list, .w-list { min-width: 0; overflow-x: clip; }
-+  .mfx-list .w-li-t b { overflow-wrap: break-word; word-break: normal; }
++.w-side, nav.w-side, .mfx-list, .w-list { min-width: 0; max-width: 100%; overflow: visible; }
++.w-side .w-l, .w-side .w-foot, .w-side .w-n, .w-side .w-li-t, .w-side .w-li-t b, .mfx-list .w-li-t b {
++  min-width: 0;
++  overflow-wrap: break-word;
++  word-break: normal;
++  white-space: normal;
 +}
-diff -ruN -U0 --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/ios/App/App/public/build63.js b62-app/ios/App/App/public/build63.js
+diff -ruN -U3 --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/ios/App/App/public/build63.js b62-app/ios/App/App/public/build63.js
 --- a/ios/App/App/public/build63.js	1970-01-01 00:00:00.000000000 +0000
-+++ b/ios/App/App/public/build63.js	2026-11-07 15:12:25.355638878 +0000
++++ b/ios/App/App/public/build63.js	2026-11-07 15:15:46.782330629 +0000
 @@ -0,0 +1,164 @@
 +/* Build 63. View projections only. Nothing here writes state, merges records, or deletes history.
 +   Hidden ids start empty. A record is hidden only when its id is passed to configure.
@@ -1088,7 +1084,7 @@ diff -ruN -U0 --exclude assets --exclude mascots --exclude manual --exclude '*.j
 +  install();
 +  readLocalConfig();
 +})();
-diff -ruN -U0 --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/ios/App/App/public/index.html b62-app/ios/App/App/public/index.html
+diff -ruN -U3 --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/ios/App/App/public/index.html b62-app/ios/App/App/public/index.html
 --- a/ios/App/App/public/index.html	2026-11-07 02:47:38.000000000 +0000
 +++ b/ios/App/App/public/index.html	2026-11-07 14:43:16.502706148 +0000
 @@ -60,6 +60,7 @@
@@ -1106,7 +1102,7 @@ diff -ruN -U0 --exclude assets --exclude mascots --exclude manual --exclude '*.j
 +    <script src="build63.js" defer></script>
    </body>
  </html>
-diff -ruN -U0 --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/ios/App/App/public/service-worker.js b62-app/ios/App/App/public/service-worker.js
+diff -ruN -U3 --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/ios/App/App/public/service-worker.js b62-app/ios/App/App/public/service-worker.js
 --- a/ios/App/App/public/service-worker.js	2026-11-07 02:47:38.000000000 +0000
 +++ b/ios/App/App/public/service-worker.js	2026-11-07 14:43:16.502706148 +0000
 @@ -6,7 +6,7 @@
@@ -1127,9 +1123,9 @@ diff -ruN -U0 --exclude assets --exclude mascots --exclude manual --exclude '*.j
    './build53.js',
    './build53.css',
    './assets/looks/pr01.jpg',
-diff -ruN -U0 --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/ios/App/App/public/wide.js b62-app/ios/App/App/public/wide.js
+diff -ruN -U3 --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/ios/App/App/public/wide.js b62-app/ios/App/App/public/wide.js
 --- a/ios/App/App/public/wide.js	2026-11-07 02:47:38.000000000 +0000
-+++ b/ios/App/App/public/wide.js	2026-11-07 15:12:25.363638805 +0000
++++ b/ios/App/App/public/wide.js	2026-11-07 15:15:46.790330596 +0000
 @@ -24,7 +24,7 @@
  ];
  function wCurrentView() { if (typeof activeView !== 'undefined' && activeView === 'plant-detail' && typeof detailColl !== 'undefined' && (detailColl === 'breedingPlants' || detailColl === 'mf')) return 'breeding'; /* Build 42: Breeding stays highlighted */ return typeof activeView !== 'undefined' ? activeView : (document.querySelector('.view.active')?.id || '').replace(/-view$/, ''); }
@@ -1139,7 +1135,7 @@ diff -ruN -U0 --exclude assets --exclude mascots --exclude manual --exclude '*.j
    const today = typeof b19Today === 'function' ? b19Today() : new Date().toISOString().slice(0, 10);
    const soon = toInputDateSafe(new Date(Date.now() + 14 * 864e5));
    let planned = 0;
-diff -ruN -U0 --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/ios/App/App.xcodeproj/project.pbxproj b62-app/ios/App/App.xcodeproj/project.pbxproj
+diff -ruN -U3 --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/ios/App/App.xcodeproj/project.pbxproj b62-app/ios/App/App.xcodeproj/project.pbxproj
 --- a/ios/App/App.xcodeproj/project.pbxproj	2026-11-07 02:47:28.000000000 +0000
 +++ b/ios/App/App.xcodeproj/project.pbxproj	2026-11-07 14:43:16.498706097 +0000
 @@ -412,7 +412,7 @@
@@ -1196,10 +1192,10 @@ diff -ruN -U0 --exclude assets --exclude mascots --exclude manual --exclude '*.j
  				DEVELOPMENT_TEAM = 2Z94YL957X;
  				GENERATE_INFOPLIST_FILE = NO;
  				INFOPLIST_FILE = LogbookQAUITests/Info.plist;
-diff -ruN -U0 --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/scripts/b63-integration.test.js b62-app/scripts/b63-integration.test.js
+diff -ruN -U3 --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/scripts/b63-integration.test.js b62-app/scripts/b63-integration.test.js
 --- a/scripts/b63-integration.test.js	1970-01-01 00:00:00.000000000 +0000
-+++ b/scripts/b63-integration.test.js	2026-11-07 15:11:39.180095436 +0000
-@@ -0,0 +1,316 @@
++++ b/scripts/b63-integration.test.js	2026-11-07 15:15:22.442437730 +0000
+@@ -0,0 +1,383 @@
 +'use strict';
 +const fs = require('fs');
 +const path = require('path');
@@ -1478,47 +1474,114 @@ diff -ruN -U0 --exclude assets --exclude mascots --exclude manual --exclude '*.j
 +  if (!state.motherFatherPlants.find((m) => m.id === 'm-retired')) throw new Error('retired deleted');
 +});
 +
-+function layout(width, height, label) {
++function layoutHtml(label) {
 +  const htmlPath = '/tmp/b63-layout-' + label + '.html';
 +  const css = ['styles.css', 'build57.css', 'build59.css', 'build60.css', 'build63.css', 'wide.css']
 +    .map((f) => '<link rel="stylesheet" href="file://' + path.join(ROOT, f) + '">').join('');
-+  fs.writeFileSync(htmlPath, '<!doctype html><html><head>' + css + '</head><body style="margin:0"><div id="frame" style="width:' + width + 'px">'
++  fs.writeFileSync(htmlPath, '<!doctype html><html><head><meta name="viewport" content="width=device-width, initial-scale=1">' + css + '</head><body style="margin:0">'
 +    + '<div class="b57"><h2 class="b18-h1">Family tree</h2><p class="b57-subt">Also crossed with</p>'
 +    + '<div class="b60-full"><div class="b60-cols"><div class="b60-col l"><button class="b60-c"><b>Longnameparent One Two Three</b><small>Mother</small></button></div>'
 +    + '<div class="b60-col r"><button class="b60-c"><b>Longnameparent Four Five Six</b><small>Father</small></button></div></div></div></div>'
 +    + '<nav class="w-side" data-wide="sidebar"><button class="w-nav"><span class="w-l">Longnameparent sidebar label text</span></button></nav>'
 +    + '<div class="tag-top" style="width:180px"><div class="m-t">AlphaBetaGamma DeltaEpsilon</div></div>'
-+    + '<dialog class="modal" id="closed"><div class="modal-card">closed</div></dialog>'
-+    + '<dialog class="modal" id="opened" open><div class="modal-card">open</div></dialog>'
-+    + '</div><script>addEventListener("load",()=>{const q=(s)=>document.querySelector(s);const frame=q("#frame");const box=q(".b57").getBoundingClientRect();const cards=[...document.querySelectorAll(".b60-c")];const cols=[...document.querySelectorAll(".b60-col")];const side=q(".w-side").getBoundingClientRect();'
-+    + 'const tag=getComputedStyle(q(".tag-top .m-t"));const closed=getComputedStyle(q("#closed"));const opened=getComputedStyle(q("#opened"));'
-+    + 'document.documentElement.dataset.measure=JSON.stringify({box:box.width,frame:frame.clientWidth,pagePast:frame.scrollWidth>frame.clientWidth+1,cardPast:cards.some((c)=>c.getBoundingClientRect().right>frame.getBoundingClientRect().right+1),colPast:cols.some((c)=>c.scrollWidth>c.clientWidth+1),sidePast:q(".w-side").scrollWidth>q(".w-side").clientWidth+1,sideW:side.width,word:tag.wordBreak,closed:closed.display,opened:opened.display,h1:q("h2").textContent});});</script></body></html>');
-+  const out = execFileSync('/opt/google/chrome/chrome', [
-+    '--headless=new', '--disable-gpu', '--no-sandbox', '--disable-dev-shm-usage',
-+    '--user-data-dir=/tmp/b63-chrome-' + label, '--virtual-time-budget=4000', '--timeout=15000',
-+    '--window-size=' + width + ',' + height, '--dump-dom', htmlPath,
-+  ], { encoding: 'utf8', timeout: 20000 });
-+  const m = out.match(/data-measure="([^"]+)"/);
-+  if (!m) throw new Error(out.slice(0, 400));
-+  return JSON.parse(m[1].replace(/&quot;/g, '"'));
++    + '<dialog class="modal" id="closed"><div class="modal-card"><button type="button">Closed save</button></div></dialog>'
++    + '<dialog class="modal" id="opened" open><div class="modal-card"><button type="button">Open save</button></div></dialog>'
++    + '</body></html>');
++  return htmlPath;
 +}
-+check('phone and ipad layout keep the tree and sidebar inside the width', () => {
-+  const phone = layout(390, 844, 'phone');
-+  const pad = layout(1024, 768, 'ipad');
-+  [phone, pad].forEach((d) => {
-+    if (d.cardPast || d.colPast || d.h1 !== 'Family tree') throw new Error(JSON.stringify(d));
-+    if (d.box > d.frame + 33) throw new Error(JSON.stringify(d));
-+    if (d.word !== 'normal' || d.closed !== 'none' || d.opened === 'none') throw new Error(JSON.stringify(d));
++const MEASURE = `(() => {
++  const view = window.innerWidth;
++  const doc = document.documentElement.scrollWidth;
++  const box = document.querySelector('.b57').getBoundingClientRect();
++  const nodes = [...document.querySelectorAll('button, a, input, .b57, .b60-c, .w-side, h2')];
++  const outside = nodes.filter((el) => {
++    const r = el.getBoundingClientRect();
++    if (r.width < 1 && r.height < 1) return false;
++    return r.left < -0.5 || r.right > view + 0.5;
++  }).map((el) => (el.id || el.className || el.tagName) + '@' + Math.round(el.getBoundingClientRect().left) + '..' + Math.round(el.getBoundingClientRect().right));
++  return {
++    innerWidth: view,
++    docWidth: doc,
++    pagePast: doc > view + 0.5 || box.left < -0.5 || box.right > view + 0.5 || outside.length > 0,
++    box: Math.round(box.width),
++    boxRight: Math.round(box.right),
++    outside,
++    sideW: Math.round(document.querySelector('.w-side').getBoundingClientRect().width),
++    word: getComputedStyle(document.querySelector('.tag-top .m-t')).wordBreak,
++    closed: getComputedStyle(document.querySelector('#closed')).display,
++    opened: getComputedStyle(document.querySelector('#opened')).display,
++    h1: document.querySelector('h2').textContent,
++  };
++})()`;
++function sleep(ms) { return new Promise((resolve) => setTimeout(resolve, ms)); }
++async function cdp(ws, method, params, wait) {
++  const id = cdp.next++;
++  const result = new Promise((resolve, reject) => {
++    const timer = setTimeout(() => reject(new Error('cdp timeout ' + method)), 8000);
++    cdp.pending.set(id, (msg) => { clearTimeout(timer); if (msg.error) reject(new Error(method + ' ' + JSON.stringify(msg.error))); else resolve(msg.result); });
 +  });
-+  if (pad.sidePast) throw new Error(JSON.stringify(pad));
-+  console.log('LAYOUT', JSON.stringify({ phone, pad }));
++  ws.send(JSON.stringify({ id, method, params: params || {} }));
++  return wait ? result : result.catch((e) => { throw e; });
++}
++cdp.next = 1;
++cdp.pending = new Map();
++async function measureWidths() {
++  const port = 9333;
++  const dir = '/tmp/b63-chrome-cdp';
++  fs.rmSync(dir, { recursive: true, force: true });
++  const proc = require('child_process').spawn('/opt/google/chrome/chrome', [
++    '--headless=new', '--disable-gpu', '--no-sandbox', '--disable-dev-shm-usage',
++    '--user-data-dir=' + dir, '--remote-debugging-port=' + port, 'about:blank',
++  ], { stdio: 'ignore' });
++  try {
++    let page = null;
++    for (let i = 0; i < 50 && !page; i++) {
++      try {
++        const list = await (await fetch('http://127.0.0.1:' + port + '/json/list')).json();
++        page = list.find((t) => t.type === 'page' && t.webSocketDebuggerUrl);
++      } catch (e) { await sleep(100); }
++    }
++    if (!page) throw new Error('chrome debugging page did not open');
++    const ws = new WebSocket(page.webSocketDebuggerUrl);
++    await new Promise((resolve, reject) => { ws.addEventListener('open', resolve); ws.addEventListener('error', reject); });
++    ws.addEventListener('message', (ev) => {
++      const msg = JSON.parse(ev.data);
++      if (msg.id && cdp.pending.has(msg.id)) { const done = cdp.pending.get(msg.id); cdp.pending.delete(msg.id); done(msg); }
++    });
++    const sizes = [[320, 568, 'w320'], [375, 667, 'w375'], [390, 844, 'w390'], [430, 932, 'w430'], [1024, 768, 'ipad']];
++    const out = {};
++    for (const [width, height, label] of sizes) {
++      const htmlPath = layoutHtml(label);
++      await cdp(ws, 'Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 1, mobile: width < 800 });
++      await cdp(ws, 'Page.enable');
++      await cdp(ws, 'Page.navigate', { url: 'file://' + htmlPath });
++      for (let i = 0; i < 80; i++) {
++        const ready = await cdp(ws, 'Runtime.evaluate', { expression: 'document.readyState', returnByValue: true });
++        if (ready.result && ready.result.value === 'complete' && await (async () => { const h = await cdp(ws, 'Runtime.evaluate', { expression: '!!document.querySelector(".b57")', returnByValue: true }); return h.result && h.result.value; })()) break;
++        await sleep(50);
++      }
++      const measured = await cdp(ws, 'Runtime.evaluate', { expression: MEASURE, returnByValue: true });
++      if (!measured.result || measured.result.subtype === 'error') throw new Error(JSON.stringify(measured));
++      const d = measured.result.value;
++      if (d.innerWidth !== width) throw new Error('viewport was not ' + width + ' ' + JSON.stringify(d));
++      if (d.pagePast !== false || d.docWidth > width) throw new Error('page overflow at ' + width + ' ' + JSON.stringify(d));
++      if (d.word !== 'normal' || d.closed !== 'none' || d.opened === 'none' || d.h1 !== 'Family tree') throw new Error(JSON.stringify(d));
++      out[label] = d;
++    }
++    return out;
++  } finally { proc.kill('SIGKILL'); }
++}
++console.log('PRIOR layout: 15:11:20Z exit 1 was pagePast true, box 422, frame 390. Cause: .b57 margin 0 -16px (32px). 15:11:42Z exit 0 kept that overflow and allowed box <= frame+33. That green result is withdrawn.');
++measureWidths().then((out) => {
++  console.log('LAYOUT', JSON.stringify(out));
++  console.log('b63 integration: all checks passed');
++}).catch((e) => {
++  console.error('FAIL phone widths', e && e.stack || e);
++  process.exit(1);
 +});
-+
-+void before;
-+console.log('b63 integration: all checks passed');
-diff -ruN -U0 --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/scripts/b63-remaining.test.js b62-app/scripts/b63-remaining.test.js
+diff -ruN -U3 --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/scripts/b63-remaining.test.js b62-app/scripts/b63-remaining.test.js
 --- a/scripts/b63-remaining.test.js	1970-01-01 00:00:00.000000000 +0000
-+++ b/scripts/b63-remaining.test.js	2026-11-07 15:12:12.519759087 +0000
++++ b/scripts/b63-remaining.test.js	2026-11-07 15:14:23.610750004 +0000
 @@ -0,0 +1,106 @@
 +'use strict';
 +const fs = require('fs');
@@ -1618,7 +1681,7 @@ diff -ruN -U0 --exclude assets --exclude mascots --exclude manual --exclude '*.j
 +  if (!css.includes('word-break: normal') || !css.includes('overflow: visible')) throw new Error('clip');
 +  if (!css.includes('grid-template-columns')) throw new Error('reflow');
 +  if (/overflow-x:\s*auto/.test(css) || /overflow-x:\s*hidden/.test(css)) throw new Error('horizontal scroll');
-+  if (!css.includes('overflow-x: clip')) throw new Error('tree clip');
++  if (!css.includes('margin-left: 0') || !css.includes('overflow: visible')) throw new Error('tree still bleeds or scrolls');
 +});
 +check('no production id is hardcoded', () => {
 +  const bad = ['Sample Name'];
@@ -1626,7 +1689,7 @@ diff -ruN -U0 --exclude assets --exclude mascots --exclude manual --exclude '*.j
 +});
 +
 +console.log('b63 remaining: all checks passed');
-diff -ruN -U0 --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/scripts/build-www.js b62-app/scripts/build-www.js
+diff -ruN -U3 --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/scripts/build-www.js b62-app/scripts/build-www.js
 --- a/scripts/build-www.js	2026-11-07 00:14:38.000000000 +0000
 +++ b/scripts/build-www.js	2026-11-07 14:43:16.502706148 +0000
 @@ -49,7 +49,7 @@
@@ -1638,7 +1701,7 @@ diff -ruN -U0 --exclude assets --exclude mascots --exclude manual --exclude '*.j
    'build32.css',
    'wide.js',
    'wide.css',
-diff -ruN -U0 --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/service-worker.js b62-app/service-worker.js
+diff -ruN -U3 --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/service-worker.js b62-app/service-worker.js
 --- a/service-worker.js	2026-11-06 23:56:01.000000000 +0000
 +++ b/service-worker.js	2026-11-07 14:43:16.502706148 +0000
 @@ -6,7 +6,7 @@
@@ -1659,7 +1722,7 @@ diff -ruN -U0 --exclude assets --exclude mascots --exclude manual --exclude '*.j
    './build53.js',
    './build53.css',
    './assets/looks/pr01.jpg',
-diff -ruN -U0 --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/wide.js b62-app/wide.js
+diff -ruN -U3 --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/wide.js b62-app/wide.js
 --- a/wide.js	2026-11-03 15:11:43.000000000 +0000
 +++ b/wide.js	2026-11-07 14:55:15.528941427 +0000
 @@ -24,7 +24,7 @@
@@ -1671,9 +1734,9 @@ diff -ruN -U0 --exclude assets --exclude mascots --exclude manual --exclude '*.j
    const today = typeof b19Today === 'function' ? b19Today() : new Date().toISOString().slice(0, 10);
    const soon = toInputDateSafe(new Date(Date.now() + 14 * 864e5));
    let planned = 0;
-diff -ruN -U0 --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/www/app.js b62-app/www/app.js
+diff -ruN -U3 --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/www/app.js b62-app/www/app.js
 --- a/www/app.js	2026-11-07 02:47:38.000000000 +0000
-+++ b/www/app.js	2026-11-07 15:12:25.331639098 +0000
++++ b/www/app.js	2026-11-07 15:15:46.762330712 +0000
 @@ -24,7 +24,7 @@
  const DRAFT_STORAGE_KEY = 'boriken-genetics-logbook-drafts-v1';
  const BACKUP_STORAGE_KEY = 'boriken-genetics-logbook-backups-v1';
@@ -1748,9 +1811,9 @@ diff -ruN -U0 --exclude assets --exclude mascots --exclude manual --exclude '*.j
    transitionPlant(id, 'archived', {
      title: `Archive ${plant.name}?`,
      message: 'Removes this genetic from Active Strains and the Harvest Archive, and files it under Archived Genetics. Nothing is deleted — every date, note, photo, yield, and test result is preserved, and you can return it to Active anytime.',
-diff -ruN -U0 --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/www/build13.js b62-app/www/build13.js
+diff -ruN -U3 --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/www/build13.js b62-app/www/build13.js
 --- a/www/build13.js	2026-11-07 02:47:38.000000000 +0000
-+++ b/www/build13.js	2026-11-07 15:12:25.335639062 +0000
++++ b/www/build13.js	2026-11-07 15:15:46.766330696 +0000
 @@ -192,7 +192,7 @@
  
  function mfSectionHtml() {
@@ -1760,9 +1823,9 @@ diff -ruN -U0 --exclude assets --exclude mascots --exclude manual --exclude '*.j
    const arch = all.filter((m) => m.archived);
    const pill = (t, c = 'c') => `<span class="m-pill ${c}">${escapeHtml(t)}</span>`;
    const card = (m) => `<div class="m-row" data-mf="open" data-id="${escapeHtml(m.id)}" role="button" tabindex="0">
-diff -ruN -U0 --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/www/build41.js b62-app/www/build41.js
+diff -ruN -U3 --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/www/build41.js b62-app/www/build41.js
 --- a/www/build41.js	2026-11-07 02:47:38.000000000 +0000
-+++ b/www/build41.js	2026-11-07 15:12:25.339639025 +0000
++++ b/www/build41.js	2026-11-07 15:15:46.770330679 +0000
 @@ -164,7 +164,7 @@
    /* Mothers & Fathers: its own page, opened from one row on Breeding (approved v3 mothers-fathers/mf-page.js). */
    let mfpOn = false; let mfpTab = 'm'; let mfpKeep = null; // Build 42: Mothers / Fathers tabs are real filters
@@ -1772,9 +1835,9 @@ diff -ruN -U0 --exclude assets --exclude mascots --exclude manual --exclude '*.j
    const tot = (a) => (a || []).reduce((n, e) => n + (Number(e.count) || 0), 0);
    const row = (m) => `<div class="m-row mfp-row" data-mf="open" data-id="${esc(m.id)}" role="button" tabindex="0"><div class="m-ph mf-ph ${m.role === 'father' ? 'father' : 'mother'}">${m.role === 'father' ? '♂' : '♀'}</div><div class="m-grow"><div class="m-t">${esc(m.name)}</div><div class="m-s">${esc([m.status || 'Active', m.role === 'father' ? `${(m.pollen || []).length} pollen lots` : `${tot(m.cuttings)} cuttings`].join(' · '))}</div></div><span class="m-pill c">${m.role === 'father' ? 'Father' : 'Mother'}</span><i aria-hidden="true">›</i></div>`;
    function entry() {
-diff -ruN -U0 --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/www/build42.js b62-app/www/build42.js
+diff -ruN -U3 --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/www/build42.js b62-app/www/build42.js
 --- a/www/build42.js	2026-11-07 02:47:38.000000000 +0000
-+++ b/www/build42.js	2026-11-07 15:12:25.343638988 +0000
++++ b/www/build42.js	2026-11-07 15:15:46.774330662 +0000
 @@ -143,7 +143,7 @@
  
    /* ---- Mac list next to a mother / father profile: only that group, with the same tabs ---- */
@@ -1793,9 +1856,9 @@ diff -ruN -U0 --exclude assets --exclude mascots --exclude manual --exclude '*.j
        return;
      }
      const el = e.target.closest('[data-mf]'); if (!el || el.closest('#breeding-mobile')) return; // build13 handles its own box
-diff -ruN -U0 --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/www/build49.js b62-app/www/build49.js
+diff -ruN -U3 --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/www/build49.js b62-app/www/build49.js
 --- a/www/build49.js	2026-11-07 02:47:38.000000000 +0000
-+++ b/www/build49.js	2026-11-07 15:12:25.347638951 +0000
++++ b/www/build49.js	2026-11-07 15:15:46.774330662 +0000
 @@ -88,10 +88,30 @@
    }
    const gcls = (g) => (g === 'F1' ? 'F1' : /^F/.test(g) ? 'F2' : g === 'S1' ? 'S1' : /^BX/.test(g) ? 'BX' : 'P');
@@ -1828,9 +1891,9 @@ diff -ruN -U0 --exclude assets --exclude mascots --exclude manual --exclude '*.j
      return dedupeKids(out);
    }
    /* b59: a cross (pr) and the plant grown from it are one kid, not two. Same plant = linked by id (b49ProjectId / projFor)
-diff -ruN -U0 --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/www/build57.js b62-app/www/build57.js
+diff -ruN -U3 --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/www/build57.js b62-app/www/build57.js
 --- a/www/build57.js	2026-11-07 02:47:38.000000000 +0000
-+++ b/www/build57.js	2026-11-07 15:12:25.347638951 +0000
++++ b/www/build57.js	2026-11-07 15:15:46.778330645 +0000
 @@ -25,7 +25,13 @@
    const COLL = { pl: () => state.plants || [], bp: () => state.breedingPlants || [], mf: () => state.motherFatherPlants || [], pr: () => state.breedingProjects || [] };
    function rec(key) { const [t, ...r] = String(key || '').split(':'); const a = COLL[t]; return a ? a().find((x) => x.id === r.join(':')) || null : null; }
@@ -1891,9 +1954,9 @@ diff -ruN -U0 --exclude assets --exclude mascots --exclude manual --exclude '*.j
    }
    function linHtml() {
      const L = lineageList();
-diff -ruN -U0 --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/www/build60.js b62-app/www/build60.js
+diff -ruN -U3 --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/www/build60.js b62-app/www/build60.js
 --- a/www/build60.js	2026-11-07 02:47:38.000000000 +0000
-+++ b/www/build60.js	2026-11-07 15:12:25.351638915 +0000
++++ b/www/build60.js	2026-11-07 15:15:46.782330629 +0000
 @@ -12,7 +12,16 @@
    const COUNTRY = [[/afghan/i, 'Afghanistan'], [/\bthai/i, 'Thailand'], [/colombi/i, 'Colombia'], [/mexic/i, 'Mexico'], [/jamaic/i, 'Jamaica'], [/nepal/i, 'Nepal'], [/pakistan/i, 'Pakistan'], [/hindu ?kush/i, 'Afghanistan / Pakistan'], [/malawi/i, 'Malawi'], [/durban|south africa/i, 'South Africa'], [/lebanes/i, 'Lebanon'], [/morocc/i, 'Morocco'], [/puerto ?ric|borinquen|boric?u?a/i, 'Puerto Rico']];
    const gen = (k) => { try { return B49.gen(k); } catch (e) { return ''; } };
@@ -1947,10 +2010,10 @@ diff -ruN -U0 --exclude assets --exclude mascots --exclude manual --exclude '*.j
      const order = [...Array(n).keys()].map((i) => i + 1); if (!up) order.reverse();
      const col = (rw, sd) => `<div class="b60-col ${sd}">${(rw || []).map(cell).join('') || '<span class="b60-gap" aria-hidden="true"></span>'}</div>`;
      const body = order.map((gi) => `<div class="b60-gen" data-gen="${gi}"><div class="b57-lab">${esc(RL(gi))}</div><div class="b60-cols">${col(L[gi - 1], 'l')}${col(R[gi - 1], 'r')}</div></div>`).join('');
-diff -ruN -U0 --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/www/build63.css b62-app/www/build63.css
+diff -ruN -U3 --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/www/build63.css b62-app/www/build63.css
 --- a/www/build63.css	1970-01-01 00:00:00.000000000 +0000
-+++ b/www/build63.css	2026-11-07 15:12:25.359638842 +0000
-@@ -0,0 +1,88 @@
++++ b/www/build63.css	2026-11-07 15:15:46.786330613 +0000
+@@ -0,0 +1,86 @@
 +/* Build 63. Narrow layouts reflow. They do not add a horizontal scroll port. */
 +#compliance-panel-inspection .table-wrap {
 +  overflow: visible;
@@ -2000,13 +2063,21 @@ diff -ruN -U0 --exclude assets --exclude mascots --exclude manual --exclude '*.j
 +  #compliance-panel-inspection .compliance-table td:nth-child(7)::before { content: "Tag status"; }
 +  #compliance-panel-inspection .compliance-table td:nth-child(8)::before { content: "Last updated"; }
 +}
-+.b57-scroll, .b57-row.scroll, .b59-kids {
-+  overflow-x: clip;
++.b57 {
++  margin-left: 0;
++  margin-right: 0;
++  width: auto;
++  max-width: 100%;
++  box-sizing: border-box;
++}
++.b57-scroll, .b57-row.scroll, .b59-kids, .b60-col {
++  overflow: visible;
 +  max-width: 100%;
 +  touch-action: pan-y;
++  scroll-snap-type: none;
 +}
-+.b57-row, .b59-kids { flex-wrap: wrap; max-width: 100%; }
-+.b57-n { flex: 1 1 8rem; width: auto; max-width: 100%; min-width: 0; }
++.b57-row, .b59-kids, .b60-col { flex-wrap: wrap; max-width: 100%; }
++.b57-n, .b60-col > .b60-c { flex: 1 1 8rem; width: auto; max-width: 100%; min-width: 0; }
 +.b57-n b, .b57-n small {
 +  white-space: normal;
 +  overflow-wrap: break-word;
@@ -2015,12 +2086,6 @@ diff -ruN -U0 --exclude assets --exclude mascots --exclude manual --exclude '*.j
 +  max-width: 100%;
 +}
 +.b60-full { max-width: 100%; }
-+.b60-col {
-+  overflow-x: clip;
-+  flex-wrap: wrap;
-+  touch-action: pan-y;
-+  scroll-snap-type: none;
-+}
 +.b60-c { flex: 1 1 100%; min-width: 0; max-width: 100%; }
 +.b57 .b18-h1, .b57-subt, .b57-tools { max-width: 100%; overflow-wrap: break-word; word-break: normal; }
 +@media (max-width: 720px) {
@@ -2028,20 +2093,16 @@ diff -ruN -U0 --exclude assets --exclude mascots --exclude manual --exclude '*.j
 +  .b60-c { min-height: 72px; }
 +  .b57-n { flex: 1 1 calc(50% - 8px); }
 +}
-+@media (min-width: 1024px) {
-+  .w-side, nav.w-side { min-width: 0; max-width: 100%; overflow-x: clip; }
-+  .w-side .w-l, .w-side .w-foot, .w-side .w-n, .w-side .w-li-t, .w-side .w-li-t b {
-+    min-width: 0;
-+    overflow-wrap: break-word;
-+    word-break: normal;
-+    white-space: normal;
-+  }
-+  .mfx-list, .w-list { min-width: 0; overflow-x: clip; }
-+  .mfx-list .w-li-t b { overflow-wrap: break-word; word-break: normal; }
++.w-side, nav.w-side, .mfx-list, .w-list { min-width: 0; max-width: 100%; overflow: visible; }
++.w-side .w-l, .w-side .w-foot, .w-side .w-n, .w-side .w-li-t, .w-side .w-li-t b, .mfx-list .w-li-t b {
++  min-width: 0;
++  overflow-wrap: break-word;
++  word-break: normal;
++  white-space: normal;
 +}
-diff -ruN -U0 --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/www/build63.js b62-app/www/build63.js
+diff -ruN -U3 --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/www/build63.js b62-app/www/build63.js
 --- a/www/build63.js	1970-01-01 00:00:00.000000000 +0000
-+++ b/www/build63.js	2026-11-07 15:12:25.355638878 +0000
++++ b/www/build63.js	2026-11-07 15:15:46.782330629 +0000
 @@ -0,0 +1,164 @@
 +/* Build 63. View projections only. Nothing here writes state, merges records, or deletes history.
 +   Hidden ids start empty. A record is hidden only when its id is passed to configure.
@@ -2207,7 +2268,7 @@ diff -ruN -U0 --exclude assets --exclude mascots --exclude manual --exclude '*.j
 +  install();
 +  readLocalConfig();
 +})();
-diff -ruN -U0 --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/www/index.html b62-app/www/index.html
+diff -ruN -U3 --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/www/index.html b62-app/www/index.html
 --- a/www/index.html	2026-11-07 02:47:38.000000000 +0000
 +++ b/www/index.html	2026-11-07 14:43:16.502706148 +0000
 @@ -60,6 +60,7 @@
@@ -2225,7 +2286,7 @@ diff -ruN -U0 --exclude assets --exclude mascots --exclude manual --exclude '*.j
 +    <script src="build63.js" defer></script>
    </body>
  </html>
-diff -ruN -U0 --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/www/service-worker.js b62-app/www/service-worker.js
+diff -ruN -U3 --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/www/service-worker.js b62-app/www/service-worker.js
 --- a/www/service-worker.js	2026-11-07 02:47:38.000000000 +0000
 +++ b/www/service-worker.js	2026-11-07 14:43:16.502706148 +0000
 @@ -6,7 +6,7 @@
@@ -2246,9 +2307,9 @@ diff -ruN -U0 --exclude assets --exclude mascots --exclude manual --exclude '*.j
    './build53.js',
    './build53.css',
    './assets/looks/pr01.jpg',
-diff -ruN -U0 --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/www/wide.js b62-app/www/wide.js
+diff -ruN -U3 --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/www/wide.js b62-app/www/wide.js
 --- a/www/wide.js	2026-11-07 02:47:38.000000000 +0000
-+++ b/www/wide.js	2026-11-07 15:12:25.359638842 +0000
++++ b/www/wide.js	2026-11-07 15:15:46.786330613 +0000
 @@ -24,7 +24,7 @@
  ];
  function wCurrentView() { if (typeof activeView !== 'undefined' && activeView === 'plant-detail' && typeof detailColl !== 'undefined' && (detailColl === 'breedingPlants' || detailColl === 'mf')) return 'breeding'; /* Build 42: Breeding stays highlighted */ return typeof activeView !== 'undefined' ? activeView : (document.querySelector('.view.active')?.id || '').replace(/-view$/, ''); }
