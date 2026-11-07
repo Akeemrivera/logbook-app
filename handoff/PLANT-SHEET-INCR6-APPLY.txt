@@ -1,11 +1,1 @@
-Apply on the phase 1 tree after the guard patches. This changes build59.css and one focus check in build59.js. It does not change plant records or the guard.
-
-  patch -p1 --dry-run < logbook-b61-plant-sheet-incr6.patch
-  patch -p1 < logbook-b61-plant-sheet-incr6.patch
-  node scripts/plant-sheet-scroll.test.js
-
-The running QA app still has the previous web files. Rebuild with the existing QA command before opening Add plant again. Do not launch until that rebuild is the one you open.
-
-  zsh scripts/qa-build.sh
-
-Production stays closed. The sheet box is capped at the window, and the card inside it scrolls, so Save plant is in the scroll range. Tab from Notes focuses Save plant and scrolls it into view.
+Do not apply logbook-b61-plant-sheet-incr6.patch. It was not applied on the Mac, and its unconditional dialog.modal { display: flex } can show closed dialogs. Use logbook-b61-plant-sheet-incr6b.patch instead. See PLANT-SHEET-INCR6B-APPLY.txt.
