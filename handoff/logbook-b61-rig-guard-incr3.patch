@@ -1,0 +1,296 @@
+--- a/rig-guard.sh
++++ b/rig-guard.sh
+@@ -18,7 +18,12 @@
+   echo "$ent" | grep -q 'ubiquity-container-identifiers' && { echo "RIG-GUARD: refusing an iCloud Drive container"; exit 4; }
+ }
+ if [ "$T" = mac ]; then
+-  pgrep -f "Borikèn Logbook.app/" >/dev/null && { echo "RIG-GUARD: installed Logbook is open"; exit 4; }
++  # Bundle id, not the .app path. Designed for iPad often runs as App inside a wrapper,
++  # so a search for "Borikèn Logbook.app/" can miss an open production window.
++  # Uncertainty, and a production bundle id under any name or path, both stop the run.
++  # This does not quit or launch the production app.
++  DIR=${0:A:h}
++  node "$DIR/scripts/rig-guard-running.js" || { echo "RIG-GUARD: running-app check failed closed"; exit 4; }
+   check_ents "$APP"
+ elif [ "$T" = sim ]; then
+   xcrun simctl list devices | grep -q "($U)" || { echo "RIG-GUARD: $U is not a simulator"; exit 4; }
+--- /dev/null
++++ b/scripts/rig-guard-running.js
+@@ -0,0 +1,189 @@
++'use strict';
++
++/*
++  Fail-closed check for a running production Logbook before any QA launch.
++  Identity is the bundle id, not the .app path. Designed for iPad often runs
++  as App inside a wrapper, so a pgrep for "Borikèn Logbook.app/" can miss it.
++  This file does not launch, activate, or quit any app.
++*/
++
++const { spawnSync } = require('child_process');
++const fs = require('fs');
++const path = require('path');
++
++const PROD = 'com.borikengenetics.logbookapp';
++const QA = 'com.borikengenetics.logbookapp.qa';
++
++function fold(value) {
++  return String(value || '').normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
++}
++
++function normId(value) {
++  return String(value || '').trim().toLowerCase();
++}
++
++function isProd(value) {
++  return normId(value) === PROD;
++}
++
++function isQa(value) {
++  return normId(value) === QA;
++}
++
++function idsOf(app) {
++  return [app && app.bundleId, ...((app && app.bundleIds) || [])].map(normId).filter(Boolean);
++}
++
++function suspect(app) {
++  const name = fold(app && app.name);
++  const filePath = fold(app && app.path);
++  if (name === 'boriken logbook' || name.startsWith('boriken logbook ')) return true;
++  if (filePath.includes('/boriken logbook.app')) return true;
++  if (/\/logbook\.app(\/|$)/.test(filePath)) return true;
++  const parts = String((app && app.path) || '').split(/[/\\]/);
++  return parts.some((part) => normId(part) === PROD);
++}
++
++function sourceOk(source) {
++  return Boolean(source && source.ok === true && source.complete === true && Array.isArray(source.apps));
++}
++
++function decide(obs) {
++  if (!sourceOk(obs && obs.lsappinfo) || !sourceOk(obs && obs.systemEvents)) {
++    return { ok: false, reason: 'running-app identity uncertain' };
++  }
++  const apps = obs.lsappinfo.apps.concat(obs.systemEvents.apps);
++  for (const app of apps) {
++    const ids = idsOf(app);
++    if (ids.some(isProd)) return { ok: false, reason: 'production Logbook is running' };
++    if (suspect(app) && ids.length === 0) {
++      return { ok: false, reason: 'a Logbook-like app has no readable bundle id' };
++    }
++  }
++  return { ok: true, reason: 'no production Logbook identified' };
++}
++
++function parseLsappinfo(text) {
++  const apps = [];
++  let cur = null;
++  for (const line of String(text || '').split(/\r?\n/)) {
++    const named = line.match(/"([^"]*)"/);
++    const bid = line.match(/bundleID="([^"]*)"/);
++    const bpath = line.match(/bundle path="([^"]*)"/);
++    const epath = line.match(/executable path="([^"]*)"/);
++    if (/ASN:/.test(line)) {
++      cur = { name: named ? named[1] : '', bundleId: '', path: '', bundleIds: [] };
++      apps.push(cur);
++    }
++    if (!cur) continue;
++    if (bid) cur.bundleId = bid[1];
++    if (bpath) cur.path = bpath[1];
++    else if (epath && !cur.path) cur.path = epath[1];
++  }
++  const complete = apps.length > 0 && apps.every((app) => app.bundleId || app.path || app.name);
++  return { ok: true, complete, apps };
++}
++
++function parseSystemEvents(text) {
++  const apps = [];
++  const lines = String(text || '').split(/\r?\n/).filter((line) => line.trim() !== '');
++  if (!lines.length) return { ok: true, complete: false, apps: [] };
++  for (const line of lines) {
++    const parts = line.split('\t');
++    if (parts.length < 3) return { ok: false, complete: false, apps: [], error: 'system events row was not identity, path, and name' };
++    apps.push({ bundleId: parts[0], path: parts[1], name: parts.slice(2).join('\t'), bundleIds: [] });
++  }
++  return { ok: true, complete: true, apps };
++}
++
++function readXmlBundleId(file) {
++  try {
++    const text = fs.readFileSync(file, 'utf8');
++    const match = text.match(/<key>CFBundleIdentifier<\/key>\s*<string>([^<]*)<\/string>/);
++    return match ? match[1].trim() : '';
++  } catch (error) {
++    return '';
++  }
++}
++
++function bundleIdsAlong(start) {
++  const found = [];
++  let dir = start;
++  for (let i = 0; i < 8 && dir && dir !== path.dirname(dir); i += 1) {
++    const candidates = [
++      path.join(dir, 'Info.plist'),
++      path.join(dir, 'Contents', 'Info.plist'),
++      path.join(dir, 'Wrapper', 'App.app', 'Info.plist'),
++    ];
++    candidates.forEach((file) => {
++      const id = readXmlBundleId(file);
++      if (id) found.push(id);
++    });
++    dir = path.dirname(dir);
++  }
++  return found;
++}
++
++function run(cmd, args) {
++  const result = spawnSync(cmd, args, { encoding: 'utf8', timeout: 8000 });
++  if (!result || result.error || result.status !== 0) {
++    return { ok: false, complete: false, apps: [], error: (result && result.error && result.error.message) || cmd + ' failed' };
++  }
++  return { ok: true, stdout: result.stdout || '' };
++}
++
++function collectLive() {
++  const listed = run('lsappinfo', ['list']);
++  const lsappinfo = listed.ok ? parseLsappinfo(listed.stdout) : { ok: false, complete: false, apps: [], error: listed.error };
++  const script = [
++    'tell application "System Events"',
++    'set out to ""',
++    'repeat with p in application processes',
++    'set bid to ""',
++    'set pth to ""',
++    'set nm to ""',
++    'try',
++    'set bid to bundle identifier of p',
++    'end try',
++    'try',
++    'set pth to POSIX path of (application file of p as alias)',
++    'end try',
++    'try',
++    'set nm to name of p',
++    'end try',
++    'set out to out & bid & tab & pth & tab & nm & linefeed',
++    'end repeat',
++    'return out',
++    'end tell',
++  ].join('\n');
++  const events = run('osascript', ['-e', script]);
++  const systemEvents = events.ok ? parseSystemEvents(events.stdout) : { ok: false, complete: false, apps: [], error: events.error };
++  (systemEvents.apps || []).forEach((app) => {
++    app.bundleIds = bundleIdsAlong(app.path);
++  });
++  return { lsappinfo, systemEvents };
++}
++
++function main() {
++  const obs = collectLive();
++  const result = decide(obs);
++  if (!result.ok) {
++    console.error('RIG-GUARD: ' + result.reason);
++    process.exit(4);
++  }
++  console.log('RIG-GUARD: ' + result.reason);
++}
++
++module.exports = {
++  PROD,
++  QA,
++  decide,
++  parseLsappinfo,
++  parseSystemEvents,
++  bundleIdsAlong,
++  suspect,
++  isProd,
++  isQa,
++};
++
++if (require.main === module) main();
+--- /dev/null
++++ b/scripts/rig-guard-running.test.js
+@@ -0,0 +1,85 @@
++'use strict';
++
++const fs = require('fs');
++const os = require('os');
++const path = require('path');
++const { spawnSync } = require('child_process');
++const guard = require('./rig-guard-running.js');
++
++const FAIL = [];
++function check(name, ok, detail) {
++  if (ok) console.log('PASS', name);
++  else {
++    FAIL.push(name);
++    console.error('FAIL', name, detail || '');
++  }
++}
++
++const finder = { name: 'Finder', bundleId: 'com.apple.Finder', path: '/System/Applications/Finder.app', bundleIds: [] };
++
++function obs(extraLs, extraSe) {
++  return {
++    lsappinfo: { ok: true, complete: true, apps: [finder].concat(extraLs || []) },
++    systemEvents: { ok: true, complete: true, apps: [finder].concat(extraSe || []) },
++  };
++}
++
++check('nothing identified as production is clear', guard.decide(obs()).ok === true);
++check('exact production bundle id blocks', guard.decide(obs([], [{ name: 'App', bundleId: guard.PROD, path: '/private/var/folders/x/App' }])).ok === false);
++check('QA bundle id does not count as production', guard.decide(obs([], [{ name: 'Borikèn Logbook QA', bundleId: guard.QA, path: '/Applications/Borikèn Logbook QA.app' }])).ok === true);
++check('a longer id is not treated as the production id', guard.isProd(guard.QA) === false && guard.isQa(guard.QA) === true);
++
++const renamed = { name: 'Garden Notes', bundleId: guard.PROD, path: '/Users/a/Applications/Garden Notes.app', bundleIds: [] };
++check('a renamed app still blocks when its bundle id is production', guard.decide(obs([renamed])).reason === 'production Logbook is running');
++
++const nfd = 'Borike\u0300n Logbook';
++check('an accent-decomposed Logbook name with no bundle id blocks', guard.decide(obs([], [{ name: nfd, bundleId: '', path: '/Applications/' + nfd + '.app' }])).ok === false);
++check('the same decomposed name is clear when the bundle id is QA', guard.decide(obs([], [{ name: nfd, bundleId: guard.QA, path: '/Applications/' + nfd + '.app' }])).ok === true);
++
++const wrapper = '/Users/a/Applications/Boriken Logbook.app/Wrapper/App.app/App';
++check('an iOS-on-Mac wrapper path with the production id blocks even without the display name in argv', guard.decide(obs([{ name: 'App', bundleId: guard.PROD, path: wrapper }])).ok === false);
++check('the same wrapper path is clear for the QA id', guard.decide(obs([{ name: 'App', bundleId: guard.QA, path: wrapper }])).ok === true);
++check('Logbook.app with no readable bundle id blocks', guard.decide(obs([], [{ name: 'App', bundleId: '', path: '/Applications/Logbook.app' }])).ok === false);
++check('Logbook.app with a different readable bundle id is clear', guard.decide(obs([], [{ name: 'App', bundleId: 'com.example.other', path: '/Applications/Logbook.app' }])).ok === true);
++check('the production container path blocks', guard.decide(obs([], [{ name: 'App', bundleId: '', path: '/Users/a/Library/Containers/' + guard.PROD + '/Data' }])).ok === false);
++check('the QA container path does not block by itself', guard.decide(obs([], [{ name: 'App', bundleId: guard.QA, path: '/Users/a/Library/Containers/' + guard.QA + '/Data' }])).ok === true);
++check('production id in only one of the two lists blocks', guard.decide(obs([{ name: 'App', bundleId: guard.PROD, path: wrapper }], [])).ok === false);
++check('a failed lsappinfo query blocks', guard.decide({ lsappinfo: { ok: false, complete: false, apps: [] }, systemEvents: obs().systemEvents }).reason === 'running-app identity uncertain');
++check('a failed System Events query blocks', guard.decide({ lsappinfo: obs().lsappinfo, systemEvents: { ok: false, complete: false, apps: [] } }).ok === false);
++check('an empty successful-looking query is still uncertain', guard.decide({ lsappinfo: { ok: true, complete: false, apps: [] }, systemEvents: obs().systemEvents }).ok === false);
++check('uppercase production id blocks', guard.decide(obs([], [{ name: 'App', bundleId: guard.PROD.toUpperCase(), path: '/tmp/App' }])).ok === false);
++
++const parsed = guard.parseLsappinfo([
++  '1) "App" ASN:0x0-0x1:',
++  '    bundleID="' + guard.PROD + '"',
++  '    bundle path="' + wrapper + '"',
++].join('\n'));
++check('lsappinfo text for the wrapper resolves to production', parsed.complete === true && guard.decide({ lsappinfo: parsed, systemEvents: obs().systemEvents }).ok === false);
++
++const events = guard.parseSystemEvents(guard.QA + '\t/Applications/Boriken Logbook QA.app\tBoriken Logbook QA\n');
++check('system events rows parse bundle id, path, and name', events.complete === true && events.apps[0].bundleId === guard.QA);
++check('a short system events row is uncertain', guard.parseSystemEvents('only-one-field\n').ok === false);
++
++const root = fs.mkdtempSync(path.join(os.tmpdir(), 'rig-guard-'));
++const renamedApp = path.join(root, 'Garden Notes.app');
++const wrapperApp = path.join(root, 'Boriken Logbook.app', 'Wrapper', 'App.app');
++fs.mkdirSync(path.join(renamedApp, 'Contents'), { recursive: true });
++fs.mkdirSync(wrapperApp, { recursive: true });
++const plist = (id) => `<?xml version="1.0" encoding="UTF-8"?>\n<plist version="1.0"><dict><key>CFBundleIdentifier</key><string>${id}</string></dict></plist>\n`;
++fs.writeFileSync(path.join(renamedApp, 'Contents', 'Info.plist'), plist(guard.PROD));
++fs.writeFileSync(path.join(wrapperApp, 'Info.plist'), plist(guard.QA));
++check('a renamed bundle path reads the production id from its plist', guard.bundleIdsAlong(renamedApp).includes(guard.PROD));
++check('an iOS-on-Mac wrapper path reads the inner Info.plist', guard.bundleIdsAlong(path.join(wrapperApp, 'App')).includes(guard.QA));
++
++const script = fs.readFileSync(path.join(__dirname, '..', 'rig-guard.sh'), 'utf8');
++check('the guard no longer treats a display-name path search as proof the app is closed', !script.includes('pgrep'));
++check('the guard asks the running-app check and does not quit or launch an app', script.includes('scripts/rig-guard-running.js') && !/killall|osascript/.test(script));
++
++const live = spawnSync(process.execPath, [path.join(__dirname, 'rig-guard-running.js')], { encoding: 'utf8' });
++check('live check fails closed where running-app tools are missing or unusable', live.status === 4);
++
++if (FAIL.length) {
++  console.error(FAIL.length + ' failed');
++  process.exit(1);
++}
++console.log('rig guard running checks passed');

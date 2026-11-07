@@ -1,0 +1,33 @@
+--- a/build58.js	2026-11-03 15:11:43.000000000 +0000
++++ b/build58.js	2026-11-07 16:32:27.697930424 +0000
+@@ -64,7 +64,7 @@
+     d.querySelector('.b58-q').addEventListener('input', draw); draw();
+   }
+   function boughtForm() {
+-    sheet(`Bought genetics · ${SIDE[ctx.side]}`, `<label class="b58-l">Name<input class="b58-on" type="text" placeholder="e.g. Rocco OG" /></label><label class="b58-l">Breeder / seed bank (optional)<input class="b58-ob" type="text" placeholder="e.g. Rocco Seeds" /></label><div class="b58-acts"><button type="button" class="b58-btn pri" data-b58x="bought-save">Save</button><button type="button" class="b58-btn" data-b58x="close">Cancel</button></div>`);
++    sheet(`Bought genetics · ${SIDE[ctx.side]}`, `<label class="b58-l">Name<input class="b58-on" type="text" placeholder="Name" /></label><label class="b58-l">Breeder / seed bank (optional)<input class="b58-ob" type="text" placeholder="Breeder or seed bank" /></label><div class="b58-acts"><button type="button" class="b58-btn pri" data-b58x="bought-save">Save</button><button type="button" class="b58-btn" data-b58x="close">Cancel</button></div>`);
+   }
+   function confirmRm(text, fn) { ctx = Object.assign({}, ctx, { confirm: fn }); sheet('Remove link?', `<p>${esc(text)}</p><p class="m-s">This only removes the link. No plant is deleted.</p><div class="b58-acts"><button type="button" class="b58-btn danger" data-b58x="confirm">Remove link</button><button type="button" class="b58-btn" data-b58x="close">Cancel</button></div>`, 'confirm'); }
+   function sideOfKid(kid, root) { const p = parOf(kid) || []; return B().same(p[0], root) ? 'm' : B().same(p[1], root) ? 'f' : ''; }
+--- a/www/build58.js	2026-11-07 02:47:38.000000000 +0000
++++ b/www/build58.js	2026-11-07 16:32:45.874117078 +0000
+@@ -64,7 +64,7 @@
+     d.querySelector('.b58-q').addEventListener('input', draw); draw();
+   }
+   function boughtForm() {
+-    sheet(`Bought genetics · ${SIDE[ctx.side]}`, `<label class="b58-l">Name<input class="b58-on" type="text" placeholder="e.g. Rocco OG" /></label><label class="b58-l">Breeder / seed bank (optional)<input class="b58-ob" type="text" placeholder="e.g. Rocco Seeds" /></label><div class="b58-acts"><button type="button" class="b58-btn pri" data-b58x="bought-save">Save</button><button type="button" class="b58-btn" data-b58x="close">Cancel</button></div>`);
++    sheet(`Bought genetics · ${SIDE[ctx.side]}`, `<label class="b58-l">Name<input class="b58-on" type="text" placeholder="Name" /></label><label class="b58-l">Breeder / seed bank (optional)<input class="b58-ob" type="text" placeholder="Breeder or seed bank" /></label><div class="b58-acts"><button type="button" class="b58-btn pri" data-b58x="bought-save">Save</button><button type="button" class="b58-btn" data-b58x="close">Cancel</button></div>`);
+   }
+   function confirmRm(text, fn) { ctx = Object.assign({}, ctx, { confirm: fn }); sheet('Remove link?', `<p>${esc(text)}</p><p class="m-s">This only removes the link. No plant is deleted.</p><div class="b58-acts"><button type="button" class="b58-btn danger" data-b58x="confirm">Remove link</button><button type="button" class="b58-btn" data-b58x="close">Cancel</button></div>`, 'confirm'); }
+   function sideOfKid(kid, root) { const p = parOf(kid) || []; return B().same(p[0], root) ? 'm' : B().same(p[1], root) ? 'f' : ''; }
+--- a/ios/App/App/public/build58.js	2026-11-07 02:47:38.000000000 +0000
++++ b/ios/App/App/public/build58.js	2026-11-07 16:32:45.878117120 +0000
+@@ -64,7 +64,7 @@
+     d.querySelector('.b58-q').addEventListener('input', draw); draw();
+   }
+   function boughtForm() {
+-    sheet(`Bought genetics · ${SIDE[ctx.side]}`, `<label class="b58-l">Name<input class="b58-on" type="text" placeholder="e.g. Rocco OG" /></label><label class="b58-l">Breeder / seed bank (optional)<input class="b58-ob" type="text" placeholder="e.g. Rocco Seeds" /></label><div class="b58-acts"><button type="button" class="b58-btn pri" data-b58x="bought-save">Save</button><button type="button" class="b58-btn" data-b58x="close">Cancel</button></div>`);
++    sheet(`Bought genetics · ${SIDE[ctx.side]}`, `<label class="b58-l">Name<input class="b58-on" type="text" placeholder="Name" /></label><label class="b58-l">Breeder / seed bank (optional)<input class="b58-ob" type="text" placeholder="Breeder or seed bank" /></label><div class="b58-acts"><button type="button" class="b58-btn pri" data-b58x="bought-save">Save</button><button type="button" class="b58-btn" data-b58x="close">Cancel</button></div>`);
+   }
+   function confirmRm(text, fn) { ctx = Object.assign({}, ctx, { confirm: fn }); sheet('Remove link?', `<p>${esc(text)}</p><p class="m-s">This only removes the link. No plant is deleted.</p><div class="b58-acts"><button type="button" class="b58-btn danger" data-b58x="confirm">Remove link</button><button type="button" class="b58-btn" data-b58x="close">Cancel</button></div>`, 'confirm'); }
+   function sideOfKid(kid, root) { const p = parOf(kid) || []; return B().same(p[0], root) ? 'm' : B().same(p[1], root) ? 'f' : ''; }

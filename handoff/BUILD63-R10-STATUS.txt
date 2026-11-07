@@ -1,0 +1,34 @@
+BUILD 63 revision 10. TEST ONLY. No runtime file changes. Not compiled. r8 is the last native candidate. Mac is offline.
+
+Patch SHA-256 5da79935951a92f257ca709b6d63c91435b1efdb6d7a1165540971b297afc945
+The patch applies on the revision 9 tree, whose tests still expected cache v82.
+Dry-run and apply onto those old tests reproduced the current scripts byte for byte.
+
+Scripts, not loaded by index.html:
+  scripts/b63-photo-missing.test.js SHA-256 be66a876a92b368ebe37690626598b4009be1939636514c7191f683b8e440dde
+  scripts/b63-r5.test.js SHA-256 0b90e361e40b7138c86ff6f3e226db75f3a3aa7024a15bbb3eb10d651b5f7fde
+  scripts/b63-sw-browser.test.js SHA-256 f663604618015604750369683266550e4b4af754bc39c8711dbe22c33f15523d
+  scripts/b63-r9-fullapp.test.js SHA-256 b6bdcc78aefb1017b14da69d2395e608d3c1b4bc14211a3b52827e15a8821fc2
+
+Outputs, each exit 0:
+  no-sample.txt SHA-256 46686e551aea5424feed836cb467da6c607c26eb1f1a960f4b52014c750b9f7b
+  integration.txt SHA-256 2d828e559a15418b43507b0ca8469ff462315de36d534adc7a18566e17110bae
+  remaining.txt SHA-256 d3b5294f09637a05880e2bf007791487a3a129618c5222f3bfe2a761151aebef
+  photo.txt SHA-256 991db12ba0540e9274a0cc3911512de7844f24573b2250c791a50ae3de8a59aa
+  r5.txt SHA-256 74d686f72a41a6e25bcc0c2ddafe6bfe774e5b5ac42a67883a4ff189332a1957
+  sw-browser.txt SHA-256 299a80fbbd5da97fd971f7519082a7a56fce066748b59fe7b2518ce2a3c6d0fa
+  fullapp.txt SHA-256 c0d99c94f1d1d13ed033e12917f11bcf1653109a41dae8e3f9897debb307fabc
+  r3-1.txt SHA-256 42d012134fa8f1d5798020daa4c341a5c2ceee07cfb7a533287e110766c3baec
+  r3-2.txt SHA-256 42d012134fa8f1d5798020daa4c341a5c2ceee07cfb7a533287e110766c3baec
+  r3-3.txt SHA-256 42d012134fa8f1d5798020daa4c341a5c2ceee07cfb7a533287e110766c3baec
+  r3-4.txt SHA-256 42d012134fa8f1d5798020daa4c341a5c2ceee07cfb7a533287e110766c3baec
+  r3-5.txt SHA-256 42d012134fa8f1d5798020daa4c341a5c2ceee07cfb7a533287e110766c3baec
+  r3-6.txt SHA-256 42d012134fa8f1d5798020daa4c341a5c2ceee07cfb7a533287e110766c3baec
+  r3-7.txt SHA-256 42d012134fa8f1d5798020daa4c341a5c2ceee07cfb7a533287e110766c3baec
+  r3-8.txt SHA-256 42d012134fa8f1d5798020daa4c341a5c2ceee07cfb7a533287e110766c3baec
+
+r3 eight launches share one stdout hash 42d012134fa8f1d5798020daa4c341a5c2ceee07cfb7a533287e110766c3baec
+That hash matches the prior strict layout run 42d012134fa8f1d5798020daa4c341a5c2ceee07cfb7a533287e110766c3baec
+
+Shipped sample insertion: build13.js MF_STARTERS is [] and mfSeedStarters is a no-op. index.html does not load scripts/. No other shipped file inserts a built-in plant list. A saved sample row has no stable id in source and was not deleted. Test records stay inside these scripts.
+Synthetic pictures in handoff/mockups are withdrawn and are not user mockups. No real records were available, so no real mockup was made.

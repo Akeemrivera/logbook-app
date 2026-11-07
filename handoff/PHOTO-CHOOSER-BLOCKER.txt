@@ -1,0 +1,17 @@
+No incremental photo XCUITest is included. A test that cancels the picker, or that fails because no image was stored, is not a save, quit, relaunch, and load proof. No such test is added here, and the run9 UI-test patch is not modified.
+
+The shipped photo control is an HTML file input, accept image/*. The paths are #quick-photo (the + Add photo control), #log-photo, and the same input in the clone-run and header-photo sheets. Tapping it calls input.click(). There is no other photo chooser in the app.
+
+On Designed for iPad that click is handled by WebKit's iOS WKFileUploadPanel (Source/WebKit/UIProcess/ios/forms/WKFileUploadPanel.mm). For image/* the panel presents a system menu:
+
+- Photo Library, which presents PHPickerViewController.
+- Choose File, which presents UIDocumentPickerViewController in import mode.
+- Take Photo only when UIImagePickerController reports a camera. Designed for iPad on this Mac does not.
+
+PHPicker reads the Photos library. It has no API that accepts a file URL from an XCUITest. A generated PNG is not in that library. Putting one there would write the Mac photo library. That is not allowed.
+
+UIDocumentPicker is a separate system process. XCUITest has no supported call that returns a chosen URL to it. Its default locations are the user's Files, iCloud, and recents, not the test bundle and not the QA app container. WebKit bug 196999 is the iOS-on-Mac path, and it uses this document picker rather than NSOpenPanel. Go-to-Folder against an NSOpenPanel is therefore not the panel this app opens.
+
+There is no Designed-for-iPad XCUITest route that completes the real chooser with a generated image and then quits, relaunches, and shows that image. simctl addmedia applies to a Simulator, not this destination. Injecting a File into the page, or writing IndexedDB from the test, would be fake state and is not included.
+
+The tag harness already going to the Mac stays the run9 patch. Do not replace it with this note. When a supported chooser route exists, add it as a new patch on top of run9.

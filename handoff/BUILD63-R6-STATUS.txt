@@ -1,0 +1,23 @@
+BUILD 63 revision 6. LATER and UNBUILT. Test-only. Not applied to the compiled revision 5 candidate logbook-b63r5-20261107-1114, and not applied to logbook-b63r4-20261107-1102. Nothing here was native-built, signed, uploaded, or device-tested. No app source changed. No production backup, metadata, or ids were copied.
+
+Revision 5 artifacts were not edited. Their hashes are still:
+- handoff/logbook-b63-r5.patch 788710f6e84225cb1b6f520641bb0f5851ee28cce8c9b04d0872419c66aaf255
+- handoff/BUILD63-R5-STATUS.txt 8fabff7a208968b41a8567c46400c5fedf8de212c763f1747142b8905c34df1d
+- handoff/b63-r5-out.txt 74d686f72a41a6e25bcc0c2ddafe6bfe774e5b5ac42a67883a4ff189332a1957
+
+The revision 5 unsigned compile is the worker's compile of revision 5. This patch was not in it. Native and iOS device proof is still pending.
+
+This revision is one incremental patch against that revision 5 tree. Dry-run exited 0.
+- handoff/logbook-b63-r6.patch SHA-256 d49446ff5129f59300e29297c65bc5c71e28af4ec10cade8e8a2b9a8cb323920
+- handoff/b63-sw-browser-out.txt SHA-256 37f82eed57f5fb021b467bfbcbc85895da126fb2cf8d6d72e0fdc59ae102af9b
+- handoff/b63-photo-missing-out.txt SHA-256 991db12ba0540e9274a0cc3911512de7844f24573b2250c791a50ae3de8a59aa
+
+Service worker proof
+The revision 5 file scripts/b63-r5.test.js is a Node sandbox. It builds a fake cache and a fake fetch, then runs the worker script inside vm. That run is not a browser and not a device. Its pass remains a sandbox pass. This revision does not rewrite that file and does not treat it as browser proof.
+
+scripts/b63-sw-browser.test.js launches the installed Chrome at /opt/google/chrome/chrome. It fails if that binary is absent. It does not substitute the sandbox. Over http://127.0.0.1 the page first registers a fixture worker whose cache name is boriken-genetics-logbook-app-v81 and whose cached build57.js body is the text REV2-STALE. Chrome served that stale body. The server then switched /service-worker.js to the real revision 5 worker, cache name boriken-genetics-logbook-app-v82, with cache:'reload' precache. Chrome installed that script, deleted the v81 cache, and served the current build57.js bytes (SHA-256 matched the file on disk). Network emulation was then set offline, and the same build57.js bytes were served from the v82 cache. Stdout SHA-256 is 37f82eed57f5fb021b467bfbcbc85895da126fb2cf8d6d72e0fdc59ae102af9b. This is desktop Chrome on this machine. It is not the iOS wrapper and not a device.
+
+Photo export, existing behavior, synthetic only
+Revision 5 does not change buildFullBackupPayload or exportPhotos. A synthetic state referenced syn-ok, which had stored bytes, and syn-miss-1, syn-miss-2, and syn-miss-3, which had none. The real builder threw exactly: 3 photos could not be read from on-device storage, so the backup was not saved. No payload was returned. The plant, the log notes, and all four photo ids were unchanged. The stored syn-ok blob was still present. Nothing was deleted. exportJSON wrote that same sentence to the storage error, did not call share, and did not mark the backup done. With the three missing ids removed, the same builder returned one photo and its data URL. No incomplete-export mode was added. No backup screen was redesigned. The iCloud Recovered count and the temporarily-unavailable status were not inspected and no production data was read.
+
+Candidate remains build 63. Do not apply this patch to logbook-b63r5-20261107-1114.

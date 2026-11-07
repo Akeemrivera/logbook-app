@@ -1,0 +1,40 @@
+BUILD 63 revision 15. Not compiled. No device is claimed fixed. No upload.
+
+Patch SHA-256 ad2281bfa9c3d2a285ef58a46c6a79eaf288a8888d43c74fb77dc5d2c302ca00
+Cache name boriken-genetics-logbook-app-v88
+Strict layout stdout is unchanged: 42d012134fa8f1d5798020daa4c341a5c2ceee07cfb7a533287e110766c3baec
+
+Stylesheet chain:
+  r12 baseline attached snap10 SHA-256 c2afd8a6244bcddab961e6fe31368e994b9496e1c3f599a5ce06466555fc3a3f 5108 bytes
+  r13 delivered attached snap12 SHA-256 575e02b226a6bef01dc4456381dfd1c92e76c9c6f96138e26153aa50e40f6e7f 5455 bytes
+  r15 full file SHA-256 8582bbaa8737fe73cf4833f37088b3032bf6fd19401d4e9f755f7138c3382d71 5818 bytes
+The three mirrors match. The test printed CSS-SHA256 8582bbaa8737fe73cf4833f37088b3032bf6fd19401d4e9f755f7138c3382d71 before the screen checks.
+The previous working copy 146985df was not the delivered file. It repeated the seven status lines inside a media query. Those bytes are not in this patch.
+The r15 stylesheet diff against 575e02 is build63-r15.diff. The full file is build63.css.
+
+Changed files, source www and public copies match:
+  build63.css SHA-256 8582bbaa8737fe73cf4833f37088b3032bf6fd19401d4e9f755f7138c3382d71
+  build63.js SHA-256 0161d37e22eed411de4a7d0867e2f4910c07b80fa6c60dee9c66b7ac542fa91a
+  app.js SHA-256 a7c0931aa19fdf45a3c3f86db23031dc52ae9f5ad61dcbafc4c6b5b49c4f35a6
+  build4.js SHA-256 20e6ca7f57586f630d5de710084faa8197032e0cc64f1d40ad3a18db8a7b461a
+  build49.js SHA-256 10c8454afd824f1a43bd50916c9c8db408b7da802b19a54b1ea3254c9ab200e0
+  service-worker.js SHA-256 613d1a73e2b4bcc13334577dfeb6f12d82c5ee476757f529a2e6e76b298253dd
+
+Outputs, each exit 0. The renderer log includes two complete before/after passes at 390x844, 1024x768, and 1024x1366:
+  father.txt SHA-256 005f7ee68a70abd07c58b201e7f8b0afa9e17f6a41a17fef33c0297fc3a88020 exit 0
+  real-mockup.txt SHA-256 a30763420d9dba0fba82bb7d3b38b4dd61144597a2879b2c5d9a1afd59b501fa exit 0
+  no-sample.txt SHA-256 46686e551aea5424feed836cb467da6c607c26eb1f1a960f4b52014c750b9f7b exit 0
+  integration.txt SHA-256 2d828e559a15418b43507b0ca8469ff462315de36d534adc7a18566e17110bae exit 0
+  remaining.txt SHA-256 d3b5294f09637a05880e2bf007791487a3a129618c5222f3bfe2a761151aebef exit 0
+  photo.txt SHA-256 991db12ba0540e9274a0cc3911512de7844f24573b2250c791a50ae3de8a59aa exit 0
+  r5.txt SHA-256 74d686f72a41a6e25bcc0c2ddafe6bfe774e5b5ac42a67883a4ff189332a1957 exit 0
+  sw-browser.txt SHA-256 4098e213391d29e52662b837d81b62cd461bceb90742030a4a50b89756cad5b2 exit 0
+  fullapp.txt SHA-256 c0d99c94f1d1d13ed033e12917f11bcf1653109a41dae8e3f9897debb307fabc exit 0
+  r3-1.txt SHA-256 42d012134fa8f1d5798020daa4c341a5c2ceee07cfb7a533287e110766c3baec exit 0
+  r3-2.txt SHA-256 42d012134fa8f1d5798020daa4c341a5c2ceee07cfb7a533287e110766c3baec exit 0
+  r3-3.txt SHA-256 42d012134fa8f1d5798020daa4c341a5c2ceee07cfb7a533287e110766c3baec exit 0
+  r3-4.txt SHA-256 42d012134fa8f1d5798020daa4c341a5c2ceee07cfb7a533287e110766c3baec exit 0
+  r3-5.txt SHA-256 42d012134fa8f1d5798020daa4c341a5c2ceee07cfb7a533287e110766c3baec exit 0
+  r3-6.txt SHA-256 42d012134fa8f1d5798020daa4c341a5c2ceee07cfb7a533287e110766c3baec exit 0
+  r3-7.txt SHA-256 42d012134fa8f1d5798020daa4c341a5c2ceee07cfb7a533287e110766c3baec exit 0
+  r3-8.txt SHA-256 42d012134fa8f1d5798020daa4c341a5c2ceee07cfb7a533287e110766c3baec exit 0

@@ -1,0 +1,15 @@
+Apply on the phase 1 tree after the run9 patches and logbook-b61-qa-uitest-incr2.patch. Do not reapply those. This patch changes only the in-tree rig-guard.sh and adds its checker. It does not change app code or the UI-test runner. Do not apply it to the shared Builds/rig-guard.sh above this tree.
+
+  patch -p1 --dry-run < logbook-b61-rig-guard-incr3.patch
+  patch -p1 < logbook-b61-rig-guard-incr3.patch
+  node scripts/rig-guard-running.test.js
+
+Before any QA launch:
+
+  zsh rig-guard.sh <QA App.app> mac
+
+The mac check reads running apps with lsappinfo and System Events. It blocks when the bundle id is exactly com.borikengenetics.logbookapp, including a renamed .app or an iOS-on-Mac wrapper whose executable is App. com.borikengenetics.logbookapp.qa is not that id. If either query fails, or a Logbook-like app has no readable bundle id, the check stops. It does not quit or launch the production app.
+
+Designed-for-iPad UI tests are unsupported in Xcode, so that runner is not the way to launch QA. Leave it unrun.
+
+Flower day 1 on the recovered plant is the flip Elio made after recovery. Do not change stage or dates.

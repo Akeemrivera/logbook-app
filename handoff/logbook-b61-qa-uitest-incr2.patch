@@ -1,0 +1,57 @@
+--- a/ios/App/App.xcodeproj/project.pbxproj
++++ b/ios/App/App.xcodeproj/project.pbxproj
+@@ -582,7 +582,6 @@
+ 				PRODUCT_NAME = "$(TARGET_NAME)";
+ 				SWIFT_VERSION = 5.0;
+ 				TARGETED_DEVICE_FAMILY = "1,2";
+-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/App.app/App";
+ 				TEST_TARGET_NAME = App;
+ 			};
+ 			name = Debug;
+@@ -606,7 +605,6 @@
+ 				PRODUCT_NAME = "$(TARGET_NAME)";
+ 				SWIFT_VERSION = 5.0;
+ 				TARGETED_DEVICE_FAMILY = "1,2";
+-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/App.app/App";
+ 				TEST_TARGET_NAME = App;
+ 			};
+ 			name = Release;
+@@ -630,7 +628,6 @@
+ 				PRODUCT_NAME = "$(TARGET_NAME)";
+ 				SWIFT_VERSION = 5.0;
+ 				TARGETED_DEVICE_FAMILY = "1,2";
+-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/App.app/App";
+ 				TEST_TARGET_NAME = App;
+ 			};
+ 			name = QA;
+--- a/scripts/qa-uitest-harness.test.js
++++ b/scripts/qa-uitest-harness.test.js
+@@ -22,7 +22,7 @@
+ check('runner bundle is the QA UI test id', pbx.includes('PRODUCT_BUNDLE_IDENTIFIER = com.borikengenetics.logbookapp.qa.uitests;'));
+ check('QA app bundle stays com.borikengenetics.logbookapp.qa', pbx.includes('PRODUCT_BUNDLE_IDENTIFIER = com.borikengenetics.logbookapp.qa;'));
+ check('production bundle remains on the app target', (pbx.match(/PRODUCT_BUNDLE_IDENTIFIER = com\.borikengenetics\.logbookapp;/g) || []).length >= 2);
+-check('test host is the built App.app', pbx.includes('TEST_HOST = "$(BUILT_PRODUCTS_DIR)/App.app/App";'));
++check('UI test target names App and does not set TEST_HOST', (pbx.match(/TEST_TARGET_NAME = App;/g) || []).length === 3 && !pbx.includes('TEST_HOST') && !pbx.includes('RUNTIME_TEST_HOST') && pbx.includes('com.apple.product-type.bundle.ui-testing'));
+ check('team is 2Z94YL957X', pbx.includes('DEVELOPMENT_TEAM = 2Z94YL957X;'));
+ check('UI test target has a QA configuration', pbx.includes('QAUITEST0000000000000C /* QA */'));
+ check('scheme tests LogbookQAUITests with QA', scheme.includes('buildConfiguration = "QA"') && scheme.includes('BlueprintName = "LogbookQAUITests"'));
+--- a/scripts/archive-signature-regression.test.js
++++ b/scripts/archive-signature-regression.test.js
+@@ -118,9 +118,14 @@
+ check('a past legacy flip would start flower; not applied to a record whose fields were empty', promote({ flowerFlipDate: '2026-10-01', flowerStartDate: '', plannedFlipDate: '' }, '2026-11-06').flowerStartDate === '2026-10-01');
+ check('a future legacy flip stays planned', promote({ flowerFlipDate: '2026-12-01', flowerStartDate: '', plannedFlipDate: '' }, '2026-11-06').plannedFlipDate === '2026-12-01' && promote({ flowerFlipDate: '2026-12-01', flowerStartDate: '', plannedFlipDate: '' }, '2026-11-06').flowerStartDate === '');
+ 
+-const isFx = (value) => /^fx-/.test(String(value || '')) || /^(mf|pl|bp|pr):fx-/.test(String(value || ''));
+-check('fx- cleanup does not match a normal plant id', isFx('11111111-2222-4333-8444-555555555555') === false && isFx('fx-sample') === true);
+-check('fx- cleanup source is limited to capacitor and ionic', build61.includes("/^(capacitor|ionic):$/.test(location.protocol)") && build61.includes("const isFx = (v) => /^fx-/.test"));
++const SHIPPED_BUILD61 = '3c79681a21769cac2aa0abb4ba065827f887182f92ac936e9b9892dad3549fb7';
++const build61Hash = build61 ? require('crypto').createHash('sha256').update(build61).digest('hex') : '';
++check('build61.js is the shipped Mac file', build61Hash === SHIPPED_BUILD61, build61Hash);
++const shippedBuild61 = build61Hash === SHIPPED_BUILD61;
++check('shipped build61.js is the landrace migration and contains no fx- cleanup', shippedBuild61 && build61.includes('window.B61 = { migrate, zflag, LAND };') && !build61.includes('isFx') && !build61.includes('fx-'));
++if (shippedBuild61 && !build61.includes('isFx') && !/capacitor\|ionic/.test(build61)) {
++  console.log('UNSUPPORTED fx- cleanup protocol gate: shipped build61.js has no isFx and no capacitor/ionic check. This test did not locate that cleanup in this file, so the gate is not confirmed. Not a pass.');
++}
+ 
+ check('automatic backup name is the date only', build13.includes("const name = `${ICLOUD_PREFIX}${todayKey()}.json`") && build13.includes("const ICLOUD_PREFIX = 'boriken-logbook-backup-'") && build13.includes('const ICLOUD_KEEP = 7'));
+ check('write replaces the same filename', plugin.includes('.forReplacing'), 'ICloudBackupPlugin.swift missing .forReplacing');

@@ -1,0 +1,8 @@
+PASS the configured record father becomes unknown and the old text is gone
+PASS other records, the real same-name row, genuine dx history, and the cross stay
+PASS a different current father is a no-op
+PASS a second launch does not write again
+PASS migration does not put the old father reference back
+PASS undo restores only that field and a later father change blocks undo
+PASS reload does not insert a sample plant
+b63 father repair: guarded reference clear held

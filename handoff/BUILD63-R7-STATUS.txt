@@ -1,0 +1,32 @@
+BUILD 63 revision 7. LATER and UNBUILT. Not applied to logbook-b63r5-20261107-1114. Nothing here was native-built, signed, uploaded, exported, or device-tested. No production record was edited. Full acceptance is not claimed.
+
+Revision 5 and revision 6 artifact hashes are unchanged:
+- logbook-b63-r5.patch 788710f6e84225cb1b6f520641bb0f5851ee28cce8c9b04d0872419c66aaf255
+- BUILD63-R5-STATUS.txt 8fabff7a208968b41a8567c46400c5fedf8de212c763f1747142b8905c34df1d
+- b63-r5-out.txt 74d686f72a41a6e25bcc0c2ddafe6bfe774e5b5ac42a67883a4ff189332a1957
+- logbook-b63-r6.patch d49446ff5129f59300e29297c65bc5c71e28af4ec10cade8e8a2b9a8cb323920
+- b63-sw-browser-out.txt 37f82eed57f5fb021b467bfbcbc85895da126fb2cf8d6d72e0fdc59ae102af9b
+- b63-photo-missing-out.txt 991db12ba0540e9274a0cc3911512de7844f24573b2250c791a50ae3de8a59aa
+
+This patch, dry-run exit 0 onto the revision 5 tree:
+- handoff/logbook-b63-r7.patch SHA-256 3eb2494b34b0ac2868714e6b2e4803e15b3c93cc5ad2791a6beeabed651c6a26
+- handoff/b63-no-sample-out.txt SHA-256 46686e551aea5424feed836cb467da6c607c26eb1f1a960f4b52014c750b9f7b
+- Layout stdout from eight identical runs: SHA-256 42d012134fa8f1d5798020daa4c341a5c2ceee07cfb7a533287e110766c3baec
+
+Shipped runtime change
+build13.js in source, www, and public is now b6d7120a87c45e8e840c64c87fb9b77a8d37062d966c201a0a8c21e40642567c.
+Removed path: the released file no longer reads window.__BORIKEN_DEV_SEED. mfSeedStarters no longer pushes a mother or father. The "Add your plants" card does not render. Existing saved rows are not scanned by name and are not deleted.
+That was the only shipped function that created mother/father rows from a supplied starter list. With the list empty it already inserted nothing; the function could still insert whatever a page set on that global before load. The released app no longer has that insert.
+
+Sample inventory, and what was not removed
+No shipped script assigns a stable sample plant id. emptyState() starts with empty plants and empty motherFatherPlants. index.html does not load build61.js, b57-fixture.js, or the qa/shot scripts. Those files still contain synthetic names used only by tests and screenshots. They are not a running creation path.
+build58.js still has placeholder text "e.g. Rocco OG" and "e.g. Rocco Seeds" on an empty input. That is hint text, not a record, and it has no id. It was not treated as a plant to delete.
+build61.js still contains a name-matched comment and landrace test. index.html does not load it, so it does not run. It was not edited.
+wide.js and build58.js comments mention example strain names. Comments do not create records.
+A saved record whose name is Rocco, or any other name, has no source id that marks it as a sample. It is left in place. This patch does not hide it and does not claim the production sample is gone.
+
+Layout
+The b63-r3 failures were measurements taken before the file:// stylesheets applied. The buttons exist in the first HTML parse, so the old gate stopped there. Unstyled, the sidebar is a block the full 1024px wide and the right card is about the text width, 76px. After the sheet is loaded, the card's computed min-height is 110px and, at a 1024px viewport, the sidebar's computed position is fixed and its width is 248px. The numeric assertions were not loosened. Five frames after that point, and eight separate Chrome launches, all read 187/187, card 187 by 110, document 390, and sidebar 248, tree 776, left 248, document 1024. No shipped CSS or tree script changed for this. The revision 5 node cache test remains a sandbox. The revision 6 Chrome cache test remains the browser update proof.
+
+Not done
+Mockups of the live screens were not captured in this patch. Heading and Parents wording are unchanged because the written notes and the artboard still conflict. No production id was supplied, so no production sample row was removed. Device QA and user review still have to happen before any TestFlight. No upload is authorized.

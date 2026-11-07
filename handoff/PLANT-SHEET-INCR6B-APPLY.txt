@@ -1,0 +1,9 @@
+This replaces logbook-b61-plant-sheet-incr6.patch. Apply it on the phase 1 tree that does not already contain incr6. It changes build59.css and one focus check in build59.js.
+
+  patch -p1 --dry-run < logbook-b61-plant-sheet-incr6b.patch
+  patch -p1 < logbook-b61-plant-sheet-incr6b.patch
+  node scripts/plant-sheet-scroll.test.js
+
+display:flex applies only to dialog.modal[open]. Closed dialogs keep the browser's display:none. The open box is capped at the viewport and the card inside it scrolls. The page lock is unchanged.
+
+The Chromium section of the test measures that stylesheet in a fixture. It is not a Mac screenshot. Rebuild QA with zsh scripts/qa-build.sh before opening Add plant, and do not treat the sheet as fixed until that Mac window shows the header and Save plant. Production stays closed.

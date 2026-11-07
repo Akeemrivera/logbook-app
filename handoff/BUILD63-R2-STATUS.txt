@@ -1,0 +1,58 @@
+Build 63 revision 2, final. Revision 1 patch is unchanged: SHA-256 74890721ad445efcbf164e20b29ea0b6142402fd8a015f80927cbd89b8359223. Build 62 is not rebuilt. phase1-release-prep.js is not used. It hardcodes build 62.
+
+Cumulative patch SHA-256 37b268915cda56c30af0c78fc0b5db176d580aca2854fc7f1f8c5c056bf335ad.
+Integration stdout SHA-256 b11c79e4a2d0f6a29a331eff39b92a40839d7b28d10c6518f40b0408971d4a82.
+The patch was applied to a clean copy of the validated build 62 tree and the same integration test passed there. Mismatch against the candidate text files: 0.
+
+Earlier layout result is not a pass. At 15:11:20Z the integration test exited 1: pagePast true, tree box 422, frame 390. Cause: .b57 { margin: 0 -16px } adds 32px. At 15:11:42Z the test exited 0 only because the assertion was widened to allow box <= frame+33. The overflow was still there. That green result is withdrawn. This package requires pagePast === false and document scroll width <= the viewport, and it checks that controls are inside the viewport. It does not clip them to hide overflow.
+
+This run, headless Chrome with the viewport set to the width, real stylesheets:
+- 320: innerWidth 320, docWidth 320, pagePast false, box 320, no control outside
+- 375: innerWidth 375, docWidth 375, pagePast false, box 375, no control outside
+- 390: innerWidth 390, docWidth 390, pagePast false, box 390, no control outside
+- 430: innerWidth 430, docWidth 430, pagePast false, box 430, no control outside
+- 1024: innerWidth 1024, docWidth 1024, pagePast false, box 1024, sidebar 248, no control outside
+Tag word-break computed to normal. A closed dialog computed to display none. An open dialog computed to flex. This is a browser layout measurement. It is not device proof and it is not a native build.
+
+Candidate settings: APP_BUILD 63. Six CURRENT_PROJECT_VERSION values are 63. MARKETING_VERSION 1.0. Service worker cache boriken-genetics-logbook-app-v81.
+
+Source, www, and ios/App/App/public hashes match for each of these:
+- app.js b8bb53d61dd32dbf29aa5f62a0fb53bd72a5181670382801d3d87f1a9968d682
+- build13.js 978b17aafba7e5c2c958034d70c9f79c6e5c6d9a5e5186e371837151bd6318c3
+- build41.js 2672fc04207a4985f12973b860b2a28d641ab2f1bb30d3e3df20267810549081
+- build42.js 7179a96ec7290ef9a759cc8488f57c3fec99827acc34e15f44fc7a80c078b086
+- build49.js 432b3d2aa79209fd3972bc6ac9eb56a6b76972af9edcc4e251414cc61a39ef6c
+- build57.js 9a9fc4329983b4ab23710a848e57b5e6965d5057a07cb446537920be4bc1f1a7
+- build60.js b570a7ac82adfeebecd20a6f5906a7b24fd5f67939208f50d061d631bb7bc94f
+- build63.js 8a377890aa381bb21dd2d24271056955a5b5be833bf4c4782833d31a5908b1bb
+- build63.css 54132d671264cea7e5bae170524857feccd5c35d790c65ac20fa616c4dfdf229
+- wide.js 3e48f518b0ba9063485d1f7f065d9f8448cf0e1076a474d49a88cdf9043227f7
+- index.html 0f2fc9dd566886edc188b6687d509046e96c4ddd83257d9428b45343503490d3
+- service-worker.js e0f4d0ad85a743be36a5f37056a5f0575905f25ce3aefa884d00d720a957e051
+- scripts/build-www.js b9f5ea20de7f1e01ba1b89a3a480183e62552cf717e3f1c11e4deddf2a4f80a8
+- scripts/b63-integration.test.js 105fcf0de62403ecae1fc9371fe47d8357bfa5a7cb3eef54070573aa2fc92daf
+- scripts/b63-remaining.test.js bdcf0cd79784c7aeefb62ddaa9aab301ff2c1157e92e89bfed793f8337f44b0b
+- ios/App/App.xcodeproj/project.pbxproj d5a8034e98b53225a92c3f3335fa59c647daadb94594b0fa4f42d125f492d2a3
+
+Apply on the isolated tree, then compile. Do not use phase1-release-prep.js, Builds/b61-ship.sh, or npx cap sync. Do not archive, export, or upload.
+
+```
+cd "$HOME/Documents/Apps/Logbook/Builds/logbook-b63-20261107-1013"
+patch -p1 --dry-run < logbook-b63-r2.patch
+patch -p1 < logbook-b63-r2.patch
+node scripts/b63-integration.test.js
+node scripts/b63-remaining.test.js
+node scripts/build-www.js
+rsync -a --exclude 'b59shots.js' www/ ios/App/App/public/
+if [ -f ios/App/App/public/b59shots.js ]; then
+  mkdir -p build/release/quarantine
+  mv ios/App/App/public/b59shots.js build/release/quarantine/b59shots.js
+fi
+xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Release -destination 'generic/platform=iOS' CODE_SIGNING_ALLOWED=NO build
+```
+
+build-www.js refreshes www from the source, including assets, mascots, and the manual. The rsync has no --delete, so the empty cordova.js and cordova_plugins.js stay, and any other public file that www does not contain stays. b59shots.js is the unreferenced screenshot helper: it is not copied, and if it is already in public it is moved aside. Do not delete any other public file.
+
+The xcodebuild line is compile-only. It is not a device test and not an archive. QA and device evidence stay separate.
+
+Still blocked on local evidence, not on this patch: a hide-id list, an origin map, a record merge, a name-only parent link, and the vanished-plant event. Local config key boriken-b63-view, or B63.configure, accepts hideIds and originById and does not write records. No device pass is claimed.

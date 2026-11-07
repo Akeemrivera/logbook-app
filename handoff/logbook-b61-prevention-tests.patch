@@ -1,0 +1,385 @@
+--- /dev/null
++++ b/scripts/archive-signature-regression.test.js
+@@ -0,0 +1,150 @@
++'use strict';
++
++/*
++  Synthetic archive-writer regression. Reads shipped source. Does not modify it,
++  does not launch the app, and does not restore or delete a plant.
++  The Nov 6 control that archived the grow record is still unknown.
++*/
++
++const fs = require('fs');
++const path = require('path');
++
++const ROOT = process.env.LOGBOOK_ROOT || path.join(__dirname, '..');
++const FAIL = [];
++
++function check(name, ok, detail) {
++  if (ok) console.log('PASS', name);
++  else {
++    FAIL.push(name);
++    console.error('FAIL', name, detail || '');
++  }
++}
++
++function read(rel) {
++  const file = path.join(ROOT, rel);
++  if (!fs.existsSync(file)) {
++    check('source present: ' + rel, false, file);
++    return '';
++  }
++  return fs.readFileSync(file, 'utf8');
++}
++
++function applyPlantStatus(plant, toStatus) {
++  plant.status = toStatus;
++  plant.completed = toStatus !== 'active';
++  plant.isCompleted = toStatus === 'finished';
++  if (toStatus === 'archived') {
++    if (!plant.archivedAt) plant.archivedAt = '2026-11-06T12:00:00.000Z';
++  }
++}
++
++function sliceFn(source, name) {
++  const start = source.indexOf('function ' + name);
++  if (start < 0) return '';
++  const next = source.indexOf('\nfunction ', start + 1);
++  return source.slice(start, next < 0 ? start + 1800 : next);
++}
++
++const app = read('app.js');
++const mobile = read('mobile.js');
++const build13 = read('build13.js');
++const build61 = read('build61.js');
++const plugin = read('ios/App/App/ICloudBackupPlugin.swift');
++const beforeHash = app ? require('crypto').createHash('sha256').update(app).digest('hex') : '';
++
++const archivedFn = sliceFn(app, 'applyPlantStatus');
++check('applyPlantStatus sets archivedAt only when empty', archivedFn.includes("if (toStatus === 'archived')") && archivedFn.includes('if (!plant.archivedAt) plant.archivedAt'));
++check('applyPlantStatus sets completed for every non-active status', archivedFn.includes("plant.completed = toStatus !== 'active'"));
++check('applyPlantStatus sets isCompleted only for finished', archivedFn.includes("plant.isCompleted = toStatus === 'finished'"));
++
++const plant = {
++  id: 'grow-1',
++  name: 'Synthetic grow',
++  status: 'active',
++  completed: false,
++  isCompleted: false,
++  archivedAt: '',
++  startDate: '2026-01-02',
++  vegStartDate: '2026-01-16',
++  flowerStartDate: '',
++  plannedFlipDate: '',
++  flowerFlipDate: '',
++  harvestDate: '',
++  logs: [{ id: 'log-1' }, { id: 'log-2' }],
++};
++const snapshot = JSON.parse(JSON.stringify(plant));
++applyPlantStatus(plant, 'archived');
++const changed = Object.keys(plant).filter((key) => JSON.stringify(plant[key]) !== JSON.stringify(snapshot[key]));
++check('archived signature changes status, completed, and archivedAt', JSON.stringify(changed.sort()) === JSON.stringify(['archivedAt', 'completed', 'status']));
++check('archived signature leaves dates, harvest, and logs', plant.startDate === '2026-01-02' && plant.vegStartDate === '2026-01-16' && plant.flowerStartDate === '' && plant.plannedFlipDate === '' && plant.harvestDate === '' && plant.logs.length === 2 && plant.isCompleted === false);
++check('archived signature matches a logged archive, not a finished plant', plant.status === 'archived' && plant.completed === true && plant.isCompleted === false && Boolean(plant.archivedAt));
++
++const archiveFn = sliceFn(app, 'archivePlant');
++check('archivePlant confirms then calls transitionPlant archived', archiveFn.includes("transitionPlant(id, 'archived'") && archiveFn.includes('Archive genetic'));
++check('source still does not name which control was used', !/Nov 6 archive cause/.test(app));
++
++const returnFn = sliceFn(app, 'returnToActive');
++check('returnToActive is present and not invoked by this test', returnFn.includes("applyPlantStatus(plant, 'active'") && returnFn.includes('Returned to Active production.'));
++const returned = JSON.parse(JSON.stringify(plant));
++applyPlantStatus(returned, 'active');
++check('active status clears completed and keeps archivedAt, dates, and logs', returned.status === 'active' && returned.completed === false && returned.isCompleted === false && returned.archivedAt === plant.archivedAt && returned.startDate === '2026-01-02' && returned.logs.length === 2);
++
++check('mobile profile Archive passes selectedPlantId', mobile.includes('archivePlant(selectedPlantId)'));
++const plants = [
++  { id: 'open-profile', name: 'Open', status: 'active', completed: false, isCompleted: false, archivedAt: '' },
++  { id: 'other-grow', name: 'Other', status: 'active', completed: false, isCompleted: false, archivedAt: '' },
++];
++let selectedPlantId = 'open-profile';
++function archivePlant(id) {
++  const row = plants.find((item) => item.id === id);
++  if (!row || row.status === 'archived') return;
++  applyPlantStatus(row, 'archived');
++}
++archivePlant(selectedPlantId);
++check('hazard: a stale selectedPlantId archives that plant, not another row', plants[0].status === 'archived' && plants[1].status === 'active');
++check('that hazard is not claimed as the Nov 6 control', true);
++
++const legacy = sliceFn(app, 'normalizePlant');
++check('legacy flowerFlipDate promotion is still in source and was not changed', legacy.includes('if (legacyFlip && !p.flowerStartDate && !p.plannedFlipDate)') && legacy.includes('p.flowerStartDate = legacyFlip'));
++function promote(record, today) {
++  const copy = { ...record };
++  if (copy.flowerFlipDate && !copy.flowerStartDate && !copy.plannedFlipDate) {
++    if (copy.flowerFlipDate <= today) copy.flowerStartDate = copy.flowerFlipDate;
++    else copy.plannedFlipDate = copy.flowerFlipDate;
++  }
++  return copy;
++}
++check('empty flip fields stay empty', promote({ flowerFlipDate: '', flowerStartDate: '', plannedFlipDate: '' }, '2026-11-06').flowerStartDate === '');
++check('a past legacy flip would start flower; not applied to a record whose fields were empty', promote({ flowerFlipDate: '2026-10-01', flowerStartDate: '', plannedFlipDate: '' }, '2026-11-06').flowerStartDate === '2026-10-01');
++check('a future legacy flip stays planned', promote({ flowerFlipDate: '2026-12-01', flowerStartDate: '', plannedFlipDate: '' }, '2026-11-06').plannedFlipDate === '2026-12-01' && promote({ flowerFlipDate: '2026-12-01', flowerStartDate: '', plannedFlipDate: '' }, '2026-11-06').flowerStartDate === '');
++
++const isFx = (value) => /^fx-/.test(String(value || '')) || /^(mf|pl|bp|pr):fx-/.test(String(value || ''));
++check('fx- cleanup does not match a normal plant id', isFx('11111111-2222-4333-8444-555555555555') === false && isFx('fx-sample') === true);
++check('fx- cleanup source is limited to capacitor and ionic', build61.includes("/^(capacitor|ionic):$/.test(location.protocol)") && build61.includes("const isFx = (v) => /^fx-/.test"));
++
++check('automatic backup name is the date only', build13.includes("const name = `${ICLOUD_PREFIX}${todayKey()}.json`") && build13.includes("const ICLOUD_PREFIX = 'boriken-logbook-backup-'") && build13.includes('const ICLOUD_KEEP = 7'));
++check('write replaces the same filename', plugin.includes('.forReplacing'), 'ICloudBackupPlugin.swift missing .forReplacing');
++check('prune keeps the newest names and deletes the rest', plugin.includes('sorted(by: >)') && plugin.includes('names.dropFirst(keep)'));
++
++function backupName(day) { return `boriken-logbook-backup-${day}.json`; }
++const files = new Map();
++function writeDay(day, body) { files.set(backupName(day), body); }
++function prune(keep) {
++  const names = [...files.keys()].filter((name) => name.startsWith('boriken-logbook-backup-') && name.endsWith('.json')).sort((a, b) => (a < b ? 1 : -1));
++  names.slice(keep).forEach((name) => files.delete(name));
++}
++writeDay('2026-11-06', 'morning');
++writeDay('2026-11-06', 'evening');
++check('two backups on one date leave one file and the later body', files.size === 1 && files.get(backupName('2026-11-06')) === 'evening');
++for (let day = 1; day <= 8; day += 1) writeDay(`2026-11-${String(day).padStart(2, '0')}`, 'x');
++prune(7);
++check('eight dated names prune to the newest seven', files.size === 7 && !files.has(backupName('2026-11-01')) && files.has(backupName('2026-11-08')));
++
++const after = read('app.js');
++check('this test did not modify app.js', after && require('crypto').createHash('sha256').update(after).digest('hex') === beforeHash);
++
++if (FAIL.length) {
++  console.error(FAIL.length + ' failed');
++  process.exit(1);
++}
++console.log('archive signature regression passed');
+--- /dev/null
++++ b/scripts/photo-restore-regression.test.js
+@@ -0,0 +1,229 @@
++'use strict';
++
++/*
++  Synthetic full-export / restore photo path.
++  Uses a fake IndexedDB and a tiny generated image. Does not read a backup file,
++  does not repair a live photo, and does not launch the app.
++*/
++
++const fs = require('fs');
++const path = require('path');
++
++const ROOT = process.env.LOGBOOK_ROOT || path.join(__dirname, '..');
++const FAIL = [];
++
++function check(name, ok, detail) {
++  if (ok) console.log('PASS', name);
++  else {
++    FAIL.push(name);
++    console.error('FAIL', name, detail || '');
++  }
++}
++
++function installFakeIndexedDB() {
++  const dbs = new Map();
++  function later(fn) { queueMicrotask(fn); }
++  function makeDb(meta) {
++    return {
++      objectStoreNames: { contains: (name) => meta.stores.has(name) },
++      createObjectStore(name) { if (!meta.stores.has(name)) meta.stores.set(name, new Map()); },
++      transaction(storeName) {
++        const store = meta.stores.get(storeName);
++        const tx = { oncomplete: null, onerror: null, error: null };
++        const writes = [];
++        const api = {
++          put(record) { writes.push(() => { store.set(record.id, record); }); },
++          get(id) {
++            const request = {};
++            later(() => {
++              request.result = store.has(id) ? store.get(id) : undefined;
++              if (request.onsuccess) request.onsuccess();
++            });
++            return request;
++          },
++          delete(id) { writes.push(() => { store.delete(id); }); },
++          getAllKeys() {
++            const request = {};
++            later(() => { request.result = [...store.keys()]; if (request.onsuccess) request.onsuccess(); });
++            return request;
++          },
++        };
++        later(() => {
++          try { writes.forEach((fn) => fn()); if (tx.oncomplete) tx.oncomplete(); }
++          catch (error) { tx.error = error; if (tx.onerror) tx.onerror(); }
++        });
++        return {
++          get oncomplete() { return tx.oncomplete; },
++          set oncomplete(fn) { tx.oncomplete = fn; },
++          get onerror() { return tx.onerror; },
++          set onerror(fn) { tx.onerror = fn; },
++          get error() { return tx.error; },
++          objectStore() { return api; },
++        };
++      },
++      close() {},
++    };
++  }
++  globalThis.indexedDB = {
++    open(name, version) {
++      const request = { result: null, onsuccess: null, onupgradeneeded: null };
++      later(() => {
++        if (!dbs.has(name)) dbs.set(name, { stores: new Map(), version: 0 });
++        const meta = dbs.get(name);
++        request.result = makeDb(meta);
++        if ((version || 1) > meta.version) {
++          meta.version = version || 1;
++          if (request.onupgradeneeded) request.onupgradeneeded();
++        }
++        if (request.onsuccess) request.onsuccess();
++      });
++      return request;
++    },
++  };
++}
++
++function shippedCollectIds(state) {
++  const ids = new Set();
++  const plants = [].concat(state.plants || [], state.breedingPlants || []);
++  plants.forEach((plant) => {
++    (plant.logs || []).forEach((log) => { if (log && log.photoId) ids.add(log.photoId); });
++    if (plant && plant.headerPhotoId) ids.add(plant.headerPhotoId);
++  });
++  return [...ids];
++}
++
++function photoSrc(log, cache) {
++  if (!log) return '';
++  if (log.photoId && cache.has(log.photoId)) return cache.get(log.photoId);
++  if (typeof log.photo === 'string' && (log.photo.startsWith('data:') || log.photo.startsWith('blob:'))) return log.photo;
++  return '';
++}
++
++function photoTag(log, cache) {
++  const src = photoSrc(log, cache);
++  if (!src) return 'This photo is saved on the device but could not be loaded.';
++  return `<img src="${src}">`;
++}
++
++function treePhoto(record, plants, cache, kind) {
++  const own = [...(record.logs || [])].filter((log) => log && log.photoId).find((log) => photoSrc(log, cache));
++  if (own) return photoSrc(own, cache);
++  if (kind === 'mf') {
++    const match = plants.find((plant) => String(plant.name || '').toLowerCase() === String(record.name || '').toLowerCase());
++    if (match) return treePhoto(match, plants, cache, 'pl');
++  }
++  return '';
++}
++
++async function hydrate(media, state) {
++  const cache = new Map();
++  for (const id of media.collectIds(state)) {
++    const url = await media.objectUrl(id);
++    if (url) cache.set(id, url);
++  }
++  return cache;
++}
++
++async function main() {
++  const mediaPath = path.join(ROOT, 'media-store.js');
++  const appPath = path.join(ROOT, 'app.js');
++  const treePath = path.join(ROOT, 'build57.js');
++  check('media-store.js present', fs.existsSync(mediaPath), mediaPath);
++  if (!fs.existsSync(mediaPath) || !fs.existsSync(appPath)) {
++    console.error(FAIL.length + ' failed');
++    process.exit(1);
++  }
++  const mediaSource = fs.readFileSync(mediaPath, 'utf8');
++  const app = fs.readFileSync(appPath, 'utf8');
++  const tree = fs.existsSync(treePath) ? fs.readFileSync(treePath, 'utf8') : '';
++  const phase1 = mediaSource.includes('function plantRecords') && mediaSource.includes('motherFatherPlants');
++
++  if (typeof URL.createObjectURL !== 'function') {
++    URL.createObjectURL = (blob) => `blob:synthetic-${blob.size}`;
++  }
++  installFakeIndexedDB();
++  const media = require(mediaPath);
++  const deleted = [];
++  const realDelete = media.deleteIds.bind(media);
++  media.deleteIds = async (ids) => { deleted.push(...(ids || [])); return realDelete(ids); };
++
++  const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
++  const dataUrl = `data:image/png;base64,${png.toString('base64')}`;
++  const growId = 'grow-photo-1';
++  const landraceId = 'landrace-photo-1';
++  const state = {
++    plants: [{ id: 'grow-1', name: 'Synthetic grow', logs: [{ id: 'obs-1', type: 'Observation', photo: '', photoId: growId }] }],
++    breedingPlants: [],
++    motherFatherPlants: [{ id: 'mf-1', name: 'Synthetic grow', logs: [], headerPhotoId: '' }, { id: 'landrace-1', name: 'Synthetic landrace', logs: [{ photoId: landraceId }] }],
++  };
++
++  check('shipped collectIds includes the grow observation and omits the landrace id', shippedCollectIds(state).includes(growId) && !shippedCollectIds(state).includes(landraceId));
++  if (phase1) {
++    check('phase1 collectIds also keeps the landrace id', media.collectIds(state).includes(growId) && media.collectIds(state).includes(landraceId));
++  } else {
++    check('loaded shipped collectIds matches the omission', JSON.stringify(media.collectIds(state).sort()) === JSON.stringify(shippedCollectIds(state).sort()));
++  }
++
++  const imported = await media.importPhotos([{ id: growId, mime: 'image/png', name: 'synthetic.png', dataUrl }]);
++  const stored = await media.getRecord(growId);
++  const storedBytes = Buffer.from(await stored.blob.arrayBuffer());
++  check('importPhotos writes the data URL and the readback matches', imported.failed === 0 && storedBytes.equals(png));
++
++  let cache = await hydrate(media, state);
++  const log = state.plants[0].logs[0];
++  check('hydrate then photoSrc paints an image tag', photoTag(log, cache).startsWith('<img'));
++  check('the photo id is still the same after import', log.photoId === growId);
++
++  const uncached = new Map();
++  check('a photoId with an empty cache is the could-not-load text', photoTag(log, uncached) === 'This photo is saved on the device but could not be loaded.');
++  check('that empty cache does not delete the id', log.photoId === growId && deleted.length === 0);
++
++  const mother = state.motherFatherPlants[0];
++  check('an empty mother circle stays empty until the same-name grow photo is hydrated', treePhoto(mother, state.plants, uncached, 'mf') === '');
++  check('after hydration the same-name mother circle can reuse the grow url', treePhoto(mother, state.plants, cache, 'mf') === cache.get(growId) && cache.get(growId));
++  check('tree source uses photoSrc and falls back to a monogram', tree.includes('photoSrc(l)') && tree.includes('b57-ph mono'));
++
++  const skipped = await media.importPhotos([]);
++  check('a backup with no photos array imports nothing and deletes nothing', skipped.imported === 0 && skipped.failed === 0 && deleted.length === 0);
++  const bad = await media.importPhotos([{ id: 'bad-photo', dataUrl: 'not-a-data-url' }]);
++  check('a photo entry without a data URL is a failure and writes no blob', bad.failed === 1 && !(await media.getRecord('bad-photo')));
++
++  const importFn = app.slice(app.indexOf('function importJSON'), app.indexOf('function applyDeviceSettings'));
++  check('full import writes photos, then replaces state, migrates, hydrates, and repaints', importFn.indexOf('importPhotos') < importFn.indexOf('normalizeState') && importFn.indexOf('normalizeState') < importFn.indexOf('migrateInlinePhotos') && importFn.indexOf('migrateInlinePhotos') < importFn.indexOf('hydrateMediaCache') && importFn.indexOf('hydrateMediaCache') < importFn.indexOf('renderAll()'));
++  check('a failed photo import still continues into the state replace', /if \(importedPhotos\.failed\)[\s\S]{0,800}showStorageError[\s\S]{0,800}normalizeState/.test(importFn));
++  check('import does not prune', !importFn.includes('pruneUnreferencedPhotos'));
++  const returnFn = app.slice(app.indexOf('function returnToActive'), app.indexOf('function reopenPlant'));
++  check('returnToActive does not import photo bytes', !returnFn.includes('importPhotos') && !returnFn.includes('putDataUrl'));
++
++  const pruneCalls = [...app.matchAll(/pruneUnreferencedPhotos\(/g)].length;
++  check('prune runs from its definition plus clear backup history and clear all data', pruneCalls === 3);
++
++  await media.putDataUrl(landraceId, dataUrl);
++  const shippedKeep = new Set(shippedCollectIds(state));
++  const shippedDrop = (await media.allIds()).filter((id) => !shippedKeep.has(id));
++  check('shipped prune keep-set would drop the landrace id and keep the grow id', shippedDrop.includes(landraceId) && !shippedDrop.includes(growId));
++  if (phase1) {
++    const keep = new Set(media.collectIds(state));
++    check('phase1 keep-set retains the landrace id', keep.has(landraceId) && keep.has(growId));
++  }
++
++  const other = { id: 'other-plant', name: 'Other', logs: [{ photoId: 'other-photo' }] };
++  state.plants.push(other);
++  await media.putDataUrl(growId, dataUrl);
++  const oneCache = new Map();
++  const url = await media.objectUrl(growId);
++  if (url) oneCache.set(growId, url);
++  check('a one-id rehydrate paints the grow photo and leaves the other plant untouched', photoTag(log, oneCache).startsWith('<img') && other.logs[0].photoId === 'other-photo' && !(await media.getRecord('other-photo')));
++  check('this file does not write a repair into app.js', !app.includes('rehydrateOnePhoto'));
++
++  if (FAIL.length) {
++    console.error(FAIL.length + ' failed');
++    process.exit(1);
++  }
++  console.log('photo restore regression passed (' + (phase1 ? 'phase1 media-store' : 'shipped media-store') + ')');
++}
++
++main().catch((error) => {
++  console.error(error);
++  process.exit(1);
++});

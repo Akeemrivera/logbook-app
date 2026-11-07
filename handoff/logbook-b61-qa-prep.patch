@@ -1,0 +1,717 @@
+--- a/app.js	2026-11-07 00:05:34.119606020 +0000
++++ b/app.js	2026-11-07 00:05:34.123606023 +0000
+@@ -24,7 +24,7 @@
+ const DRAFT_STORAGE_KEY = 'boriken-genetics-logbook-drafts-v1';
+ const BACKUP_STORAGE_KEY = 'boriken-genetics-logbook-backups-v1';
+ const APP_VERSION = '1.0';
+-const APP_BUILD = '60'; // must equal CURRENT_PROJECT_VERSION in the Xcode project (scripts/build-www.js checks this)
++const APP_BUILD = '61'; // must equal CURRENT_PROJECT_VERSION in the Xcode project (scripts/build-www.js checks this)
+ const SCHEMA_VERSION = 2;
+ const MAX_SNAPSHOTS = 3; // keep only the latest few so history does not crowd live data in localStorage
+ const DAY_MS = 1000 * 60 * 60 * 24;
+--- a/ios/App/App.xcodeproj/project.pbxproj	2026-11-03 15:11:43.843678337 +0000
++++ b/ios/App/App.xcodeproj/project.pbxproj	2026-11-07 00:05:34.127606026 +0000
+@@ -43,6 +43,8 @@
+ 		A1C10001000000000000A006 /* CloudSyncPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudSyncPlugin.swift; sourceTree = "<group>"; };
+ 		B4900001000000000000A008 /* IdScanPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IdScanPlugin.swift; sourceTree = "<group>"; };
+ 		A1C10001000000000000A005 /* App.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = App.entitlements; sourceTree = "<group>"; };
++		A1C10001000000000000QAE1 /* App.qa.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = App.qa.entitlements; sourceTree = "<group>"; };
++		A1C10001000000000000QAP1 /* Info.qa.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.qa.plist; sourceTree = "<group>"; };
+ /* End PBXFileReference section */
+ 
+ /* Begin PBXFrameworksBuildPhase section */
+@@ -87,6 +89,8 @@
+ 				A1C10001000000000000A006 /* CloudSyncPlugin.swift */,
+ 				B4900001000000000000A008 /* IdScanPlugin.swift */,
+ 				A1C10001000000000000A005 /* App.entitlements */,
++				A1C10001000000000000QAE1 /* App.qa.entitlements */,
++				A1C10001000000000000QAP1 /* Info.qa.plist */,
+ 				504EC30B1FED79650016851F /* Main.storyboard */,
+ 				504EC30E1FED79650016851F /* Assets.xcassets */,
+ 				504EC3101FED79650016851F /* LaunchScreen.storyboard */,
+@@ -372,6 +376,91 @@
+ 			};
+ 			name = Release;
+ 		};
++		504EC3191FED79650016851F /* QA */ = {
++			isa = XCBuildConfiguration;
++			baseConfigurationReference = 958DCC722DB07C7200EA8C5F /* debug.xcconfig */;
++			buildSettings = {
++				ALWAYS_SEARCH_USER_PATHS = NO;
++				CLANG_ANALYZER_NONNULL = YES;
++				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
++				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
++				CLANG_CXX_LIBRARY = "libc++";
++				CLANG_ENABLE_MODULES = YES;
++				CLANG_ENABLE_OBJC_ARC = YES;
++				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
++				CLANG_WARN_BOOL_CONVERSION = YES;
++				CLANG_WARN_COMMA = YES;
++				CLANG_WARN_CONSTANT_CONVERSION = YES;
++				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
++				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
++				CLANG_WARN_EMPTY_BODY = YES;
++				CLANG_WARN_ENUM_CONVERSION = YES;
++				CLANG_WARN_INFINITE_RECURSION = YES;
++				CLANG_WARN_INT_CONVERSION = YES;
++				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
++				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
++				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
++				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
++				CLANG_WARN_STRICT_PROTOTYPES = YES;
++				CLANG_WARN_SUSPICIOUS_MOVE = YES;
++				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
++				CLANG_WARN_UNREACHABLE_CODE = YES;
++				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
++				CODE_SIGN_IDENTITY = "iPhone Developer";
++				COPY_PHASE_STRIP = NO;
++				DEBUG_INFORMATION_FORMAT = dwarf;
++				ENABLE_STRICT_OBJC_MSGSEND = YES;
++				ENABLE_TESTABILITY = YES;
++				GCC_C_LANGUAGE_STANDARD = gnu11;
++				GCC_DYNAMIC_NO_PIC = NO;
++				GCC_NO_COMMON_BLOCKS = YES;
++				GCC_OPTIMIZATION_LEVEL = 0;
++				GCC_PREPROCESSOR_DEFINITIONS = (
++					"DEBUG=1",
++					"$(inherited)",
++				);
++				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
++				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
++				GCC_WARN_UNDECLARED_SELECTOR = YES;
++				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
++				GCC_WARN_UNUSED_FUNCTION = YES;
++				GCC_WARN_UNUSED_VARIABLE = YES;
++				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
++				MTL_ENABLE_DEBUG_INFO = YES;
++				ONLY_ACTIVE_ARCH = YES;
++				SDKROOT = iphoneos;
++				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
++				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
++			};
++			name = QA;
++		};
++		504EC31A1FED79650016851F /* QA */ = {
++			isa = XCBuildConfiguration;
++			baseConfigurationReference = 958DCC722DB07C7200EA8C5F /* debug.xcconfig */;
++			buildSettings = {
++				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
++				ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES = "AppIcon-Thanksgiving";
++				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
++				CODE_SIGN_ENTITLEMENTS = App/App.qa.entitlements;
++				CODE_SIGN_STYLE = Automatic;
++				CURRENT_PROJECT_VERSION = 61;
++				DEVELOPMENT_TEAM = 2Z94YL957X;
++				INFOPLIST_FILE = App/Info.qa.plist;
++				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
++				LD_RUNPATH_SEARCH_PATHS = (
++					"$(inherited)",
++					"@executable_path/Frameworks",
++				);
++				MARKETING_VERSION = 1.0;
++				OTHER_SWIFT_FLAGS = "$(inherited) \"-D\" \"COCOAPODS\" \"-DDEBUG\"";
++				PRODUCT_BUNDLE_IDENTIFIER = com.borikengenetics.logbookapp.qa;
++				PRODUCT_NAME = "$(TARGET_NAME)";
++				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG QA_ISOLATION";
++				SWIFT_VERSION = 5.0;
++				TARGETED_DEVICE_FAMILY = "1,2";
++			};
++			name = QA;
++		};
+ /* End XCBuildConfiguration section */
+ 
+ /* Begin XCConfigurationList section */
+@@ -380,6 +469,7 @@
+ 			buildConfigurations = (
+ 				504EC3141FED79650016851F /* Debug */,
+ 				504EC3151FED79650016851F /* Release */,
++				504EC3191FED79650016851F /* QA */,
+ 			);
+ 			defaultConfigurationIsVisible = 0;
+ 			defaultConfigurationName = Release;
+@@ -389,6 +479,7 @@
+ 			buildConfigurations = (
+ 				504EC3171FED79650016851F /* Debug */,
+ 				504EC3181FED79650016851F /* Release */,
++				504EC31A1FED79650016851F /* QA */,
+ 			);
+ 			defaultConfigurationIsVisible = 0;
+ 			defaultConfigurationName = Release;
+--- a/ios/App/App.xcodeproj/xcshareddata/xcschemes/App-QA.xcscheme	2026-11-06 07:58:44.288743085 +0000
++++ b/ios/App/App.xcodeproj/xcshareddata/xcschemes/App-QA.xcscheme	2026-11-07 00:05:34.127606026 +0000
+@@ -0,0 +1,66 @@
++<?xml version="1.0" encoding="UTF-8"?>
++<Scheme
++   LastUpgradeVersion = "1600"
++   version = "1.7">
++   <BuildAction
++      parallelizeBuildables = "YES"
++      buildImplicitDependencies = "YES">
++      <BuildActionEntries>
++         <BuildActionEntry
++            buildForTesting = "YES"
++            buildForRunning = "YES"
++            buildForProfiling = "NO"
++            buildForArchiving = "NO"
++            buildForAnalyzing = "YES">
++            <BuildableReference
++               BuildableIdentifier = "primary"
++               BlueprintIdentifier = "504EC3031FED79650016851F"
++               BuildableName = "App.app"
++               BlueprintName = "App"
++               ReferencedContainer = "container:App.xcodeproj">
++            </BuildableReference>
++         </BuildActionEntry>
++      </BuildActionEntries>
++   </BuildAction>
++   <TestAction
++      buildConfiguration = "QA"
++      selectedDebuggerIdentifier = "Xcode.DebuggerFoundation.Debugger.LLDB"
++      selectedLauncherIdentifier = "Xcode.DebuggerFoundation.Launcher.LLDB"
++      shouldUseLaunchSchemeArgsEnv = "YES">
++   </TestAction>
++   <LaunchAction
++      buildConfiguration = "QA"
++      selectedDebuggerIdentifier = "Xcode.DebuggerFoundation.Debugger.LLDB"
++      selectedLauncherIdentifier = "Xcode.DebuggerFoundation.Launcher.LLDB"
++      launchStyle = "0"
++      useCustomWorkingDirectory = "NO"
++      ignoresPersistentStateOnLaunch = "NO"
++      debugDocumentVersioning = "YES"
++      debugServiceExtension = "internal"
++      allowLocationSimulation = "YES">
++      <BuildableProductRunnable
++         runnableDebuggingMode = "0">
++         <BuildableReference
++            BuildableIdentifier = "primary"
++            BlueprintIdentifier = "504EC3031FED79650016851F"
++            BuildableName = "App.app"
++            BlueprintName = "App"
++            ReferencedContainer = "container:App.xcodeproj">
++         </BuildableReference>
++      </BuildableProductRunnable>
++   </LaunchAction>
++   <ProfileAction
++      buildConfiguration = "QA"
++      shouldUseLaunchSchemeArgsEnv = "YES"
++      savedToolIdentifier = ""
++      useCustomWorkingDirectory = "NO"
++      debugDocumentVersioning = "YES">
++   </ProfileAction>
++   <AnalyzeAction
++      buildConfiguration = "QA">
++   </AnalyzeAction>
++   <ArchiveAction
++      buildConfiguration = "QA"
++      revealArchiveInOrganizer = "YES">
++   </ArchiveAction>
++</Scheme>
+--- a/ios/App/App/App.qa.entitlements	2026-11-06 07:58:44.288743085 +0000
++++ b/ios/App/App/App.qa.entitlements	2026-11-07 00:05:34.123606023 +0000
+@@ -0,0 +1,6 @@
++<?xml version="1.0" encoding="UTF-8"?>
++<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
++<plist version="1.0">
++<dict>
++</dict>
++</plist>
+--- a/ios/App/App/CloudSyncPlugin.swift	2026-11-03 15:11:42.982600141 +0000
++++ b/ios/App/App/CloudSyncPlugin.swift	2026-11-07 00:08:04.339600974 +0000
+@@ -19,15 +19,30 @@
+         CAPPluginMethod(name: "deleteAll", returnType: CAPPluginReturnPromise)
+     ]
+ 
++
++    private func qaBlocked(_ call: CAPPluginCall) -> Bool {
++        #if QA_ISOLATION
++        call.reject("This QA build cannot use iCloud.", "QA_ISOLATION")
++        return true
++        #else
++        return false
++        #endif
++    }
++
+     static let remoteChangeNotification = Notification.Name("LogbookCloudChanged")
++    #if QA_ISOLATION
++    private var container: CKContainer { preconditionFailure("QA build must not open iCloud") }
++    private var db: CKDatabase { preconditionFailure("QA build must not open iCloud") }
++    #else
+     private let containerId = "iCloud.com.borikengenetics.logbookapp"
++    private lazy var container = CKContainer(identifier: containerId)
++    private var db: CKDatabase { container.privateCloudDatabase }
++    #endif
+     private let zoneID = CKRecordZone.ID(zoneName: "Logbook", ownerName: CKCurrentUserDefaultName)
+     private let recordType = "LogRecord"
+     private let mediaType = "LogMedia"
+     private let zoneReadyKey = "cloudsync.zoneReady.v1"
+     private let inlineLimit = 700_000 // bytes; larger payloads go in a CKAsset (a record is capped at 1 MB)
+-    private lazy var container = CKContainer(identifier: containerId)
+-    private var db: CKDatabase { container.privateCloudDatabase }
+ 
+     public override func load() {
+         NotificationCenter.default.addObserver(self, selector: #selector(onRemoteChange), name: CloudSyncPlugin.remoteChangeNotification, object: nil)
+@@ -65,6 +80,7 @@
+     // MARK: account + zone
+ 
+     @objc func status(_ call: CAPPluginCall) {
++        if qaBlocked(call) { return }
+         container.accountStatus { status, error in
+             if let error = error { self.reject(call, error); return }
+             switch status {
+@@ -117,6 +133,7 @@
+ 
+     /// push({ records: [{ name, k, t, del, dev, payload }] })
+     @objc func push(_ call: CAPPluginCall) {
++        if qaBlocked(call) { return }
+         guard let items = call.getArray("records", JSObject.self) else { call.reject("records are required.", "BAD_ARGS"); return }
+         ensureZone { error in
+             if let error = error { self.reject(call, error); return }
+@@ -153,6 +170,7 @@
+ 
+     /// pull({ token }) -> { records: [{ k, t, del, dev, payload }], token, reset }
+     @objc func pull(_ call: CAPPluginCall) {
++        if qaBlocked(call) { return }
+         var token: CKServerChangeToken? = nil
+         if let b64 = call.getString("token"), !b64.isEmpty, let data = Data(base64Encoded: b64) {
+             token = try? NSKeyedUnarchiver.unarchivedObject(ofClass: CKServerChangeToken.self, from: data)
+@@ -199,6 +217,7 @@
+ 
+     /// pushMedia({ id, mime, data (base64) })
+     @objc func pushMedia(_ call: CAPPluginCall) {
++        if qaBlocked(call) { return }
+         guard let id = call.getString("id"), let b64 = call.getString("data"), let data = Data(base64Encoded: b64) else { call.reject("id and data are required.", "BAD_ARGS"); return }
+         let mime = call.getString("mime") ?? "image/jpeg"
+         ensureZone { error in
+@@ -220,6 +239,7 @@
+ 
+     /// fetchMedia({ id }) -> { found, mime, data }
+     @objc func fetchMedia(_ call: CAPPluginCall) {
++        if qaBlocked(call) { return }
+         guard let id = call.getString("id") else { call.reject("id is required.", "BAD_ARGS"); return }
+         let rid = CKRecord.ID(recordName: "m_" + id, zoneID: zoneID)
+         db.fetch(withRecordID: rid) { rec, error in
+@@ -232,6 +252,7 @@
+ 
+     /// Removes the iCloud copy (the whole zone). Local data is untouched. JS asks for confirmation first.
+     @objc func deleteAll(_ call: CAPPluginCall) {
++        if qaBlocked(call) { return }
+         let op = CKModifyRecordZonesOperation(recordZonesToSave: nil, recordZoneIDsToDelete: [zoneID])
+         op.modifyRecordZonesCompletionBlock = { _, _, error in
+             UserDefaults.standard.removeObject(forKey: self.zoneReadyKey)
+--- a/ios/App/App/ICloudBackupPlugin.swift	2026-11-03 15:11:42.998025051 +0000
++++ b/ios/App/App/ICloudBackupPlugin.swift	2026-11-07 00:05:34.123606023 +0000
+@@ -15,7 +15,19 @@
+         CAPPluginMethod(name: "prune", returnType: CAPPluginReturnPromise)
+     ]
+ 
++
++    private func qaBlocked(_ call: CAPPluginCall) -> Bool {
++        #if QA_ISOLATION
++        call.reject("This QA build cannot use iCloud.", "QA_ISOLATION")
++        return true
++        #else
++        return false
++        #endif
++    }
++
++    #if !QA_ISOLATION
+     private let containerId = "iCloud.com.borikengenetics.logbookapp"
++    #endif
+     private let queue = DispatchQueue(label: "com.borikengenetics.logbookapp.icloud", qos: .utility)
+ 
+     private enum Failure: Error {
+@@ -30,6 +42,9 @@
+     }
+ 
+     private func documentsURL() throws -> URL {
++        #if QA_ISOLATION
++        throw Failure.containerUnavailable
++        #else
+         let fm = FileManager.default
+         guard fm.ubiquityIdentityToken != nil else { throw Failure.notSignedIn }
+         guard let container = fm.url(forUbiquityContainerIdentifier: containerId) else { throw Failure.containerUnavailable }
+@@ -38,6 +53,7 @@
+             try fm.createDirectory(at: docs, withIntermediateDirectories: true)
+         }
+         return docs
++        #endif
+     }
+ 
+     private func safeName(_ raw: String?) -> String? {
+@@ -54,6 +70,7 @@
+     }
+ 
+     @objc func status(_ call: CAPPluginCall) {
++        if qaBlocked(call) { return }
+         queue.async {
+             do {
+                 _ = try self.documentsURL()
+@@ -67,6 +84,7 @@
+     }
+ 
+     @objc func writeBackup(_ call: CAPPluginCall) {
++        if qaBlocked(call) { return }
+         guard let name = safeName(call.getString("filename")), let text = call.getString("data") else {
+             call.reject("A .json filename and data are required.", "BAD_ARGS")
+             return
+@@ -98,6 +116,7 @@
+     }
+ 
+     @objc func listBackups(_ call: CAPPluginCall) {
++        if qaBlocked(call) { return }
+         let prefix = call.getString("prefix") ?? ""
+         queue.async {
+             do {
+@@ -113,6 +132,7 @@
+ 
+     /// Keeps the newest `keep` files whose names start with `prefix`; deletes the rest.
+     @objc func prune(_ call: CAPPluginCall) {
++        if qaBlocked(call) { return }
+         let prefix = call.getString("prefix") ?? ""
+         let keep = max(1, call.getInt("keep") ?? 7)
+         guard !prefix.isEmpty else { call.reject("A prefix is required.", "BAD_ARGS"); return }
+--- a/ios/App/App/Info.qa.plist	2026-11-06 07:58:44.288743085 +0000
++++ b/ios/App/App/Info.qa.plist	2026-11-07 00:05:34.123606023 +0000
+@@ -0,0 +1,99 @@
++<?xml version="1.0" encoding="UTF-8"?>
++<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
++<plist version="1.0">
++<dict>
++	<key>CFBundleIcons</key>
++	<dict>
++		<key>CFBundlePrimaryIcon</key>
++		<dict>
++			<key>CFBundleIconName</key>
++			<string>AppIcon</string>
++		</dict>
++		<!-- Holiday alternate icons (whole month). Christmas placeholder: add AppIcon-Christmas here when the art arrives. -->
++		<key>CFBundleAlternateIcons</key>
++		<dict>
++			<key>AppIcon-Thanksgiving</key>
++			<dict>
++				<key>CFBundleIconName</key>
++				<string>AppIcon-Thanksgiving</string>
++			</dict>
++		</dict>
++	</dict>
++  <key>CAPACITOR_DEBUG</key>
++	<string>$(CAPACITOR_DEBUG)</string>
++	<key>CFBundleDevelopmentRegion</key>
++	<string>en</string>
++	<key>CFBundleDisplayName</key>
++        <string>Borikèn Logbook QA</string>
++	<key>CFBundleExecutable</key>
++	<string>$(EXECUTABLE_NAME)</string>
++	<key>CFBundleIdentifier</key>
++	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
++	<key>CFBundleInfoDictionaryVersion</key>
++	<string>6.0</string>
++	<key>CFBundleName</key>
++	<string>$(PRODUCT_NAME)</string>
++	<key>CFBundlePackageType</key>
++	<string>APPL</string>
++	<key>CFBundleShortVersionString</key>
++	<string>$(MARKETING_VERSION)</string>
++	<key>CFBundleVersion</key>
++	<string>$(CURRENT_PROJECT_VERSION)</string>
++	<key>NSFaceIDUsageDescription</key>
++	<string>Unlock your private logbook</string>
++	<key>NSCameraUsageDescription</key>
++	<string>Take photos and videos of your plants for your logbook records, and photograph a patient's card and photo ID so the text can be read on this iPhone (nothing is sent anywhere).</string>
++	<key>NSMicrophoneUsageDescription</key>
++	<string>Record sound with plant videos you add to your logbook.</string>
++	<key>NSPhotoLibraryUsageDescription</key>
++	<string>Choose plant photos and videos to add to your logbook records.</string>
++	<key>NSPhotoLibraryAddUsageDescription</key>
++	<string>Save photos from your logbook to your photo library.</string>
++	<key>ITSAppUsesNonExemptEncryption</key>
++	<false/>
++	<key>LSRequiresIPhoneOS</key>
++	<true/>
++	<key>UIApplicationSceneManifest</key>
++	<dict>
++		<key>UIApplicationSupportsMultipleScenes</key>
++    <false/>
++    <key>UISceneConfigurations</key>
++    <dict>
++      <key>UIWindowSceneSessionRoleApplication</key>
++      <array>
++        <dict>
++            <key>UISceneConfigurationName</key>
++            <string>Default Configuration</string>
++            <key>UISceneDelegateClassName</key>
++            <string>$(PRODUCT_MODULE_NAME).SceneDelegate</string>
++            <key>UISceneStoryboardFile</key>
++            <string>Main</string>
++        </dict>
++      </array>
++    </dict>
++	</dict>
++	<key>UILaunchStoryboardName</key>
++	<string>LaunchScreen</string>
++	<key>UIMainStoryboardFile</key>
++	<string>Main</string>
++	<key>UIRequiredDeviceCapabilities</key>
++	<array>
++		<string>armv7</string>
++	</array>
++	<key>UISupportedInterfaceOrientations</key>
++	<array>
++		<string>UIInterfaceOrientationPortrait</string>
++		<string>UIInterfaceOrientationLandscapeLeft</string>
++		<string>UIInterfaceOrientationLandscapeRight</string>
++	</array>
++	<key>UISupportedInterfaceOrientations~ipad</key>
++	<array>
++		<string>UIInterfaceOrientationPortrait</string>
++		<string>UIInterfaceOrientationPortraitUpsideDown</string>
++		<string>UIInterfaceOrientationLandscapeLeft</string>
++		<string>UIInterfaceOrientationLandscapeRight</string>
++	</array>
++	<key>UIViewControllerBasedStatusBarAppearance</key>
++	<true/>
++</dict>
++</plist>
+--- a/rig-guard.sh	2026-11-03 15:24:42.465066437 +0000
++++ b/rig-guard.sh	2026-11-07 00:05:34.127606026 +0000
+@@ -6,11 +6,22 @@
+ # - sim: the target must be a simulator udid (never a physical device).
+ REAL=com.borikengenetics.logbookapp; APP=$1; T=$2; U=$3
+ P=$APP/Info.plist; [ -f $APP/Wrapper/App.app/Info.plist ] && P=$APP/Wrapper/App.app/Info.plist
++[ -f "$APP/Wrapper/App.app/Info.plist" ] && APP=$APP/Wrapper/App.app
+ ID=$(/usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" "$P" 2>/dev/null)
++[ "$ID" = "$REAL" ] && { echo "RIG-GUARD: refusing test run with the real bundle id $REAL (would use live data or production iCloud)"; exit 4; }
++check_ents() {
++  local ent
++  ent=$(codesign -d --entitlements :- "$1" 2>/dev/null) || { echo "RIG-GUARD: could not read the code signature"; exit 4; }
++  echo "$ent" | grep -q 'iCloud.com.borikengenetics.logbookapp' && { echo "RIG-GUARD: refusing production iCloud container"; exit 4; }
++  echo "$ent" | grep -q 'keychain-access-groups' && { echo "RIG-GUARD: refusing keychain sharing"; exit 4; }
++  echo "$ent" | grep -q 'application-groups' && { echo "RIG-GUARD: refusing an app group"; exit 4; }
++  echo "$ent" | grep -q 'ubiquity-container-identifiers' && { echo "RIG-GUARD: refusing an iCloud Drive container"; exit 4; }
++}
+ if [ "$T" = mac ]; then
+-  [ "$ID" = "$REAL" ] && { echo "RIG-GUARD: refusing Mac test run with the real bundle id $REAL (would write into Elio's real data)"; exit 4; }
+   pgrep -f "Borikèn Logbook.app/" >/dev/null && { echo "RIG-GUARD: installed Logbook is open"; exit 4; }
++  check_ents "$APP"
+ elif [ "$T" = sim ]; then
+   xcrun simctl list devices | grep -q "($U)" || { echo "RIG-GUARD: $U is not a simulator"; exit 4; }
++  check_ents "$APP"
+ else echo "RIG-GUARD: target must be sim or mac"; exit 4; fi
+ echo "RIG-GUARD ok: $ID on $T"
+Binary files /dev/null and /tmp/qa-patch-new/scripts/__pycache__/verify-qa-config.cpython-312.pyc differ
+--- a/scripts/build-www.js	2026-11-03 15:11:43.163299854 +0000
++++ b/scripts/build-www.js	2026-11-07 00:05:34.123606023 +0000
+@@ -49,7 +49,7 @@
+   'build45.css',
+   'build46.js',
+   'build46.css',
+-  'build46-black.css', 'build47.css', 'build48.js', 'build48.css', 'build49.js', 'build49.css', 'build49-sales.js', 'build49-sales.css', 'build50.js', 'build50.css', 'holiday-icons.js', 'build51.js', 'build51.css', 'build53.js', 'build53.css', 'build56.css', 'build57.js', 'build57.css', 'build58.js', 'build59.js', 'build60.js', 'build58.css', 'build59.css', 'build60.css', 'vendor/pdf-lib.min.js',
++  'build46-black.css', 'build47.css', 'build48.js', 'build48.css', 'build49.js', 'build49.css', 'build49-sales.js', 'build49-sales.css', 'build50.js', 'build50.css', 'holiday-icons.js', 'build51.js', 'build51.css', 'build53.js', 'build53.css', 'build56.css', 'build57.js', 'build57.css', 'build58.js', 'build59.js', 'build60.js', 'build58.css', 'build59.css', 'build60.css', 'build61.js', 'build61.css', 'vendor/pdf-lib.min.js',
+   'build32.css',
+   'wide.js',
+   'wide.css',
+@@ -87,6 +87,13 @@
+   process.exit(1);
+ }
+ 
++const missingSrc = files.filter((rel) => !fs.existsSync(path.join(root, rel)));
++if (missingSrc.length) {
++  console.error('\n*** PREP REFUSED: source files are missing, so www/ was not changed:');
++  missingSrc.forEach((rel) => console.error('    MISSING  ' + rel));
++  process.exit(1);
++}
++
+ fs.rmSync(www, { recursive: true, force: true });
+ fs.mkdirSync(www, { recursive: true });
+ files.forEach(copyFile);
+--- a/scripts/phase1-prep-delta.test.js	2026-11-06 07:58:44.288743085 +0000
++++ b/scripts/phase1-prep-delta.test.js	2026-11-07 00:08:54.359551310 +0000
+@@ -0,0 +1,38 @@
++#!/usr/bin/env node
++'use strict';
++const crypto = require('crypto');
++const fs = require('fs');
++const path = require('path');
++const root = path.join(__dirname, '..');
++const SHIPPED = '3c949b1a8b34d6f20590ac690de430e5aa53384b7c891008a80fd1ae3e97d399';
++let failed = 0;
++function fail(msg) { failed += 1; console.error('FAIL', msg); }
++function pass(msg) { console.log('PASS', msg); }
++function sha(file) { return crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex'); }
++const app = path.join(root, 'app.js');
++if (!fs.existsSync(app)) fail('root app.js missing');
++else if (sha(app) !== SHIPPED) fail(`root app.js ${sha(app)} is not the shipped b61 bytes ${SHIPPED}`);
++else pass('root app.js matches the shipped b61 app.js bytes');
++for (const rel of ['www/app.js', 'ios/App/App/public/app.js']) {
++  const file = path.join(root, rel);
++  if (!fs.existsSync(file)) { fail(`${rel} missing`); continue; }
++  if (sha(file) !== sha(app)) fail(`${rel} differs from root app.js`);
++  else pass(`${rel} matches root app.js`);
++}
++const bw = fs.readFileSync(path.join(root, 'scripts/build-www.js'), 'utf8');
++if (!bw.includes("'build61.js'") || !bw.includes("'build61.css'")) fail('build-www.js omits build 61');
++else pass('build-www.js packs build61.js and build61.css');
++if (!(bw.indexOf('PREP REFUSED') >= 0 && bw.indexOf('PREP REFUSED') < bw.indexOf('fs.rmSync(www'))) fail('www wipe is not guarded');
++else pass('www wipe is refused when a listed source file is missing');
++{
++  const prep = fs.readFileSync(path.join(root, 'scripts/prep-www.sh'), 'utf8');
++  const commands = prep.split('\n').filter((line) => !line.trim().startsWith('#')).join('\n');
++  if (/\bnpx\b|\bcap\b/.test(commands)) fail('prep invokes Capacitor sync');
++  else pass('prep does not invoke Capacitor sync');
++}
++const qa = fs.readFileSync(path.join(root, 'scripts/qa-build.sh'), 'utf8');
++if (qa.includes('-configuration Debug') || qa.includes('-configuration Release') || qa.includes('npx cap')) fail('qa-build can select a production command');
++else if (!qa.includes('-configuration QA') || !qa.includes('App-QA')) fail('qa-build does not target the QA scheme');
++else pass('qa-build is QA-only and does not sync Capacitor');
++if (failed) process.exit(1);
++console.log(`prep-delta ${failed ? 'failed' : 'ok'}`);
+--- a/scripts/prep-www.sh	2026-11-06 07:58:44.288743085 +0000
++++ b/scripts/prep-www.sh	2026-11-07 00:08:53.519552314 +0000
+@@ -0,0 +1,26 @@
++#!/bin/zsh
++# Copy root web sources into www/ and then into the Xcode public folder.
++# Does not launch the app. Stops if the version check fails.
++set -euo pipefail
++cd "$(dirname "$0")/.."
++ROOT=$PWD
++node scripts/build-www.js
++node --input-type=module -e '
++import fs from "fs";
++import crypto from "crypto";
++const root = fs.readFileSync("app.js");
++const www = fs.readFileSync("www/app.js");
++if (!root.equals(www)) {
++  console.error("PREP REFUSED: www/app.js does not match root app.js after the copy.");
++  process.exit(1);
++}
++fs.cpSync("www", "ios/App/App/public", { recursive: true, force: true });
++const pub = fs.readFileSync("ios/App/App/public/app.js");
++if (!root.equals(pub)) {
++  console.error("PREP REFUSED: embedded public/app.js does not match root app.js.");
++  process.exit(1);
++}
++const hash = crypto.createHash("sha256").update(root).digest("hex");
++console.log("prep-www app.js", hash);
++'
++echo "prep-www done. Did not compile or launch."
+--- a/scripts/qa-build.sh	2026-11-06 07:58:44.288743085 +0000
++++ b/scripts/qa-build.sh	2026-11-07 00:08:53.587552233 +0000
+@@ -0,0 +1,28 @@
++#!/bin/zsh
++# QA compile only. Never Debug, Release, install, or launch.
++set -euo pipefail
++cd "$(dirname "$0")/.."
++ROOT=$PWD
++if [[ "${1:-QA}" != "QA" ]]; then
++  echo "Refusing configuration ${1}. This script builds QA only."
++  exit 2
++fi
++zsh scripts/prep-www.sh
++python3 scripts/verify-qa-config.py
++xcodebuild \
++  -project ios/App/App.xcodeproj \
++  -scheme App-QA \
++  -configuration QA \
++  -destination 'platform=macOS,variant=Designed for iPad' \
++  -derivedDataPath "$ROOT/build/qa-derived" \
++  build
++APP=$(find "$ROOT/build/qa-derived" -type d -name 'App.app' -print | head -n 1)
++if [[ -z "$APP" ]]; then
++  echo "QA build finished but App.app was not found."
++  exit 1
++fi
++zsh scripts/verify-qa-app.sh "$APP"
++echo "QA build verified: $APP"
++echo "Not installed and not launched. Next, with the production Logbook quit:"
++echo "  zsh rig-guard.sh \"$APP\" mac"
++echo "Open it only after rig-guard prints ok. Do not open the production app."
+--- a/scripts/verify-qa-app.sh	2026-11-06 07:58:44.288743085 +0000
++++ b/scripts/verify-qa-app.sh	2026-11-07 00:08:39.531568239 +0000
+@@ -0,0 +1,25 @@
++#!/bin/zsh
++# Check a built QA app without launching it.
++set -euo pipefail
++APP=${1:?path to App.app}
++P=$APP/Info.plist
++[[ -f $APP/Wrapper/App.app/Info.plist ]] && P=$APP/Wrapper/App.app/Info.plist && APP=$APP/Wrapper/App.app
++ID=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$P")
++NAME=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleDisplayName' "$P")
++[[ "$ID" == "com.borikengenetics.logbookapp.qa" ]] || { echo "VERIFY FAIL: bundle id is $ID"; exit 1; }
++[[ "$NAME" == "Borikèn Logbook QA" ]] || { echo "VERIFY FAIL: display name is $NAME"; exit 1; }
++if /usr/libexec/PlistBuddy -c 'Print :NSUbiquitousContainers' "$P" >/dev/null 2>&1; then
++  echo "VERIFY FAIL: QA Info.plist still declares an iCloud container"
++  exit 1
++fi
++ENT=$(codesign -d --entitlements :- "$APP" 2>/dev/null) || { echo "VERIFY FAIL: no code signature"; exit 1; }
++echo "$ENT" | grep -q 'iCloud.com.borikengenetics.logbookapp' && { echo "VERIFY FAIL: production iCloud container"; exit 1; }
++echo "$ENT" | grep -q 'keychain-access-groups' && { echo "VERIFY FAIL: keychain sharing"; exit 1; }
++echo "$ENT" | grep -q 'application-groups' && { echo "VERIFY FAIL: app group"; exit 1; }
++echo "$ENT" | grep -q 'ubiquity-container-identifiers' && { echo "VERIFY FAIL: iCloud Drive entitlement"; exit 1; }
++echo "$ENT" | grep -q 'icloud-services' && { echo "VERIFY FAIL: iCloud service entitlement"; exit 1; }
++if strings "$APP/App" 2>/dev/null | grep -q 'iCloud.com.borikengenetics.logbookapp'; then
++  echo "VERIFY FAIL: QA binary still contains the production iCloud container id"
++  exit 1
++fi
++echo "VERIFY ok: $ID ($NAME) has no production iCloud, keychain sharing, or app group"
+--- a/scripts/verify-qa-config.py	2026-11-06 07:58:44.288743085 +0000
++++ b/scripts/verify-qa-config.py	2026-11-07 00:08:39.531568239 +0000
+@@ -0,0 +1,59 @@
++#!/usr/bin/env python3
++"""Check the QA build mode in source. Does not compile or launch."""
++import plistlib
++import sys
++from pathlib import Path
++
++root = Path(__file__).resolve().parents[1]
++pbx = (root / "ios/App/App.xcodeproj/project.pbxproj").read_text()
++prod_ent = (root / "ios/App/App/App.entitlements").read_text()
++qa_ent = (root / "ios/App/App/App.qa.entitlements").read_text()
++prod_info = (root / "ios/App/App/Info.plist").read_text()
++qa_info = (root / "ios/App/App/Info.qa.plist").read_text()
++errors = []
++
++def need(cond, msg):
++    if not cond:
++        errors.append(msg)
++
++need(pbx.count("PRODUCT_BUNDLE_IDENTIFIER = com.borikengenetics.logbookapp;") == 2, "Debug and Release must keep the production bundle id")
++need("PRODUCT_BUNDLE_IDENTIFIER = com.borikengenetics.logbookapp.qa;" in pbx, "QA bundle id missing")
++need(pbx.count("CODE_SIGN_ENTITLEMENTS = App/App.entitlements;") == 2, "Debug and Release must keep production entitlements")
++need("CODE_SIGN_ENTITLEMENTS = App/App.qa.entitlements;" in pbx, "QA entitlements path missing")
++need("INFOPLIST_FILE = App/Info.qa.plist;" in pbx, "QA Info.plist path missing")
++need('SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG QA_ISOLATION";' in pbx, "QA compile flag missing")
++need("name = QA;" in pbx, "QA configuration missing")
++need("504EC3191FED79650016851F /* QA */" in pbx and "504EC31A1FED79650016851F /* QA */" in pbx, "QA config not listed")
++need("iCloud.com.borikengenetics.logbookapp" in prod_ent, "production entitlements lost the iCloud container")
++need("iCloud.com.borikengenetics.logbookapp" not in qa_ent, "QA entitlements name the production container")
++for banned in ("keychain-access-groups", "application-groups", "icloud-container", "icloud-services", "ubiquity-container"):
++    need(banned not in qa_ent, f"QA entitlements contain {banned}")
++need("keychain-access-groups" not in prod_ent and "application-groups" not in prod_ent, "production entitlements unexpectedly gained sharing")
++need("NSUbiquitousContainers" in prod_info and "iCloud.com.borikengenetics.logbookapp" in prod_info, "production Info.plist lost its container")
++need("iCloud.com.borikengenetics.logbookapp" not in qa_info, "QA Info.plist names the production container")
++need("Borikèn Logbook QA" in qa_info, "QA display name missing")
++need("remote-notification" not in qa_info, "QA Info.plist still requests remote notification")
++for name in ("CloudSyncPlugin.swift", "ICloudBackupPlugin.swift"):
++    text = (root / "ios/App/App" / name).read_text()
++    need("QA_ISOLATION" in text and "qaBlocked" in text, f"{name} has no QA guard")
++    need(text.count("This QA build cannot use iCloud.") == 1, f"{name} guard text")
++scheme = root / "ios/App/App.xcodeproj/xcshareddata/xcschemes/App-QA.xcscheme"
++need(scheme.is_file(), "App-QA scheme missing")
++scheme_text = scheme.read_text() if scheme.is_file() else ""
++need('buildConfiguration = "QA"' in scheme_text, "App-QA scheme does not build QA")
++need("Release" not in scheme_text, "App-QA scheme mentions Release")
++cap = (root / "ios/App/App/capacitor.config.json").read_text()
++need('"appId": "com.borikengenetics.logbookapp"' in cap, "capacitor appId was changed")
++bw = (root / "scripts/build-www.js").read_text()
++need("'build61.js'" in bw and "'build61.css'" in bw, "build-www.js does not pack build 61")
++rm_at = bw.find("fs.rmSync(www")
++pre_at = bw.find("PREP REFUSED")
++need(0 <= pre_at < rm_at, "www/ can still be deleted before the source check")
++app = (root / "app.js").read_text()
++need("const APP_BUILD = '61';" in app, "root app.js is not build 61")
++need("const APP_BUILD = '60';" not in app, "root app.js still says build 60")
++
++if errors:
++    print("\n".join(f"FAIL {e}" for e in errors))
++    sys.exit(1)
++print("PASS qa config keeps production Debug/Release and isolates QA")

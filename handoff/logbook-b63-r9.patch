@@ -1,0 +1,234 @@
+--- a/build63.css	2026-11-07 16:51:05.280421104 +0000
++++ b/build63.css	2026-11-07 16:47:41.871319097 +0000
+@@ -75,6 +75,55 @@
+ .b60-col > .b60-c.slot { min-height: 60px; }
+ .b60-col > .b60-c:only-child { flex: 1 1 100%; }
+ .b57 .b18-h1, .b57-subt, .b57-tools { max-width: 100%; overflow-wrap: break-word; word-break: normal; }
++/* Card titles were overflow-wrap:anywhere, so a name split inside the word
++   (Synthetic / c Gran, Grandfathe / r). Keep the two cards on one row.
++   Break only at a space unless one word is wider than the card. */
++#breeding-view .b60-c b,
++#breeding-view .b60-c small,
++#breeding-view .b57-n b,
++#breeding-view .b57-n small,
++#breeding-view .b57-subt,
++#breeding-view .b57-ban small,
++#breeding-view .b59-plab b,
++#breeding-view .b59-plab small {
++  overflow-wrap: break-word;
++  word-break: normal;
++  hyphens: manual;
++  white-space: normal;
++  max-width: 100%;
++}
++/* On a phone or a 768 window, two cards in one half are too narrow for a
++   name. Stack them so each card uses the whole half. The two halves stay
++   equal. At 1024 and wider the cards stay on one row. The stripped fixture
++   is not inside #breeding-view, so its side-by-side check is unchanged. */
++@media (max-width: 899px) {
++  #breeding-view .b60-col > .b60-c {
++    flex: 1 1 100%;
++    width: 100%;
++  }
++}
++#breeding-view .b60-c { container-type: inline-size; }
++@container (max-width: 150px) {
++  b, small { font-size: 12px; line-height: 1.25; }
++}
++#breeding-view .b57-tools { flex-wrap: wrap; row-gap: 6px; }
++#breeding-view .b57-tools .m-s {
++  flex: 1 1 9rem;
++  min-width: 0;
++  white-space: normal;
++  overflow: visible;
++  text-overflow: clip;
++}
++/* A real 1024 or 1366 window keeps the agreed 248px sidebar.
++   Default wide text size stays 1.28. That zoom makes innerWidth/1.28 fall
++   under 1080, and data-weff would otherwise draw the sidebar at 216px.
++   This does not change the saved text size or the zoom. Below 1024 the
++   narrower wide rule is unchanged. */
++@media (min-width: 1024px) {
++  :root[data-layout='wide'][data-weff] body { padding-left: 248px; }
++  :root[data-layout='wide'][data-weff] .w-side { width: 248px; }
++  :root[data-layout='wide'][data-weff] body::after { left: 248px; }
++}
+ @media (max-width: 720px) {
+   .b57-n { flex: 1 1 calc(50% - 8px); }
+ }
+--- a/www/build63.css	2026-11-07 16:51:05.280421104 +0000
++++ b/www/build63.css	2026-11-07 16:47:45.219334650 +0000
+@@ -75,6 +75,55 @@
+ .b60-col > .b60-c.slot { min-height: 60px; }
+ .b60-col > .b60-c:only-child { flex: 1 1 100%; }
+ .b57 .b18-h1, .b57-subt, .b57-tools { max-width: 100%; overflow-wrap: break-word; word-break: normal; }
++/* Card titles were overflow-wrap:anywhere, so a name split inside the word
++   (Synthetic / c Gran, Grandfathe / r). Keep the two cards on one row.
++   Break only at a space unless one word is wider than the card. */
++#breeding-view .b60-c b,
++#breeding-view .b60-c small,
++#breeding-view .b57-n b,
++#breeding-view .b57-n small,
++#breeding-view .b57-subt,
++#breeding-view .b57-ban small,
++#breeding-view .b59-plab b,
++#breeding-view .b59-plab small {
++  overflow-wrap: break-word;
++  word-break: normal;
++  hyphens: manual;
++  white-space: normal;
++  max-width: 100%;
++}
++/* On a phone or a 768 window, two cards in one half are too narrow for a
++   name. Stack them so each card uses the whole half. The two halves stay
++   equal. At 1024 and wider the cards stay on one row. The stripped fixture
++   is not inside #breeding-view, so its side-by-side check is unchanged. */
++@media (max-width: 899px) {
++  #breeding-view .b60-col > .b60-c {
++    flex: 1 1 100%;
++    width: 100%;
++  }
++}
++#breeding-view .b60-c { container-type: inline-size; }
++@container (max-width: 150px) {
++  b, small { font-size: 12px; line-height: 1.25; }
++}
++#breeding-view .b57-tools { flex-wrap: wrap; row-gap: 6px; }
++#breeding-view .b57-tools .m-s {
++  flex: 1 1 9rem;
++  min-width: 0;
++  white-space: normal;
++  overflow: visible;
++  text-overflow: clip;
++}
++/* A real 1024 or 1366 window keeps the agreed 248px sidebar.
++   Default wide text size stays 1.28. That zoom makes innerWidth/1.28 fall
++   under 1080, and data-weff would otherwise draw the sidebar at 216px.
++   This does not change the saved text size or the zoom. Below 1024 the
++   narrower wide rule is unchanged. */
++@media (min-width: 1024px) {
++  :root[data-layout='wide'][data-weff] body { padding-left: 248px; }
++  :root[data-layout='wide'][data-weff] .w-side { width: 248px; }
++  :root[data-layout='wide'][data-weff] body::after { left: 248px; }
++}
+ @media (max-width: 720px) {
+   .b57-n { flex: 1 1 calc(50% - 8px); }
+ }
+--- a/ios/App/App/public/build63.css	2026-11-07 16:51:05.280421104 +0000
++++ b/ios/App/App/public/build63.css	2026-11-07 16:47:45.219334650 +0000
+@@ -75,6 +75,55 @@
+ .b60-col > .b60-c.slot { min-height: 60px; }
+ .b60-col > .b60-c:only-child { flex: 1 1 100%; }
+ .b57 .b18-h1, .b57-subt, .b57-tools { max-width: 100%; overflow-wrap: break-word; word-break: normal; }
++/* Card titles were overflow-wrap:anywhere, so a name split inside the word
++   (Synthetic / c Gran, Grandfathe / r). Keep the two cards on one row.
++   Break only at a space unless one word is wider than the card. */
++#breeding-view .b60-c b,
++#breeding-view .b60-c small,
++#breeding-view .b57-n b,
++#breeding-view .b57-n small,
++#breeding-view .b57-subt,
++#breeding-view .b57-ban small,
++#breeding-view .b59-plab b,
++#breeding-view .b59-plab small {
++  overflow-wrap: break-word;
++  word-break: normal;
++  hyphens: manual;
++  white-space: normal;
++  max-width: 100%;
++}
++/* On a phone or a 768 window, two cards in one half are too narrow for a
++   name. Stack them so each card uses the whole half. The two halves stay
++   equal. At 1024 and wider the cards stay on one row. The stripped fixture
++   is not inside #breeding-view, so its side-by-side check is unchanged. */
++@media (max-width: 899px) {
++  #breeding-view .b60-col > .b60-c {
++    flex: 1 1 100%;
++    width: 100%;
++  }
++}
++#breeding-view .b60-c { container-type: inline-size; }
++@container (max-width: 150px) {
++  b, small { font-size: 12px; line-height: 1.25; }
++}
++#breeding-view .b57-tools { flex-wrap: wrap; row-gap: 6px; }
++#breeding-view .b57-tools .m-s {
++  flex: 1 1 9rem;
++  min-width: 0;
++  white-space: normal;
++  overflow: visible;
++  text-overflow: clip;
++}
++/* A real 1024 or 1366 window keeps the agreed 248px sidebar.
++   Default wide text size stays 1.28. That zoom makes innerWidth/1.28 fall
++   under 1080, and data-weff would otherwise draw the sidebar at 216px.
++   This does not change the saved text size or the zoom. Below 1024 the
++   narrower wide rule is unchanged. */
++@media (min-width: 1024px) {
++  :root[data-layout='wide'][data-weff] body { padding-left: 248px; }
++  :root[data-layout='wide'][data-weff] .w-side { width: 248px; }
++  :root[data-layout='wide'][data-weff] body::after { left: 248px; }
++}
+ @media (max-width: 720px) {
+   .b57-n { flex: 1 1 calc(50% - 8px); }
+ }
+--- a/service-worker.js	2026-11-07 16:51:05.280421104 +0000
++++ b/service-worker.js	2026-11-07 16:46:15.738954794 +0000
+@@ -6,12 +6,12 @@
+   so users should still export JSON backups for long-term records.
+ */
+ 
+-// v82: shell files changed after v81 while this script stayed byte-identical to revision 2.
+-// A browser or WKWebView installs a new worker only when this file's bytes change.
+-// Cache-first then keeps serving the old shell. iosScheme is https, so this worker
+-// registers inside the iOS wrapper (https://localhost), not only in a desktop tab.
++// v83: revision 5 installed v82, then later patches changed build13.js and build58.js
++// without changing this file. A browser already on v81 or already on v82 keeps the
++// old shell until these bytes change. Activate deletes every cache that is not v83.
++// iosScheme is https, so this worker registers inside the iOS wrapper (https://localhost).
+ // Precache requests use cache:'reload' so a cached localhost response cannot refill the new cache.
+-const CACHE_NAME = 'boriken-genetics-logbook-app-v82';
++const CACHE_NAME = 'boriken-genetics-logbook-app-v83';
+ const APP_SHELL = [
+   './',
+   './index.html',
+--- a/www/service-worker.js	2026-11-07 16:51:05.280421104 +0000
++++ b/www/service-worker.js	2026-11-07 16:47:15.815201479 +0000
+@@ -6,12 +6,12 @@
+   so users should still export JSON backups for long-term records.
+ */
+ 
+-// v82: shell files changed after v81 while this script stayed byte-identical to revision 2.
+-// A browser or WKWebView installs a new worker only when this file's bytes change.
+-// Cache-first then keeps serving the old shell. iosScheme is https, so this worker
+-// registers inside the iOS wrapper (https://localhost), not only in a desktop tab.
++// v83: revision 5 installed v82, then later patches changed build13.js and build58.js
++// without changing this file. A browser already on v81 or already on v82 keeps the
++// old shell until these bytes change. Activate deletes every cache that is not v83.
++// iosScheme is https, so this worker registers inside the iOS wrapper (https://localhost).
+ // Precache requests use cache:'reload' so a cached localhost response cannot refill the new cache.
+-const CACHE_NAME = 'boriken-genetics-logbook-app-v82';
++const CACHE_NAME = 'boriken-genetics-logbook-app-v83';
+ const APP_SHELL = [
+   './',
+   './index.html',
+--- a/ios/App/App/public/service-worker.js	2026-11-07 16:51:05.280421104 +0000
++++ b/ios/App/App/public/service-worker.js	2026-11-07 16:47:15.815201479 +0000
+@@ -6,12 +6,12 @@
+   so users should still export JSON backups for long-term records.
+ */
+ 
+-// v82: shell files changed after v81 while this script stayed byte-identical to revision 2.
+-// A browser or WKWebView installs a new worker only when this file's bytes change.
+-// Cache-first then keeps serving the old shell. iosScheme is https, so this worker
+-// registers inside the iOS wrapper (https://localhost), not only in a desktop tab.
++// v83: revision 5 installed v82, then later patches changed build13.js and build58.js
++// without changing this file. A browser already on v81 or already on v82 keeps the
++// old shell until these bytes change. Activate deletes every cache that is not v83.
++// iosScheme is https, so this worker registers inside the iOS wrapper (https://localhost).
+ // Precache requests use cache:'reload' so a cached localhost response cannot refill the new cache.
+-const CACHE_NAME = 'boriken-genetics-logbook-app-v82';
++const CACHE_NAME = 'boriken-genetics-logbook-app-v83';
+ const APP_SHELL = [
+   './',
+   './index.html',

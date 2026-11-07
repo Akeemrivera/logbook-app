@@ -1,0 +1,803 @@
+--- a/build63.js	2026-11-07 18:40:09.488436202 +0000
++++ b/build63.js	2026-11-07 18:37:33.508161303 +0000
+@@ -104,6 +104,74 @@
+     setCount('#mfp-mc .mfp-row', 'm', 'Mothers · ');
+     setCount('#mfp-fc .mfp-row', 'f', 'Fathers · ');
+   }
++  /* Authorized parent-reference repair. It changes one field on one record id
++     when the current value still equals the expected old value. It does not
++     delete a row, match a name, or clear any other dx: link. */
++  const REPAIR_KEY = 'boriken-b63-repair';
++  const REPAIR_UNDO_KEY = 'boriken-b63-repair-undo';
++  const REPAIR_FIELDS = { b49Father: 'f', b49Mother: 'm' };
++  const REPAIR_LISTS = { plants: 'plants', breedingPlants: 'breedingPlants', motherFatherPlants: 'motherFatherPlants' };
++  function applyParentRepairs(appState, config, undoLog) {
++    const applied = [];
++    const skipped = [];
++    const undos = [];
++    const log = Array.isArray(undoLog) ? undoLog.slice() : [];
++    if (!appState || !config || typeof config !== 'object' || Array.isArray(config)) return { applied, skipped, undos, undoLog: log };
++    (Array.isArray(config.repairs) ? config.repairs : []).forEach((job) => {
++      const listName = job && REPAIR_LISTS[job.collection];
++      const side = job && REPAIR_FIELDS[job.field];
++      const recordId = job && typeof job.recordId === 'string' ? job.recordId : '';
++      const expect = job && typeof job.expect === 'string' ? job.expect : null;
++      if (!listName || !side || !recordId || expect === null) { skipped.push({ reason: 'invalid', recordId }); return; }
++      const list = appState[listName];
++      if (!Array.isArray(list)) { skipped.push({ reason: 'missing-list', recordId }); return; }
++      const matches = list.filter((r) => r && r.id === recordId);
++      if (matches.length !== 1) { skipped.push({ reason: 'id', recordId }); return; }
++      const rec = matches[0];
++      if (rec[job.field] !== expect) { skipped.push({ reason: 'mismatch', recordId }); return; }
++      log.push({
++        recordId, collection: job.collection, field: job.field,
++        previous: rec[job.field],
++        manualBefore: rec.b58Manual && typeof rec.b58Manual === 'object' ? Object.assign({}, rec.b58Manual) : null,
++      });
++      rec[job.field] = '-';
++      rec.b58Manual = Object.assign({}, rec.b58Manual, { [side]: true });
++      applied.push({ recordId, field: job.field });
++    });
++    (Array.isArray(config.undos) ? config.undos : []).forEach((job) => {
++      const listName = job && REPAIR_LISTS[job.collection];
++      const recordId = job && typeof job.recordId === 'string' ? job.recordId : '';
++      const field = job && REPAIR_FIELDS[job.field] ? job.field : '';
++      if (!listName || !recordId || !field) { skipped.push({ reason: 'invalid-undo', recordId }); return; }
++      const list = appState[listName];
++      const matches = Array.isArray(list) ? list.filter((r) => r && r.id === recordId) : [];
++      if (matches.length !== 1) { skipped.push({ reason: 'undo-id', recordId }); return; }
++      const rec = matches[0];
++      const entry = [...log].reverse().find((row) => row.recordId === recordId && row.collection === job.collection && row.field === field);
++      if (!entry || rec[field] !== '-') { skipped.push({ reason: 'undo-mismatch', recordId }); return; }
++      rec[field] = entry.previous;
++      if (entry.manualBefore) rec.b58Manual = Object.assign({}, entry.manualBefore);
++      else delete rec.b58Manual;
++      undos.push({ recordId, field });
++    });
++    return { applied, skipped, undos, undoLog: log };
++  }
++  function runStoredRepairs() {
++    try {
++      if (typeof state === 'undefined' || typeof localStorage === 'undefined' || !state) return { applied: [], skipped: [], undos: [] };
++      const raw = localStorage.getItem(REPAIR_KEY);
++      if (!raw) return { applied: [], skipped: [], undos: [] };
++      const config = JSON.parse(raw);
++      let undoLog = [];
++      try { const prev = JSON.parse(localStorage.getItem(REPAIR_UNDO_KEY) || '[]'); if (Array.isArray(prev)) undoLog = prev; } catch (e) { undoLog = []; }
++      const out = applyParentRepairs(state, config, undoLog);
++      if (out.applied.length || out.undos.length) {
++        try { localStorage.setItem(REPAIR_UNDO_KEY, JSON.stringify(out.undoLog)); } catch (e) { /* the record change still proceeds */ }
++        if (typeof saveState === 'function') saveState();
++      }
++      return out;
++    } catch (e) { return { applied: [], skipped: [{ reason: 'unreadable' }], undos: [] }; }
++  }
+   function install() {
+     if (window.B49 && typeof B49.children === 'function' && !B49.children.b63) {
+       const orig = B49.children;
+@@ -157,8 +225,10 @@
+   window.B63 = {
+     configure, readLocalConfig, originView, showMother, retiredMf, explicitId, explicitKey, projectActiveMothers, projectVisible,
+     sameRecord, keepChild, allowArchive, pendingMetadata, projectMotherDom, install,
++    applyParentRepairs, runStoredRepairs,
+     hiddenIds: () => [...hiddenIds],
+   };
+   install();
+   readLocalConfig();
++  runStoredRepairs();
+ })();
+--- a/www/build63.js	2026-11-07 18:40:09.488436202 +0000
++++ b/www/build63.js	2026-11-07 18:38:51.600362231 +0000
+@@ -104,6 +104,74 @@
+     setCount('#mfp-mc .mfp-row', 'm', 'Mothers · ');
+     setCount('#mfp-fc .mfp-row', 'f', 'Fathers · ');
+   }
++  /* Authorized parent-reference repair. It changes one field on one record id
++     when the current value still equals the expected old value. It does not
++     delete a row, match a name, or clear any other dx: link. */
++  const REPAIR_KEY = 'boriken-b63-repair';
++  const REPAIR_UNDO_KEY = 'boriken-b63-repair-undo';
++  const REPAIR_FIELDS = { b49Father: 'f', b49Mother: 'm' };
++  const REPAIR_LISTS = { plants: 'plants', breedingPlants: 'breedingPlants', motherFatherPlants: 'motherFatherPlants' };
++  function applyParentRepairs(appState, config, undoLog) {
++    const applied = [];
++    const skipped = [];
++    const undos = [];
++    const log = Array.isArray(undoLog) ? undoLog.slice() : [];
++    if (!appState || !config || typeof config !== 'object' || Array.isArray(config)) return { applied, skipped, undos, undoLog: log };
++    (Array.isArray(config.repairs) ? config.repairs : []).forEach((job) => {
++      const listName = job && REPAIR_LISTS[job.collection];
++      const side = job && REPAIR_FIELDS[job.field];
++      const recordId = job && typeof job.recordId === 'string' ? job.recordId : '';
++      const expect = job && typeof job.expect === 'string' ? job.expect : null;
++      if (!listName || !side || !recordId || expect === null) { skipped.push({ reason: 'invalid', recordId }); return; }
++      const list = appState[listName];
++      if (!Array.isArray(list)) { skipped.push({ reason: 'missing-list', recordId }); return; }
++      const matches = list.filter((r) => r && r.id === recordId);
++      if (matches.length !== 1) { skipped.push({ reason: 'id', recordId }); return; }
++      const rec = matches[0];
++      if (rec[job.field] !== expect) { skipped.push({ reason: 'mismatch', recordId }); return; }
++      log.push({
++        recordId, collection: job.collection, field: job.field,
++        previous: rec[job.field],
++        manualBefore: rec.b58Manual && typeof rec.b58Manual === 'object' ? Object.assign({}, rec.b58Manual) : null,
++      });
++      rec[job.field] = '-';
++      rec.b58Manual = Object.assign({}, rec.b58Manual, { [side]: true });
++      applied.push({ recordId, field: job.field });
++    });
++    (Array.isArray(config.undos) ? config.undos : []).forEach((job) => {
++      const listName = job && REPAIR_LISTS[job.collection];
++      const recordId = job && typeof job.recordId === 'string' ? job.recordId : '';
++      const field = job && REPAIR_FIELDS[job.field] ? job.field : '';
++      if (!listName || !recordId || !field) { skipped.push({ reason: 'invalid-undo', recordId }); return; }
++      const list = appState[listName];
++      const matches = Array.isArray(list) ? list.filter((r) => r && r.id === recordId) : [];
++      if (matches.length !== 1) { skipped.push({ reason: 'undo-id', recordId }); return; }
++      const rec = matches[0];
++      const entry = [...log].reverse().find((row) => row.recordId === recordId && row.collection === job.collection && row.field === field);
++      if (!entry || rec[field] !== '-') { skipped.push({ reason: 'undo-mismatch', recordId }); return; }
++      rec[field] = entry.previous;
++      if (entry.manualBefore) rec.b58Manual = Object.assign({}, entry.manualBefore);
++      else delete rec.b58Manual;
++      undos.push({ recordId, field });
++    });
++    return { applied, skipped, undos, undoLog: log };
++  }
++  function runStoredRepairs() {
++    try {
++      if (typeof state === 'undefined' || typeof localStorage === 'undefined' || !state) return { applied: [], skipped: [], undos: [] };
++      const raw = localStorage.getItem(REPAIR_KEY);
++      if (!raw) return { applied: [], skipped: [], undos: [] };
++      const config = JSON.parse(raw);
++      let undoLog = [];
++      try { const prev = JSON.parse(localStorage.getItem(REPAIR_UNDO_KEY) || '[]'); if (Array.isArray(prev)) undoLog = prev; } catch (e) { undoLog = []; }
++      const out = applyParentRepairs(state, config, undoLog);
++      if (out.applied.length || out.undos.length) {
++        try { localStorage.setItem(REPAIR_UNDO_KEY, JSON.stringify(out.undoLog)); } catch (e) { /* the record change still proceeds */ }
++        if (typeof saveState === 'function') saveState();
++      }
++      return out;
++    } catch (e) { return { applied: [], skipped: [{ reason: 'unreadable' }], undos: [] }; }
++  }
+   function install() {
+     if (window.B49 && typeof B49.children === 'function' && !B49.children.b63) {
+       const orig = B49.children;
+@@ -157,8 +225,10 @@
+   window.B63 = {
+     configure, readLocalConfig, originView, showMother, retiredMf, explicitId, explicitKey, projectActiveMothers, projectVisible,
+     sameRecord, keepChild, allowArchive, pendingMetadata, projectMotherDom, install,
++    applyParentRepairs, runStoredRepairs,
+     hiddenIds: () => [...hiddenIds],
+   };
+   install();
+   readLocalConfig();
++  runStoredRepairs();
+ })();
+--- a/ios/App/App/public/build63.js	2026-11-07 18:40:09.488436202 +0000
++++ b/ios/App/App/public/build63.js	2026-11-07 18:38:51.604362183 +0000
+@@ -104,6 +104,74 @@
+     setCount('#mfp-mc .mfp-row', 'm', 'Mothers · ');
+     setCount('#mfp-fc .mfp-row', 'f', 'Fathers · ');
+   }
++  /* Authorized parent-reference repair. It changes one field on one record id
++     when the current value still equals the expected old value. It does not
++     delete a row, match a name, or clear any other dx: link. */
++  const REPAIR_KEY = 'boriken-b63-repair';
++  const REPAIR_UNDO_KEY = 'boriken-b63-repair-undo';
++  const REPAIR_FIELDS = { b49Father: 'f', b49Mother: 'm' };
++  const REPAIR_LISTS = { plants: 'plants', breedingPlants: 'breedingPlants', motherFatherPlants: 'motherFatherPlants' };
++  function applyParentRepairs(appState, config, undoLog) {
++    const applied = [];
++    const skipped = [];
++    const undos = [];
++    const log = Array.isArray(undoLog) ? undoLog.slice() : [];
++    if (!appState || !config || typeof config !== 'object' || Array.isArray(config)) return { applied, skipped, undos, undoLog: log };
++    (Array.isArray(config.repairs) ? config.repairs : []).forEach((job) => {
++      const listName = job && REPAIR_LISTS[job.collection];
++      const side = job && REPAIR_FIELDS[job.field];
++      const recordId = job && typeof job.recordId === 'string' ? job.recordId : '';
++      const expect = job && typeof job.expect === 'string' ? job.expect : null;
++      if (!listName || !side || !recordId || expect === null) { skipped.push({ reason: 'invalid', recordId }); return; }
++      const list = appState[listName];
++      if (!Array.isArray(list)) { skipped.push({ reason: 'missing-list', recordId }); return; }
++      const matches = list.filter((r) => r && r.id === recordId);
++      if (matches.length !== 1) { skipped.push({ reason: 'id', recordId }); return; }
++      const rec = matches[0];
++      if (rec[job.field] !== expect) { skipped.push({ reason: 'mismatch', recordId }); return; }
++      log.push({
++        recordId, collection: job.collection, field: job.field,
++        previous: rec[job.field],
++        manualBefore: rec.b58Manual && typeof rec.b58Manual === 'object' ? Object.assign({}, rec.b58Manual) : null,
++      });
++      rec[job.field] = '-';
++      rec.b58Manual = Object.assign({}, rec.b58Manual, { [side]: true });
++      applied.push({ recordId, field: job.field });
++    });
++    (Array.isArray(config.undos) ? config.undos : []).forEach((job) => {
++      const listName = job && REPAIR_LISTS[job.collection];
++      const recordId = job && typeof job.recordId === 'string' ? job.recordId : '';
++      const field = job && REPAIR_FIELDS[job.field] ? job.field : '';
++      if (!listName || !recordId || !field) { skipped.push({ reason: 'invalid-undo', recordId }); return; }
++      const list = appState[listName];
++      const matches = Array.isArray(list) ? list.filter((r) => r && r.id === recordId) : [];
++      if (matches.length !== 1) { skipped.push({ reason: 'undo-id', recordId }); return; }
++      const rec = matches[0];
++      const entry = [...log].reverse().find((row) => row.recordId === recordId && row.collection === job.collection && row.field === field);
++      if (!entry || rec[field] !== '-') { skipped.push({ reason: 'undo-mismatch', recordId }); return; }
++      rec[field] = entry.previous;
++      if (entry.manualBefore) rec.b58Manual = Object.assign({}, entry.manualBefore);
++      else delete rec.b58Manual;
++      undos.push({ recordId, field });
++    });
++    return { applied, skipped, undos, undoLog: log };
++  }
++  function runStoredRepairs() {
++    try {
++      if (typeof state === 'undefined' || typeof localStorage === 'undefined' || !state) return { applied: [], skipped: [], undos: [] };
++      const raw = localStorage.getItem(REPAIR_KEY);
++      if (!raw) return { applied: [], skipped: [], undos: [] };
++      const config = JSON.parse(raw);
++      let undoLog = [];
++      try { const prev = JSON.parse(localStorage.getItem(REPAIR_UNDO_KEY) || '[]'); if (Array.isArray(prev)) undoLog = prev; } catch (e) { undoLog = []; }
++      const out = applyParentRepairs(state, config, undoLog);
++      if (out.applied.length || out.undos.length) {
++        try { localStorage.setItem(REPAIR_UNDO_KEY, JSON.stringify(out.undoLog)); } catch (e) { /* the record change still proceeds */ }
++        if (typeof saveState === 'function') saveState();
++      }
++      return out;
++    } catch (e) { return { applied: [], skipped: [{ reason: 'unreadable' }], undos: [] }; }
++  }
+   function install() {
+     if (window.B49 && typeof B49.children === 'function' && !B49.children.b63) {
+       const orig = B49.children;
+@@ -157,8 +225,10 @@
+   window.B63 = {
+     configure, readLocalConfig, originView, showMother, retiredMf, explicitId, explicitKey, projectActiveMothers, projectVisible,
+     sameRecord, keepChild, allowArchive, pendingMetadata, projectMotherDom, install,
++    applyParentRepairs, runStoredRepairs,
+     hiddenIds: () => [...hiddenIds],
+   };
+   install();
+   readLocalConfig();
++  runStoredRepairs();
+ })();
+--- a/build58.js	2026-11-07 18:40:09.488436202 +0000
++++ b/build58.js	2026-11-07 18:37:34.852185103 +0000
+@@ -198,7 +198,7 @@
+         if (live) return; const typed = String(r[side] || '').trim(); if (!typed) { if (id) log(`${r.name}: ${side} id ${id} not found and no typed name; left as is`); return; }
+         const m = B49.matchName(typed); if (m.k && m.k.startsWith('mf:')) { r[idF] = m.k.slice(3); log(`${r.name}: ${side} "${typed}" linked to ${m.k}${id ? ` (stale id ${id})` : ''}`); n++; } else if (m.amb) log(`${r.name}: ${side} "${typed}" matches ${m.amb} plants; left unlinked`); });
+       r.b58Mig = 1; });
+-    [['pl', state.plants], ['bp', state.breedingPlants], ['mf', state.motherFatherPlants]].forEach(([t, a]) => (a || []).forEach((r) => { if (r.b58Mig === 1) return; const k = `${t}:${r.id}`; const p = B49.autoPar(k); const nameBased = !r.b49ProjectId && !r.promotedFrom && !(r.b49Mother && r.b49Father) && !(typeof isClonePlant === 'function' && isClonePlant(r) && r.motherPlantId);
++    [['pl', state.plants], ['bp', state.breedingPlants], ['mf', state.motherFatherPlants]].forEach(([t, a]) => (a || []).forEach((r) => { if (r.b58Mig === 1) return; if (r.b58Manual && (r.b58Manual.m || r.b58Manual.f)) { r.b58Mig = 1; return; } const k = `${t}:${r.id}`; const p = B49.autoPar(k); const nameBased = !r.b49ProjectId && !r.promotedFrom && !(r.b49Mother && r.b49Father) && !(typeof isClonePlant === 'function' && isClonePlant(r) && r.motherPlantId);
+       if (nameBased && p && p.some((q) => q && !String(q).startsWith('tx:'))) { r.b58Links = { m: p[0] && !String(p[0]).startsWith('tx:') ? p[0] : '', f: p[1] && !String(p[1]).startsWith('tx:') ? p[1] : '', sig: B49.linkSig(r) }; n++; }
+       (p || []).forEach((q) => { if (q && String(q).startsWith('tx:')) { const nm = q.slice(3); const amb = window.__b58amb[B49.normName(nm)]; log(`${r.name}: "${nm}" ${amb ? `matches ${amb.length} plants; left unlinked` : 'has no plant in the app; shown as Bought genetics'}`); } });
+       r.b58Mig = 1; }));
+--- a/www/build58.js	2026-11-07 18:40:09.488436202 +0000
++++ b/www/build58.js	2026-11-07 18:38:51.604362183 +0000
+@@ -198,7 +198,7 @@
+         if (live) return; const typed = String(r[side] || '').trim(); if (!typed) { if (id) log(`${r.name}: ${side} id ${id} not found and no typed name; left as is`); return; }
+         const m = B49.matchName(typed); if (m.k && m.k.startsWith('mf:')) { r[idF] = m.k.slice(3); log(`${r.name}: ${side} "${typed}" linked to ${m.k}${id ? ` (stale id ${id})` : ''}`); n++; } else if (m.amb) log(`${r.name}: ${side} "${typed}" matches ${m.amb} plants; left unlinked`); });
+       r.b58Mig = 1; });
+-    [['pl', state.plants], ['bp', state.breedingPlants], ['mf', state.motherFatherPlants]].forEach(([t, a]) => (a || []).forEach((r) => { if (r.b58Mig === 1) return; const k = `${t}:${r.id}`; const p = B49.autoPar(k); const nameBased = !r.b49ProjectId && !r.promotedFrom && !(r.b49Mother && r.b49Father) && !(typeof isClonePlant === 'function' && isClonePlant(r) && r.motherPlantId);
++    [['pl', state.plants], ['bp', state.breedingPlants], ['mf', state.motherFatherPlants]].forEach(([t, a]) => (a || []).forEach((r) => { if (r.b58Mig === 1) return; if (r.b58Manual && (r.b58Manual.m || r.b58Manual.f)) { r.b58Mig = 1; return; } const k = `${t}:${r.id}`; const p = B49.autoPar(k); const nameBased = !r.b49ProjectId && !r.promotedFrom && !(r.b49Mother && r.b49Father) && !(typeof isClonePlant === 'function' && isClonePlant(r) && r.motherPlantId);
+       if (nameBased && p && p.some((q) => q && !String(q).startsWith('tx:'))) { r.b58Links = { m: p[0] && !String(p[0]).startsWith('tx:') ? p[0] : '', f: p[1] && !String(p[1]).startsWith('tx:') ? p[1] : '', sig: B49.linkSig(r) }; n++; }
+       (p || []).forEach((q) => { if (q && String(q).startsWith('tx:')) { const nm = q.slice(3); const amb = window.__b58amb[B49.normName(nm)]; log(`${r.name}: "${nm}" ${amb ? `matches ${amb.length} plants; left unlinked` : 'has no plant in the app; shown as Bought genetics'}`); } });
+       r.b58Mig = 1; }));
+--- a/ios/App/App/public/build58.js	2026-11-07 18:40:09.488436202 +0000
++++ b/ios/App/App/public/build58.js	2026-11-07 18:38:51.604362183 +0000
+@@ -198,7 +198,7 @@
+         if (live) return; const typed = String(r[side] || '').trim(); if (!typed) { if (id) log(`${r.name}: ${side} id ${id} not found and no typed name; left as is`); return; }
+         const m = B49.matchName(typed); if (m.k && m.k.startsWith('mf:')) { r[idF] = m.k.slice(3); log(`${r.name}: ${side} "${typed}" linked to ${m.k}${id ? ` (stale id ${id})` : ''}`); n++; } else if (m.amb) log(`${r.name}: ${side} "${typed}" matches ${m.amb} plants; left unlinked`); });
+       r.b58Mig = 1; });
+-    [['pl', state.plants], ['bp', state.breedingPlants], ['mf', state.motherFatherPlants]].forEach(([t, a]) => (a || []).forEach((r) => { if (r.b58Mig === 1) return; const k = `${t}:${r.id}`; const p = B49.autoPar(k); const nameBased = !r.b49ProjectId && !r.promotedFrom && !(r.b49Mother && r.b49Father) && !(typeof isClonePlant === 'function' && isClonePlant(r) && r.motherPlantId);
++    [['pl', state.plants], ['bp', state.breedingPlants], ['mf', state.motherFatherPlants]].forEach(([t, a]) => (a || []).forEach((r) => { if (r.b58Mig === 1) return; if (r.b58Manual && (r.b58Manual.m || r.b58Manual.f)) { r.b58Mig = 1; return; } const k = `${t}:${r.id}`; const p = B49.autoPar(k); const nameBased = !r.b49ProjectId && !r.promotedFrom && !(r.b49Mother && r.b49Father) && !(typeof isClonePlant === 'function' && isClonePlant(r) && r.motherPlantId);
+       if (nameBased && p && p.some((q) => q && !String(q).startsWith('tx:'))) { r.b58Links = { m: p[0] && !String(p[0]).startsWith('tx:') ? p[0] : '', f: p[1] && !String(p[1]).startsWith('tx:') ? p[1] : '', sig: B49.linkSig(r) }; n++; }
+       (p || []).forEach((q) => { if (q && String(q).startsWith('tx:')) { const nm = q.slice(3); const amb = window.__b58amb[B49.normName(nm)]; log(`${r.name}: "${nm}" ${amb ? `matches ${amb.length} plants; left unlinked` : 'has no plant in the app; shown as Bought genetics'}`); } });
+       r.b58Mig = 1; }));
+--- a/service-worker.js	2026-11-07 18:40:09.488436202 +0000
++++ b/service-worker.js	2026-11-07 18:37:36.056206770 +0000
+@@ -6,12 +6,11 @@
+   so users should still export JSON backups for long-term records.
+ */
+ 
+-// v83: revision 5 installed v82, then later patches changed build13.js and build58.js
+-// without changing this file. A browser already on v81 or already on v82 keeps the
+-// old shell until these bytes change. Activate deletes every cache that is not v83.
++// v84: the parent-reference repair changed the shell. A browser still on an older
++// cache keeps those files until this file changes. Activate deletes every other cache.
+ // iosScheme is https, so this worker registers inside the iOS wrapper (https://localhost).
+ // Precache requests use cache:'reload' so a cached localhost response cannot refill the new cache.
+-const CACHE_NAME = 'boriken-genetics-logbook-app-v83';
++const CACHE_NAME = 'boriken-genetics-logbook-app-v84';
+ const APP_SHELL = [
+   './',
+   './index.html',
+--- a/www/service-worker.js	2026-11-07 18:40:09.488436202 +0000
++++ b/www/service-worker.js	2026-11-07 18:38:51.608362135 +0000
+@@ -6,12 +6,11 @@
+   so users should still export JSON backups for long-term records.
+ */
+ 
+-// v83: revision 5 installed v82, then later patches changed build13.js and build58.js
+-// without changing this file. A browser already on v81 or already on v82 keeps the
+-// old shell until these bytes change. Activate deletes every cache that is not v83.
++// v84: the parent-reference repair changed the shell. A browser still on an older
++// cache keeps those files until this file changes. Activate deletes every other cache.
+ // iosScheme is https, so this worker registers inside the iOS wrapper (https://localhost).
+ // Precache requests use cache:'reload' so a cached localhost response cannot refill the new cache.
+-const CACHE_NAME = 'boriken-genetics-logbook-app-v83';
++const CACHE_NAME = 'boriken-genetics-logbook-app-v84';
+ const APP_SHELL = [
+   './',
+   './index.html',
+--- a/ios/App/App/public/service-worker.js	2026-11-07 18:40:09.488436202 +0000
++++ b/ios/App/App/public/service-worker.js	2026-11-07 18:38:51.608362135 +0000
+@@ -6,12 +6,11 @@
+   so users should still export JSON backups for long-term records.
+ */
+ 
+-// v83: revision 5 installed v82, then later patches changed build13.js and build58.js
+-// without changing this file. A browser already on v81 or already on v82 keeps the
+-// old shell until these bytes change. Activate deletes every cache that is not v83.
++// v84: the parent-reference repair changed the shell. A browser still on an older
++// cache keeps those files until this file changes. Activate deletes every other cache.
+ // iosScheme is https, so this worker registers inside the iOS wrapper (https://localhost).
+ // Precache requests use cache:'reload' so a cached localhost response cannot refill the new cache.
+-const CACHE_NAME = 'boriken-genetics-logbook-app-v83';
++const CACHE_NAME = 'boriken-genetics-logbook-app-v84';
+ const APP_SHELL = [
+   './',
+   './index.html',
+--- a/scripts/b63-r5.test.js	2026-11-07 18:40:10.228443316 +0000
++++ b/scripts/b63-r5.test.js	2026-11-07 18:37:47.028417309 +0000
+@@ -34,7 +34,8 @@
+   if (new Set(hashes).size !== 1) throw new Error(hashes.join(' '));
+   if (hashes[0] === REV4_SW_SHA) throw new Error('script bytes still match revision 4, so an update check would not install a worker');
+   const text = read('service-worker.js').toString('utf8');
+-  if (!text.includes("boriken-genetics-logbook-app-v83")) throw new Error('cache name');
++  if (!text.includes("boriken-genetics-logbook-app-v84")) throw new Error('cache name');
++  if (text.includes("boriken-genetics-logbook-app-v83")) throw new Error('v83 cache name still present');
+   if (text.includes("boriken-genetics-logbook-app-v82")) throw new Error('v82 cache name still present');
+   if (text.includes("boriken-genetics-logbook-app-v81")) throw new Error('old cache name still present');
+   if (!text.includes("cache: 'reload'")) throw new Error('precache still uses the default HTTP cache');
+@@ -151,6 +152,8 @@
+   const v82 = await scope.caches.open('boriken-genetics-logbook-app-v82');
+   await v82.put('https://localhost/build13.js', new Response('V82-STALE-BUILD13', { status: 200 }));
+   await v82.put('https://localhost/build58.js', new Response('V82-STALE-BUILD58', { status: 200 }));
++  const v83 = await scope.caches.open('boriken-genetics-logbook-app-v83');
++  await v83.put('https://localhost/build63.js', new Response('V83-STALE-BUILD63', { status: 200 }));
+ 
+   const held = await scope.caches.match('https://localhost/build57.js');
+   if (!held || await held.text() !== 'REV2-STALE') throw new Error('seed failed');
+@@ -168,7 +171,8 @@
+   const names = await scope.caches.keys();
+   if (names.includes('boriken-genetics-logbook-app-v81')) throw new Error('v81 cache kept ' + names.join(','));
+   if (names.includes('boriken-genetics-logbook-app-v82')) throw new Error('v82 cache kept ' + names.join(','));
+-  if (!names.includes('boriken-genetics-logbook-app-v83')) throw new Error('new cache missing ' + names.join(','));
++  if (names.includes('boriken-genetics-logbook-app-v83')) throw new Error('v83 cache kept ' + names.join(','));
++  if (!names.includes('boriken-genetics-logbook-app-v84')) throw new Error('new cache missing ' + names.join(','));
+ 
+   const precached = await scope.caches.match('https://localhost/build57.js');
+   const precachedBody = await precached.text();
+--- a/scripts/b63-photo-missing.test.js	2026-11-07 18:40:10.232443355 +0000
++++ b/scripts/b63-photo-missing.test.js	2026-11-07 18:37:47.640429672 +0000
+@@ -184,7 +184,7 @@
+   });
+   const sw = fs.readFileSync(path.join(ROOT, 'service-worker.js'), 'utf8');
+   check('revision 5 cache name does not change this export path', () => {
+-    if (!sw.includes("boriken-genetics-logbook-app-v83")) throw new Error('worker');
++    if (!sw.includes("boriken-genetics-logbook-app-v84")) throw new Error('worker');
+     const fn = fs.readFileSync(path.join(ROOT, 'app.js'), 'utf8');
+     const start = fn.indexOf('async function buildFullBackupPayload');
+     const body = fn.slice(start, fn.indexOf('function snapshotCounts'));
+--- a/scripts/b63-sw-browser.test.js	2026-11-07 18:40:10.232443355 +0000
++++ b/scripts/b63-sw-browser.test.js	2026-11-07 18:38:04.588790408 +0000
+@@ -23,6 +23,7 @@
+ const EXPECT = {
+   'build13.js': sha(fs.readFileSync(path.join(ROOT, 'build13.js'))),
+   'build58.js': sha(fs.readFileSync(path.join(ROOT, 'build58.js'))),
++  'build63.js': sha(fs.readFileSync(path.join(ROOT, 'build63.js'))),
+ };
+ function staleWorker(cacheName) {
+   return [
+@@ -30,7 +31,8 @@
+     "self.addEventListener('install', (event) => {",
+     "  event.waitUntil(caches.open(CACHE_NAME).then((cache) => Promise.all([",
+     "    cache.put('./build13.js', new Response('STALE-BUILD13', { status: 200, headers: { 'Content-Type': 'application/javascript' } })),",
+-    "    cache.put('./build58.js', new Response('STALE-BUILD58', { status: 200, headers: { 'Content-Type': 'application/javascript' } }))",
++    "    cache.put('./build58.js', new Response('STALE-BUILD58', { status: 200, headers: { 'Content-Type': 'application/javascript' } })),",
++    "    cache.put('./build63.js', new Response('STALE-BUILD63', { status: 200, headers: { 'Content-Type': 'application/javascript' } }))",
+     "  ])).then(() => self.skipWaiting()));",
+     '});',
+     "self.addEventListener('activate', (event) => { event.waitUntil(self.clients.claim()); });",
+@@ -79,7 +81,8 @@
+   const keys = await caches.keys();
+   const a = await one('./build13.js');
+   const b = await one('./build58.js');
+-  return { keys, build13: a, build58: b, err: window.__swErr || '' };
++  const c = await one('./build63.js');
++  return { keys, build13: a, build58: b, build63: c, err: window.__swErr || '' };
+ })()`;
+ 
+ async function chromeCase(cacheName, debugPort) {
+@@ -127,34 +130,34 @@
+     for (let i = 0; i < 40; i++) {
+       const out = await send('Runtime.evaluate', { expression: READ, awaitPromise: true, returnByValue: true });
+       seeded = out.result && out.result.value;
+-      if (seeded && seeded.build13 && seeded.build13.stale && seeded.build58 && seeded.build58.stale && seeded.keys.includes(cacheName)) break;
++      if (seeded && seeded.build13 && seeded.build13.stale && seeded.build58 && seeded.build58.stale && seeded.build63 && seeded.build63.stale && seeded.keys.includes(cacheName)) break;
+       await sleep(250);
+     }
+-    if (!seeded || !seeded.build13 || !seeded.build13.stale || !seeded.build58.stale || !seeded.keys.includes(cacheName)) {
++    if (!seeded || !seeded.build13 || !seeded.build13.stale || !seeded.build58.stale || !seeded.build63 || !seeded.build63.stale || !seeded.keys.includes(cacheName)) {
+       throw new Error(cacheName + ' seed did not control the page ' + JSON.stringify(seeded) + ' ' + logs.join(' | '));
+     }
+-    console.log('PASS real Chrome served stale build13.js and build58.js from ' + cacheName);
++    console.log('PASS real Chrome served stale build13.js, build58.js, and build63.js from ' + cacheName);
+     swMode = 'live';
+     await send('Runtime.evaluate', { expression: 'navigator.serviceWorker.getRegistration().then((reg) => reg.update())', awaitPromise: true });
+     let updated = null;
+     for (let i = 0; i < 80; i++) {
+       const out = await send('Runtime.evaluate', { expression: READ, awaitPromise: true, returnByValue: true });
+       updated = out.result && out.result.value;
+-      const fresh = updated && updated.build13 && updated.build13.sum === EXPECT['build13.js'] && updated.build58.sum === EXPECT['build58.js'];
+-      if (fresh && updated.keys.includes('boriken-genetics-logbook-app-v83') && !updated.keys.includes(cacheName)) break;
++      const fresh = updated && updated.build13 && updated.build13.sum === EXPECT['build13.js'] && updated.build58.sum === EXPECT['build58.js'] && updated.build63 && updated.build63.sum === EXPECT['build63.js'];
++      if (fresh && updated.keys.includes('boriken-genetics-logbook-app-v84') && !updated.keys.includes(cacheName)) break;
+       await sleep(250);
+     }
+-    if (!updated || updated.build13.sum !== EXPECT['build13.js'] || updated.build58.sum !== EXPECT['build58.js'] || updated.keys.includes(cacheName) || !updated.keys.includes('boriken-genetics-logbook-app-v83')) {
+-      throw new Error(cacheName + ' did not install v83 ' + JSON.stringify(updated) + ' ' + logs.join(' | '));
++    if (!updated || updated.build13.sum !== EXPECT['build13.js'] || updated.build58.sum !== EXPECT['build58.js'] || !updated.build63 || updated.build63.sum !== EXPECT['build63.js'] || updated.keys.includes(cacheName) || !updated.keys.includes('boriken-genetics-logbook-app-v84')) {
++      throw new Error(cacheName + ' did not install the current worker ' + JSON.stringify(updated) + ' ' + logs.join(' | '));
+     }
+-    console.log('PASS real Chrome replaced ' + cacheName + ' and served the current build13.js and build58.js');
++    console.log('PASS real Chrome replaced ' + cacheName + ' and served the current build13.js, build58.js, and build63.js');
+     await send('Network.emulateNetworkConditions', { offline: true, latency: 0, downloadThroughput: 0, uploadThroughput: 0 });
+     const offline = await send('Runtime.evaluate', { expression: READ, awaitPromise: true, returnByValue: true });
+     const off = offline.result && offline.result.value;
+-    if (!off || off.build13.sum !== EXPECT['build13.js'] || off.build58.sum !== EXPECT['build58.js'] || off.build13.stale || off.build58.stale) {
+-      throw new Error(cacheName + ' offline was not the v83 shell ' + JSON.stringify(off));
++    if (!off || off.build13.sum !== EXPECT['build13.js'] || off.build58.sum !== EXPECT['build58.js'] || !off.build63 || off.build63.sum !== EXPECT['build63.js'] || off.build13.stale || off.build58.stale || off.build63.stale) {
++      throw new Error(cacheName + ' offline was not the current shell ' + JSON.stringify(off));
+     }
+-    console.log('PASS real Chrome served the v83 build13.js and build58.js offline after ' + cacheName);
++    console.log('PASS real Chrome served the current build13.js, build58.js, and build63.js offline after ' + cacheName);
+   } finally {
+     proc.kill('SIGKILL');
+     await sleep(300);
+@@ -166,7 +169,8 @@
+   try {
+     await chromeCase('boriken-genetics-logbook-app-v81', 9342);
+     await chromeCase('boriken-genetics-logbook-app-v82', 9343);
+-    console.log('b63 sw browser: v81 and v82 update paths passed');
++    await chromeCase('boriken-genetics-logbook-app-v83', 9344);
++    console.log('b63 sw browser: v81, v82, and v83 update paths passed');
+   } finally {
+     server.close();
+   }
+--- /dev/null
++++ b/scripts/b63-father-repair.test.js
+@@ -0,0 +1,171 @@
++'use strict';
++/*
++  TEST FIXTURE. Not a user mockup and not a shipped record.
++  One configured record id may have its father reference cleared to unknown
++  when the current value still matches the expected old value. No row is deleted.
++*/
++const fs = require('fs');
++const path = require('path');
++const vm = require('vm');
++const ROOT = path.join(__dirname, '..');
++const FAIL = [];
++function check(name, fn) {
++  try { fn(); console.log('PASS', name); }
++  catch (e) { FAIL.push(name); console.error('FAIL', name, e && e.stack || e); process.exit(1); }
++}
++function element(id) {
++  return {
++    id: id || '', innerHTML: '', textContent: '', value: '', hidden: false, dataset: {}, style: {},
++    classList: { add() {}, remove() {}, toggle() {}, contains() { return false; } },
++    setAttribute() {}, getAttribute() { return ''; }, addEventListener() {},
++    querySelector() { return null; }, querySelectorAll() { return []; }, closest() { return null; },
++    getClientRects() { return []; },
++  };
++}
++const byId = {};
++function remember(id) { if (!byId[id]) byId[id] = element(id); return byId[id]; }
++const document = {
++  readyState: 'complete', body: element('body'), documentElement: element('html'),
++  addEventListener() {}, createElement() { return element(''); },
++  getElementById(id) { return remember(id); },
++  querySelector() { return null; },
++  querySelectorAll() { return []; },
++  elementFromPoint() { return null; },
++};
++const store = new Map();
++const g = {
++  console, document,
++  localStorage: { getItem(k) { return store.has(k) ? store.get(k) : null; }, setItem(k, v) { store.set(k, String(v)); }, removeItem(k) { store.delete(k); } },
++  setInterval() { return 0; }, setTimeout(fn) { if (typeof fn === 'function') fn(); return 0; }, clearInterval() {}, clearTimeout() {},
++  requestAnimationFrame() { return 0; },
++  matchMedia() { return { matches: false, addEventListener() {}, removeEventListener() {} }; },
++  MutationObserver: class { observe() {} disconnect() {} },
++  navigator: { storage: { persist() { return Promise.resolve(false); } } },
++  crypto: { randomUUID: () => 'syn-uuid' },
++  getComputedStyle() { return { visibility: 'visible' }; },
++  innerWidth: 390,
++  URL, Blob, Map, Date, JSON, Math, Number, String, Array, Object, RegExp, Promise, Set,
++  location: { hash: '', protocol: 'https:' },
++  addEventListener() {},
++  b18ProjParent() { return { key: '', name: '' }; },
++  b18FmtShort(d) { return d || ''; },
++  b18BrPageHtml() { return ''; },
++  escapeHtml(s) { return String(s == null ? '' : s); },
++};
++g.window = g;
++g.globalThis = g;
++vm.createContext(g);
++['app.js', 'build49.js', 'build58.js', 'build13.js', 'build63.js'].forEach((name) => {
++  vm.runInContext(fs.readFileSync(path.join(ROOT, name), 'utf8'), g, { filename: name });
++});
++
++function plant(extra) {
++  return Object.assign({
++    id: extra.id, name: extra.name, role: extra.role || 'mother', status: 'Active', archived: false,
++    cuttings: [], pollen: [], b49Mother: extra.b49Mother || 'mf:kept-mother', b49Father: extra.b49Father,
++    source: extra.source || '', crossLabel: extra.crossLabel || '',
++  }, extra.manual ? { b58Manual: extra.manual } : {});
++}
++
++function readState() { return vm.runInContext('state', g); }
++vm.runInContext('state.motherFatherPlants = ' + JSON.stringify([
++  plant({ id: 'kept-mother', name: 'Kept Mother', role: 'mother', b49Mother: '', b49Father: '' }),
++  plant({ id: 'affected', name: 'Kept Line', b49Father: 'dx:FixtureFather', source: 'Kept Mother × FixtureFather' }),
++  plant({ id: 'same-text-other', name: 'Other Line', b49Father: 'dx:FixtureFather' }),
++  plant({ id: 'genuine-dx', name: 'History Line', b49Father: 'dx:GenuineHistory' }),
++  plant({ id: 'real-father-row', name: 'FixtureFather', role: 'father', b49Father: 'mf:older' }),
++  plant({ id: 'changed-father', name: 'Changed Line', b49Father: 'mf:real-father' }),
++]) + '; state.breedingProjects = ' + JSON.stringify([
++  { id: 'kept-cross', name: 'Kept Cross', motherId: 'kept-mother', fatherId: 'real-father-row', mother: 'Kept Mother', father: 'FixtureFather', status: 'Active' },
++]) + '; state.plants = ' + JSON.stringify([
++  { id: 'grow-kept', name: 'Kept Grow', status: 'active', count: 2, logs: [], b49Mother: 'mf:kept-mother', b49Father: 'mf:real-father-row' },
++]), g);
++const beforeOthers = JSON.stringify({
++  other: readState().motherFatherPlants.filter((r) => r.id !== 'affected'),
++  projects: readState().breedingProjects,
++  plants: readState().plants,
++});
++
++store.set('boriken-b63-repair', JSON.stringify({
++  repairs: [{ recordId: 'affected', collection: 'motherFatherPlants', field: 'b49Father', expect: 'dx:FixtureFather' }],
++}));
++let out = g.B63.runStoredRepairs();
++const affected = () => readState().motherFatherPlants.find((r) => r.id === 'affected');
++const parents = () => g.B49.par('mf:affected');
++
++check('the configured record father becomes unknown and the old text is gone', () => {
++  if (!out.applied.length) throw new Error(JSON.stringify(out));
++  if (affected().b49Father !== '-') throw new Error(affected().b49Father);
++  if (affected().b58Manual.f !== true) throw new Error(JSON.stringify(affected().b58Manual));
++  if (affected().b49Mother !== 'mf:kept-mother') throw new Error(affected().b49Mother);
++  if (affected().source !== 'Kept Mother × FixtureFather') throw new Error('another field changed');
++  const shown = parents();
++  if (!shown || shown[0] !== 'mf:kept-mother' || shown[1] !== '') throw new Error(JSON.stringify(shown));
++  if (String(shown[1]).includes('FixtureFather') || affected().b49Father.includes('FixtureFather')) throw new Error(JSON.stringify(shown));
++});
++
++check('other records, the real same-name row, genuine dx history, and the cross stay', () => {
++  const now = JSON.stringify({
++    other: readState().motherFatherPlants.filter((r) => r.id !== 'affected'),
++    projects: readState().breedingProjects,
++    plants: readState().plants,
++  });
++  if (now !== beforeOthers) throw new Error(now);
++  const names = readState().motherFatherPlants.map((r) => r.id + ':' + r.name);
++  if (!names.includes('real-father-row:FixtureFather')) throw new Error(names.join(','));
++  if (readState().motherFatherPlants.find((r) => r.id === 'genuine-dx').b49Father !== 'dx:GenuineHistory') throw new Error('genuine dx');
++  if (readState().breedingProjects[0].father !== 'FixtureFather') throw new Error('cross rewritten');
++});
++
++check('a different current father is a no-op', () => {
++  const rec = readState().motherFatherPlants.find((r) => r.id === 'changed-father');
++  const snap = JSON.stringify(rec);
++  store.set('boriken-b63-repair', JSON.stringify({
++    repairs: [{ recordId: 'changed-father', collection: 'motherFatherPlants', field: 'b49Father', expect: 'dx:FixtureFather' }],
++  }));
++  const again = g.B63.runStoredRepairs();
++  if (again.applied.length || JSON.stringify(rec) !== snap) throw new Error(JSON.stringify(again));
++});
++
++check('a second launch does not write again', () => {
++  store.set('boriken-b63-repair', JSON.stringify({
++    repairs: [{ recordId: 'affected', collection: 'motherFatherPlants', field: 'b49Father', expect: 'dx:FixtureFather' }],
++  }));
++  const logBefore = store.get('boriken-b63-repair-undo');
++  const again = g.B63.runStoredRepairs();
++  if (again.applied.length) throw new Error(JSON.stringify(again));
++  if (store.get('boriken-b63-repair-undo') !== logBefore) throw new Error('undo log grew');
++  if (affected().b49Father !== '-') throw new Error(affected().b49Father);
++});
++
++check('migration does not put the old father reference back', () => {
++  affected().b58Mig = 0;
++  g.B58.migrate();
++  if (affected().b49Father !== '-') throw new Error(affected().b49Father);
++  if (affected().b49Father.includes('FixtureFather')) throw new Error(affected().b49Father);
++  const shown = parents();
++  if (!shown || shown[1] !== '') throw new Error(JSON.stringify(shown));
++});
++
++check('undo restores only that field and a later father change blocks undo', () => {
++  store.set('boriken-b63-repair', JSON.stringify({
++    undos: [{ recordId: 'affected', collection: 'motherFatherPlants', field: 'b49Father' }],
++  }));
++  const undone = g.B63.runStoredRepairs();
++  if (!undone.undos.length || affected().b49Father !== 'dx:FixtureFather') throw new Error(JSON.stringify(affected()));
++  affected().b49Father = 'mf:real-father';
++  const blocked = g.B63.runStoredRepairs();
++  if (blocked.undos.length || affected().b49Father !== 'mf:real-father') throw new Error(JSON.stringify(blocked));
++});
++
++check('reload does not insert a sample plant', () => {
++  const saved = JSON.stringify(readState());
++  vm.runInContext('state = normalizeState(JSON.parse(' + JSON.stringify(saved) + '))', g);
++  g.mfSeedStarters();
++  const reloaded = vm.runInContext('state', g);
++  if (reloaded.motherFatherPlants.some((r) => r.id === 'syn-uuid' || r.name === 'Synthetic Sample Mother')) throw new Error('sample inserted');
++  if (!reloaded.motherFatherPlants.some((r) => r.id === 'real-father-row' && r.name === 'FixtureFather')) throw new Error('real row missing');
++});
++
++if (FAIL.length) process.exit(1);
++console.log('b63 father repair: guarded reference clear held');
+--- /dev/null
++++ b/scripts/b63-real-mockup.js
+@@ -0,0 +1,147 @@
++'use strict';
++/*
++  Local renderer for a private plant-only fixture. This file does not contain
++  records. If the fixture path is missing, or the file is not a sanitized
++  relationship file, it exits without drawing anything and without substituting
++  a synthetic fixture. It does not upload, export, or write the fixture.
++*/
++const fs = require('fs');
++const http = require('http');
++const path = require('path');
++const { spawn } = require('child_process');
++const ROOT = path.join(__dirname, '..');
++const CHROME = '/opt/google/chrome/chrome';
++const ALLOWED = {
++  plants: ['id', 'name', 'status', 'archived', 'b49Mother', 'b49Father', 'b58Manual', 'b49ProjectId', 'motherId', 'fatherId', 'motherPlantId'],
++  breedingPlants: ['id', 'name', 'status', 'archived', 'b49Mother', 'b49Father', 'b58Manual', 'b49ProjectId', 'motherId', 'fatherId', 'motherPlantId'],
++  motherFatherPlants: ['id', 'name', 'role', 'status', 'archived', 'b49Mother', 'b49Father', 'b58Manual', 'promotedFrom'],
++  breedingProjects: ['id', 'name', 'status', 'motherId', 'fatherId', 'mother', 'father', 'b49Mother', 'b49Father', 'b58Manual'],
++  cloneRuns: ['id', 'name', 'srcId', 'srcColl', 'motherPlantId', 'status'],
++};
++const FORBIDDEN = /note|photo|patient|credential|password|token|medical|address|certif/i;
++
++function fail(message) {
++  console.error('FAIL ' + message);
++  process.exit(1);
++}
++function arg(name) {
++  const i = process.argv.indexOf(name);
++  return i >= 0 ? process.argv[i + 1] : '';
++}
++function checkRecord(row, fields, where) {
++  if (!row || typeof row !== 'object' || Array.isArray(row)) fail(where + ' is not a record');
++  if (typeof row.id !== 'string' || !row.id) fail(where + ' has no id');
++  Object.keys(row).forEach((key) => {
++    if (!fields.includes(key)) fail(where + ' has a field outside the relationship list: ' + key);
++    if (FORBIDDEN.test(key)) fail(where + ' has a private field: ' + key);
++  });
++  if (row.promotedFrom && (typeof row.promotedFrom !== 'object' || Array.isArray(row.promotedFrom))) fail(where + ' promotedFrom is not a link');
++}
++function readFixture(file) {
++  if (!file) fail('pass --fixture <private-plant-file> . No fixture is bundled and no synthetic records are used.');
++  if (!fs.existsSync(file) || !fs.statSync(file).isFile()) fail('fixture file is missing: ' + file);
++  let parsed;
++  try { parsed = JSON.parse(fs.readFileSync(file, 'utf8')); }
++  catch (e) { fail('fixture is not JSON'); }
++  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) fail('fixture must be an object');
++  Object.keys(parsed).forEach((key) => {
++    if (!ALLOWED[key]) fail('fixture has a section that is not a plant relationship list: ' + key);
++  });
++  const state = { plants: [], breedingPlants: [], motherFatherPlants: [], breedingProjects: [], cloneRuns: [] };
++  let count = 0;
++  Object.keys(ALLOWED).forEach((key) => {
++    if (!Object.prototype.hasOwnProperty.call(parsed, key)) return;
++    if (!Array.isArray(parsed[key])) fail(key + ' must be an array');
++    parsed[key].forEach((row, i) => checkRecord(row, ALLOWED[key], key + '[' + i + ']'));
++    state[key] = parsed[key];
++    count += parsed[key].length;
++  });
++  if (!count) fail('fixture has no relationship records');
++  return state;
++}
++
++function main() {
++  const fixture = arg('--fixture');
++  const snapshotDate = arg('--snapshot-date');
++  const outDir = arg('--out');
++  const checkOnly = process.argv.includes('--check-only');
++  if (!snapshotDate || !/^\d{4}-\d{2}-\d{2}$/.test(snapshotDate)) fail('pass --snapshot-date YYYY-MM-DD from the parent. The date is not invented here.');
++  const state = readFixture(fixture);
++  if (checkOnly) {
++    console.log('PASS fixture accepted ' + Object.keys(ALLOWED).map((k) => k + '=' + state[k].length).join(' '));
++    return;
++  }
++  if (!outDir) fail('pass --out <directory> . Screenshots are not written into the repo by default.');
++  if (!fs.existsSync(CHROME)) fail('Chrome is not installed at ' + CHROME);
++  fs.mkdirSync(outDir, { recursive: true });
++  const caption = 'REAL-RECORD · ' + snapshotDate + ' snapshot · BROWSER MOCKUP · NOT CURRENT DEVICE PROOF';
++  const port = 9391;
++  const server = http.createServer((req, res) => {
++    const url = new URL(req.url, 'http://127.0.0.1:' + port);
++    let rel = decodeURIComponent(url.pathname);
++    if (rel === '/') rel = '/index.html';
++    const file = path.normalize(path.join(ROOT, rel.replace(/^\/+/, '')));
++    if (file !== ROOT && !file.startsWith(ROOT + path.sep)) { res.statusCode = 403; res.end('no'); return; }
++    if (!fs.existsSync(file) || !fs.statSync(file).isFile()) { res.statusCode = 404; res.end('missing'); return; }
++    res.setHeader('Cache-Control', 'no-store');
++    res.end(fs.readFileSync(file));
++  });
++  const init = `
++    localStorage.setItem('boriken-genetics-logbook-v1', ${JSON.stringify(JSON.stringify(state))});
++    localStorage.setItem('boriken-onboard-done', '1');
++    localStorage.setItem('boriken-theme-pref-v1', 'light');
++  `;
++  server.listen(port, '127.0.0.1', async () => {
++    const dir = fs.mkdtempSync(path.join(require('os').tmpdir(), 'b63-real-mockup-'));
++    const proc = spawn(CHROME, [
++      '--headless=new', '--disable-gpu', '--no-sandbox', '--disable-dev-shm-usage',
++      '--user-data-dir=' + dir, '--remote-debugging-port=9392', 'about:blank',
++    ], { stdio: 'ignore' });
++    try {
++      let page = null;
++      for (let i = 0; i < 50 && !page; i++) {
++        try {
++          const list = await (await fetch('http://127.0.0.1:9392/json/list')).json();
++          page = list.find((t) => t.type === 'page' && t.webSocketDebuggerUrl);
++        } catch (e) { await new Promise((r) => setTimeout(r, 100)); }
++      }
++      if (!page) fail('chrome did not open');
++      const ws = new WebSocket(page.webSocketDebuggerUrl);
++      await new Promise((resolve, reject) => { ws.addEventListener('open', resolve); ws.addEventListener('error', reject); });
++      let n = 0;
++      const pending = new Map();
++      ws.addEventListener('message', (ev) => {
++        const msg = JSON.parse(ev.data);
++        if (msg.id && pending.has(msg.id)) { const done = pending.get(msg.id); pending.delete(msg.id); done(msg); }
++      });
++      function send(method, params) {
++        const id = ++n;
++        return new Promise((resolve, reject) => {
++          const timer = setTimeout(() => reject(new Error('timeout ' + method)), 20000);
++          pending.set(id, (msg) => { clearTimeout(timer); if (msg.error) reject(new Error(JSON.stringify(msg.error))); else resolve(msg.result || {}); });
++          ws.send(JSON.stringify({ id, method, params: params || {} }));
++        });
++      }
++      await send('Page.enable');
++      await send('Runtime.enable');
++      await send('Page.addScriptToEvaluateOnNewDocument', { source: init });
++      await send('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
++      await send('Page.navigate', { url: 'http://127.0.0.1:' + port + '/index.html' });
++      await new Promise((r) => setTimeout(r, 800));
++      await send('Runtime.evaluate', { expression: `(() => { const bar = document.createElement('div'); bar.textContent = ${JSON.stringify(caption)}; bar.setAttribute('style', 'position:sticky;top:0;z-index:10000;background:#111;color:#fff;font:600 12px/1.3 sans-serif;padding:8px 12px'); document.body.prepend(bar); return true; })()`, returnByValue: true });
++      const png = await send('Page.captureScreenshot', { format: 'png', fromSurface: true });
++      const file = path.join(outDir, 'REAL-RECORD-' + snapshotDate + '-BROWSER-MOCKUP-NOT-DEVICE.png');
++      fs.writeFileSync(file, Buffer.from(png.data, 'base64'));
++      console.log('PASS wrote ' + file);
++    } finally {
++      proc.kill('SIGKILL');
++      server.close();
++      fs.rmSync(dir, { recursive: true, force: true });
++    }
++  });
++}
++if (require.main === module) {
++  try { main(); }
++  catch (e) { fail(e && e.message || e); }
++}
++module.exports = { readFixture, ALLOWED };

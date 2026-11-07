@@ -1,0 +1,32 @@
+LATER UNBUILT. Do not apply this to the native tree open in Xcode. That snapshot remains revision 2: patch 37b268915cda56c30af0c78fc0b5db176d580aca2854fc7f1f8c5c056bf335ad, app.js b8bb53d61dd32dbf29aa5f62a0fb53bd72a5181670382801d3d87f1a9968d682. This revision was not compiled, signed, uploaded, or device-tested.
+
+Revision 4 is only the optFull size gap on top of unbuilt revision 3. Incremental patch against revision 3: SHA-256 422ab19e0275f6b945ce7e354c0c41bd8a8c33b3f0ab01f6caffa5c774d52b5d. It applied cleanly onto a copy of revision 3. app.js is not in it.
+
+Everything after the frozen revision 2 snapshot, revision 3 plus revision 4: SHA-256 7322475b34e6905fa5fd1f72a375fcda8d612ca4ea6873c43b236e2e67524cac. Still unbuilt. Still not for the open Xcode tree.
+
+Test stdout SHA-256 611a16b4879205da9715c38cecea5cbf0c645ff61b3ff7adf9ecd684c2984fd0.
+
+The optFull artboard is a 393 by 852 reference. Its tree box is 365 wide. Parent cards are 110px tall. A single card fills its 170px half. Two cards are 82px in the other half. The dashed slot is 60px. The big circle is 96px. Column headers are MOTHER'S LINE and FATHER'S LINE. The partner line is BRED WITH · FATHER. The hint is "▲ Scroll up for older generations". CHANGES.md names this file as the both-sides tree. The queue says the iPhone tree is smaller than that mock. Approval of these exact pixels was not separately re-verified; they are the reference design, used only where they do not conflict with the written approval.
+
+Changed in revision 4: build63.css sets both-sides cards to min-height 110px and dashed slots to min-height 60px, and removes the phone rule that had shrunk cards to 72px and the column gap to 8px. The 16px column gap from build 60.1 stays. No wording was changed.
+
+Automated-tested, headless Chrome, not a device:
+- 390 viewport: columns 187 and 187, the single card 187 wide and 110 tall, document width 390, page not past the viewport.
+- 1024 viewport with the wide layout: sidebar 248, tree 776 wide starting at x 248, document width 1024. The old 560px tree cap is not in effect.
+- Integration still has pagePast false and docWidth equal to the viewport at 320, 375, 390, 430, and 1024. The heading measured is still "Family tree".
+- python3 scripts/verify-qa-config.py still passes. QA bundle, empty QA entitlements, QA_ISOLATION, and the iCloud rejection checks were not edited in this revision.
+
+Already matching the reference, so not changed here:
+- Partner source string is "Bred with". build59.css uppercases that small line, which is how the artboard's "BRED WITH · FATHER" is produced. The approved build 59 text was not replaced.
+- Column headers are already "Mother's line" and "Father's line", uppercased by the existing header rule.
+- The scroll hint "▲ Scroll up for older generations" is already in build60.js. The forbidden sideways-scroll instruction stays removed.
+- The big circle is already 96px.
+- The iPad sidebar is already the 248px nav with "Saved on this device" and Lineage. The comparison image shows that sidebar. No redesign.
+
+Not done, because the evidence conflicts or the decision is missing:
+- Removing the page heading "Family tree". The artboard has no page title. CHANGES.md does not say to remove it. The artboard is a component with a fake status bar, not an approval to delete the heading.
+- Hiding the Parents generation label. The artboard sets that heading to display none. CHANGES.md says one label per generation. Those conflict, so the label stays.
+- Copying the artboard colors, letter-spacing, or the 14px side inset as a new layout. That would be a redesign. The queue asked for size, not a new theme.
+- Record ids, merges, origin writes, and the vanished-plant event. Still open. This patch has no production names added and no record writes.
+
+Native QA isolation is unchanged.

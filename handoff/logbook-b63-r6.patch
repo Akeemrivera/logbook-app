@@ -1,0 +1,390 @@
+diff -ruN a/scripts/b63-photo-missing.test.js b/scripts/b63-photo-missing.test.js
+--- a/scripts/b63-photo-missing.test.js	1970-01-01 00:00:00.000000000 +0000
++++ b/scripts/b63-photo-missing.test.js	2026-11-07 16:18:26.144274241 +0000
+@@ -0,0 +1,196 @@
++'use strict';
++/*
++  Existing photo export regression. Synthetic ids only.
++  Three referenced photos have no stored bytes. The real backup builder must
++  refuse the file. It must not drop those ids, delete stored bytes, or mark
++  the backup done. This does not add an incomplete-backup export.
++*/
++const fs = require('fs');
++const path = require('path');
++const vm = require('vm');
++const ROOT = path.join(__dirname, '..');
++const FAIL = [];
++function check(name, fn) {
++  try { fn(); console.log('PASS', name); }
++  catch (e) { FAIL.push(name); console.error('FAIL', name, e && e.stack || e); process.exit(1); }
++}
++
++global.FileReader = class {
++  readAsDataURL(blob) {
++    blob.arrayBuffer().then((buf) => {
++      this.result = 'data:' + (blob.type || 'application/octet-stream') + ';base64,' + Buffer.from(buf).toString('base64');
++      if (this.onload) this.onload();
++    }).catch((error) => { this.error = error; if (this.onerror) this.onerror(); });
++  }
++};
++
++function fakeIndexedDb() {
++  const mem = new Map();
++  const api = {
++    mem,
++    deleted: [],
++    open() {
++      const req = {};
++      queueMicrotask(() => {
++        req.result = {
++          objectStoreNames: { contains: () => true },
++          close() {},
++          transaction() {
++            const puts = [];
++            const dels = [];
++            const tx = {
++              objectStore() {
++                return {
++                  put(rec) { puts.push(rec); },
++                  delete(id) { dels.push(id); },
++                  get(id) {
++                    const request = {};
++                    queueMicrotask(() => {
++                      request.result = mem.get(id) || null;
++                      if (request.onsuccess) request.onsuccess();
++                    });
++                    return request;
++                  },
++                  getAllKeys() {
++                    const request = {};
++                    queueMicrotask(() => {
++                      request.result = [...mem.keys()];
++                      if (request.onsuccess) request.onsuccess();
++                    });
++                    return request;
++                  },
++                };
++              },
++            };
++            queueMicrotask(() => {
++              puts.forEach((rec) => mem.set(rec.id, rec));
++              dels.forEach((id) => { mem.delete(id); api.deleted.push(id); });
++              if (tx.oncomplete) tx.oncomplete();
++            });
++            return tx;
++          },
++        };
++        if (req.onsuccess) req.onsuccess();
++      });
++      return req;
++    },
++  };
++  return api;
++}
++
++function element(id) {
++  return {
++    id: id || '',
++    tagName: 'DIV',
++    innerHTML: '',
++    textContent: '',
++    value: '',
++    hidden: true,
++    dataset: {},
++    style: {},
++    classList: { add() {}, remove() {}, toggle() {}, contains() { return false; } },
++    setAttribute() {},
++    getAttribute() { return ''; },
++    addEventListener() {},
++    querySelector() { return null; },
++    querySelectorAll() { return []; },
++  };
++}
++
++async function main() {
++  const idb = fakeIndexedDb();
++  global.indexedDB = idb;
++  const mediaPath = path.join(ROOT, 'media-store.js');
++  delete require.cache[require.resolve(mediaPath)];
++  const media = require(mediaPath);
++  const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
++  await media.putDataUrl('syn-ok', 'data:image/png;base64,' + png.toString('base64'));
++  const byId = {};
++  function remember(id) { if (!byId[id]) byId[id] = element(id); return byId[id]; }
++  const document = {
++    readyState: 'complete',
++    body: element('body'),
++    documentElement: element('html'),
++    addEventListener() {},
++    createElement() { return element(''); },
++    getElementById(id) { return remember(id); },
++    querySelector(sel) { const m = /^#([\w-]+)$/.exec(sel || ''); return m ? remember(m[1]) : null; },
++    querySelectorAll() { return []; },
++  };
++  const calls = [];
++  const g = {
++    console, document,
++    localStorage: { getItem() { return null; }, setItem() {}, removeItem() {} },
++    setInterval() { return 0; }, setTimeout() { return 0; }, clearInterval() {}, clearTimeout() {},
++    requestAnimationFrame() { return 0; },
++    matchMedia() { return { matches: false, addEventListener() {}, removeEventListener() {} }; },
++    MutationObserver: class { observe() {} disconnect() {} },
++    navigator: { storage: { persist() { return Promise.resolve(false); } } },
++    crypto: { randomUUID: () => 'syn-uuid' },
++    URL: { createObjectURL() { return ''; }, revokeObjectURL() {} },
++    Blob, Map, Date, JSON, Math, Number, String, Array, Object, RegExp, Promise, Set,
++    location: { hash: '', protocol: 'https:' },
++    addEventListener() {},
++    BorikenMedia: media,
++    markBackupExported() { g.__marked = true; },
++    shareFile(name) { calls.push(name); return Promise.resolve('shared'); },
++  };
++  g.window = g;
++  g.globalThis = g;
++  vm.createContext(g);
++  vm.runInContext(fs.readFileSync(path.join(ROOT, 'app.js'), 'utf8'), g, { filename: 'app.js' });
++  g.shareFile = (name) => { calls.push(name); return Promise.resolve('shared'); };
++  g.markBackupExported = () => { g.__marked = true; };
++  const state = vm.runInContext('state', g);
++  state.plants = [{
++    id: 'syn-plant', name: 'Synthetic', status: 'active', count: 1, logs: [
++      { id: 'log-ok', notes: 'kept note', date: '2026-01-01', photoId: 'syn-ok' },
++      { id: 'log-1', notes: 'one', date: '2026-01-02', photoId: 'syn-miss-1' },
++      { id: 'log-2', notes: 'two', date: '2026-01-03', photoId: 'syn-miss-2' },
++      { id: 'log-3', notes: 'three', date: '2026-01-04', photoId: 'syn-miss-3' },
++    ],
++  }];
++  state.breedingPlants = [];
++  state.motherFatherPlants = [];
++  state.vlogEntries = [];
++  state.cloneRuns = [];
++  const before = JSON.stringify(state);
++  let caught = null;
++  try { await g.buildFullBackupPayload(); }
++  catch (error) { caught = error; }
++  check('three unreadable photos abort before a file exists', () => {
++    if (!caught) throw new Error('payload was returned');
++    if (caught.message !== '3 photos could not be read from on-device storage, so the backup was not saved.') throw new Error(caught.message);
++    const missing = (caught.missing || []).slice().sort();
++    if (JSON.stringify(missing) !== JSON.stringify(['syn-miss-1', 'syn-miss-2', 'syn-miss-3'])) throw new Error(missing.join(','));
++  });
++  check('the abort keeps the records, the stored photo, and does not delete ids', () => {
++    if (JSON.stringify(state) !== before) throw new Error('state changed');
++    if (!idb.mem.has('syn-ok') || idb.deleted.length) throw new Error('storage changed ' + idb.deleted.join(','));
++  });
++  g.__marked = false;
++  await g.exportJSON();
++  check('Backup JSON shows the abort and does not share or mark success', () => {
++    if (calls.length) throw new Error('share called ' + calls.join(','));
++    if (g.__marked) throw new Error('marked exported');
++    const shown = byId['storage-error'] && byId['storage-error'].textContent;
++    if (shown !== '3 photos could not be read from on-device storage, so the backup was not saved.') throw new Error(shown);
++  });
++  state.plants[0].logs = state.plants[0].logs.filter((log) => log.photoId === 'syn-ok');
++  const ok = await g.buildFullBackupPayload();
++  check('the same builder saves when every referenced photo can be read', () => {
++    if (!ok.photos || ok.photos.length !== 1 || ok.photos[0].id !== 'syn-ok' || !String(ok.photos[0].dataUrl).startsWith('data:image/png;base64,')) throw new Error(JSON.stringify(ok.photos));
++    if (ok.photos[0].dataUrl.includes('syn-miss')) throw new Error('missing id leaked');
++  });
++  const sw = fs.readFileSync(path.join(ROOT, 'service-worker.js'), 'utf8');
++  check('revision 5 cache name does not change this export path', () => {
++    if (!sw.includes("boriken-genetics-logbook-app-v82")) throw new Error('worker');
++    const fn = fs.readFileSync(path.join(ROOT, 'app.js'), 'utf8');
++    const start = fn.indexOf('async function buildFullBackupPayload');
++    const body = fn.slice(start, fn.indexOf('function snapshotCounts'));
++    if (!body.includes('exported.missing.length') || body.includes('photoStatus')) throw new Error('export contract changed');
++  });
++  console.log('b63 photo missing: existing abort held');
++}
++
++main().catch((e) => { console.error('FAIL', e && e.stack || e); process.exit(1); });
+diff -ruN a/scripts/b63-sw-browser.test.js b/scripts/b63-sw-browser.test.js
+--- a/scripts/b63-sw-browser.test.js	1970-01-01 00:00:00.000000000 +0000
++++ b/scripts/b63-sw-browser.test.js	2026-11-07 16:18:05.443973893 +0000
+@@ -0,0 +1,186 @@
++'use strict';
++/*
++  Real Chrome service-worker update. This is not the revision 5 Node sandbox.
++  A page registers a v81 worker that has already cached a stale build57.js.
++  The server then serves the real service-worker.js (v82). Chrome must install
++  that script, drop the v81 cache, and keep serving the new build57.js while
++  the network is offline. If Chrome is missing, this test fails. It does not
++  fall back to a simulated cache.
++*/
++const fs = require('fs');
++const http = require('http');
++const path = require('path');
++const crypto = require('crypto');
++const { spawn } = require('child_process');
++const ROOT = path.join(__dirname, '..');
++const CHROME = '/opt/google/chrome/chrome';
++const PORT = 9341;
++const V81 = [
++  "const CACHE_NAME = 'boriken-genetics-logbook-app-v81';",
++  "self.addEventListener('install', (event) => {",
++  "  event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.put('./build57.js', new Response('REV2-STALE', { status: 200, headers: { 'Content-Type': 'application/javascript' } }))).then(() => self.skipWaiting()));",
++  '});',
++  "self.addEventListener('activate', (event) => { event.waitUntil(self.clients.claim()); });",
++  "self.addEventListener('fetch', (event) => {",
++  "  if (event.request.method !== 'GET') return;",
++  "  event.respondWith(caches.match(event.request).then((hit) => hit || fetch(event.request)));",
++  '});',
++  '',
++].join('\n');
++const PROBE = `<!doctype html><meta charset="utf-8"><title>sw probe</title><script>
++navigator.serviceWorker.register('./service-worker.js').catch((e) => { window.__swErr = String(e); });
++</script>`;
++
++if (!fs.existsSync(CHROME)) {
++  console.error('FAIL real Chrome is not installed at ' + CHROME + '. This test does not substitute a Node cache.');
++  process.exit(1);
++}
++
++let swMode = 'v81';
++const server = http.createServer((req, res) => {
++  const url = new URL(req.url, 'http://127.0.0.1:' + PORT);
++  let rel = decodeURIComponent(url.pathname);
++  res.setHeader('Cache-Control', 'no-store');
++  if (rel === '/service-worker.js') {
++    const body = swMode === 'v81' ? V81 : fs.readFileSync(path.join(ROOT, 'service-worker.js'));
++    res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
++    res.end(body);
++    return;
++  }
++  if (rel === '/sw-probe.html') {
++    res.setHeader('Content-Type', 'text/html; charset=utf-8');
++    res.end(PROBE);
++    return;
++  }
++  if (rel === '/') rel = '/index.html';
++  const file = path.normalize(path.join(ROOT, rel.replace(/^\/+/, '')));
++  if (file !== ROOT && !file.startsWith(ROOT + path.sep)) {
++    res.statusCode = 403;
++    res.end('forbidden');
++    return;
++  }
++  if (!fs.existsSync(file) || !fs.statSync(file).isFile()) {
++    res.statusCode = 404;
++    res.end('missing ' + rel);
++    return;
++  }
++  res.end(fs.readFileSync(file));
++});
++
++function sleep(ms) { return new Promise((resolve) => setTimeout(resolve, ms)); }
++function sha(text) { return crypto.createHash('sha256').update(text).digest('hex'); }
++
++const expected = sha(fs.readFileSync(path.join(ROOT, 'build57.js')));
++
++async function cdp(ws, method, params) {
++  const id = cdp.next++;
++  const result = new Promise((resolve, reject) => {
++    const timer = setTimeout(() => reject(new Error('cdp timeout ' + method)), 20000);
++    cdp.pending.set(id, (msg) => {
++      clearTimeout(timer);
++      if (msg.error) reject(new Error(method + ' ' + JSON.stringify(msg.error)));
++      else resolve(msg.result || {});
++    });
++  });
++  ws.send(JSON.stringify({ id, method, params: params || {} }));
++  return result;
++}
++cdp.next = 1;
++cdp.pending = new Map();
++
++async function main() {
++  await new Promise((resolve) => server.listen(PORT, '127.0.0.1', resolve));
++  const dir = '/tmp/b63-sw-chrome';
++  fs.rmSync(dir, { recursive: true, force: true });
++  const proc = spawn(CHROME, [
++    '--headless=new', '--disable-gpu', '--no-sandbox', '--disable-dev-shm-usage',
++    '--user-data-dir=' + dir, '--remote-debugging-port=9342', 'about:blank',
++  ], { stdio: 'ignore' });
++  const logs = [];
++  try {
++    let page = null;
++    for (let i = 0; i < 50 && !page; i++) {
++      try {
++        const list = await (await fetch('http://127.0.0.1:9342/json/list')).json();
++        page = list.find((t) => t.type === 'page' && t.webSocketDebuggerUrl);
++      } catch (e) { await sleep(100); }
++    }
++    if (!page) throw new Error('chrome debugging page did not open');
++    const ws = new WebSocket(page.webSocketDebuggerUrl);
++    await new Promise((resolve, reject) => { ws.addEventListener('open', resolve); ws.addEventListener('error', reject); });
++    ws.addEventListener('message', (ev) => {
++      const msg = JSON.parse(ev.data);
++      if (msg.id && cdp.pending.has(msg.id)) {
++        const done = cdp.pending.get(msg.id);
++        cdp.pending.delete(msg.id);
++        done(msg);
++      } else if (msg.method === 'Runtime.consoleAPICalled') {
++        logs.push(msg.params.args.map((a) => a.value || a.description || '').join(' '));
++      } else if (msg.method === 'Runtime.exceptionThrown') {
++        logs.push('exception ' + JSON.stringify(msg.params.exceptionDetails && msg.params.exceptionDetails.exception));
++      }
++    });
++    await cdp(ws, 'Runtime.enable');
++    await cdp(ws, 'Network.enable');
++    await cdp(ws, 'Page.enable');
++    await cdp(ws, 'Page.navigate', { url: 'http://127.0.0.1:' + PORT + '/sw-probe.html' });
++    const read = `(async () => {
++      const reg = await navigator.serviceWorker.getRegistration();
++      const keys = await caches.keys();
++      let text = '';
++      let status = 0;
++      try {
++        const res = await fetch('./build57.js');
++        status = res.status;
++        text = await res.text();
++      } catch (e) { text = 'FETCH ' + e; }
++      let sum = '';
++      if (text && !text.startsWith('FETCH ')) {
++        const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
++        sum = [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('');
++      }
++      return { keys, status, sum, stale: text === 'REV2-STALE', controller: !!(navigator.serviceWorker.controller), err: window.__swErr || '' };
++    })()`;
++    let seeded = null;
++    for (let i = 0; i < 40; i++) {
++      const out = await cdp(ws, 'Runtime.evaluate', { expression: read, awaitPromise: true, returnByValue: true });
++      seeded = out.result && out.result.value;
++      if (seeded && seeded.stale && seeded.keys.includes('boriken-genetics-logbook-app-v81')) break;
++      await sleep(250);
++    }
++    if (!seeded || !seeded.stale || !seeded.keys.includes('boriken-genetics-logbook-app-v81')) {
++      throw new Error('v81 seed did not control the page ' + JSON.stringify(seeded) + ' ' + logs.join(' | '));
++    }
++    console.log('PASS real Chrome served the seeded v81 build57.js before the update');
++    swMode = 'v82';
++    await cdp(ws, 'Runtime.evaluate', {
++      expression: 'navigator.serviceWorker.getRegistration().then((reg) => reg.update())',
++      awaitPromise: true,
++    });
++    let updated = null;
++    for (let i = 0; i < 80; i++) {
++      const out = await cdp(ws, 'Runtime.evaluate', { expression: read, awaitPromise: true, returnByValue: true });
++      updated = out.result && out.result.value;
++      if (updated && updated.sum === expected && updated.keys.includes('boriken-genetics-logbook-app-v82') && !updated.keys.includes('boriken-genetics-logbook-app-v81')) break;
++      await sleep(250);
++    }
++    if (!updated || updated.sum !== expected || updated.keys.includes('boriken-genetics-logbook-app-v81') || !updated.keys.includes('boriken-genetics-logbook-app-v82')) {
++      throw new Error('v82 update did not replace the shell ' + JSON.stringify(updated) + ' ' + logs.join(' | '));
++    }
++    console.log('PASS real Chrome installed v82 and served the current build57.js');
++    await cdp(ws, 'Network.emulateNetworkConditions', { offline: true, latency: 0, downloadThroughput: 0, uploadThroughput: 0 });
++    const offline = await cdp(ws, 'Runtime.evaluate', { expression: read, awaitPromise: true, returnByValue: true });
++    const off = offline.result && offline.result.value;
++    if (!off || off.sum !== expected || off.stale) throw new Error('offline fetch was not the v82 shell ' + JSON.stringify(off));
++    console.log('PASS real Chrome served the v82 build57.js while offline');
++    console.log('b63 sw browser: update path passed');
++  } finally {
++    proc.kill('SIGKILL');
++    server.close();
++  }
++}
++
++main().catch((e) => {
++  console.error('FAIL', e && e.stack || e);
++  process.exit(1);
++});

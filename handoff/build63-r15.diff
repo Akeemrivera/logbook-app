@@ -1,0 +1,19 @@
+--- /home/ubuntu/.cursor/projects/workspace/uploads/build63_4609.css	2026-11-07 19:42:24.899964498 +0000
++++ /tmp/b62-app/build63.css	2026-11-07 19:45:49.671010124 +0000
+@@ -134,6 +134,16 @@
+ @media (max-width: 720px) {
+   .b57-n { flex: 1 1 calc(50% - 8px); }
+ }
++/* Four grandparents were wrapping three plus one stretched card at 1024.
++   Each card stays half the row, so four cards are two by two and a wrapped
++   card does not grow to the full width. */
++@media (min-width: 1024px) {
++  #breeding-view .b57-row .b57-n,
++  #breeding-view .b60-col > .b60-c {
++    flex: 1 1 calc(50% - 8px);
++    max-width: calc(50% - 8px);
++  }
++}
+ .w-side, nav.w-side, .mfx-list, .w-list { min-width: 0; max-width: 100%; overflow: visible; }
+ .w-side .w-l, .w-side .w-foot, .w-side .w-n, .w-side .w-li-t, .w-side .w-li-t b, .mfx-list .w-li-t b {
+   min-width: 0;

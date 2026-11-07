@@ -1,0 +1,543 @@
+--- a/ios/App/App.xcodeproj/project.pbxproj
++++ b/ios/App/App.xcodeproj/project.pbxproj
+@@ -22,6 +22,7 @@
+ 		A1C10001000000000000A004 /* ICloudBackupPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1C10001000000000000A003 /* ICloudBackupPlugin.swift */; };
+ 		A1C10001000000000000A007 /* CloudSyncPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1C10001000000000000A006 /* CloudSyncPlugin.swift */; };
+ 		B4900001000000000000A009 /* IdScanPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = B4900001000000000000A008 /* IdScanPlugin.swift */; };
++		QAUITEST00000000000007 /* LogbookQAUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = QAUITEST00000000000006 /* LogbookQAUITests.swift */; };
+ /* End PBXBuildFile section */
+ 
+ /* Begin PBXFileReference section */
+@@ -45,6 +46,9 @@
+ 		A1C10001000000000000A005 /* App.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = App.entitlements; sourceTree = "<group>"; };
+ 		A1C10001000000000000QAE1 /* App.qa.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = App.qa.entitlements; sourceTree = "<group>"; };
+ 		A1C10001000000000000QAP1 /* Info.qa.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.qa.plist; sourceTree = "<group>"; };
++		QAUITEST00000000000005 /* LogbookQAUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = LogbookQAUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
++		QAUITEST00000000000006 /* LogbookQAUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogbookQAUITests.swift; sourceTree = "<group>"; };
++		QAUITEST0000000000000F /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+ /* End PBXFileReference section */
+ 
+ /* Begin PBXFrameworksBuildPhase section */
+@@ -56,6 +60,13 @@
+ 			);
+ 			runOnlyForDeploymentPostprocessing = 0;
+ 		};
++		QAUITEST00000000000003 /* Frameworks */ = {
++			isa = PBXFrameworksBuildPhase;
++			buildActionMask = 2147483647;
++			files = (
++			);
++			runOnlyForDeploymentPostprocessing = 0;
++		};
+ /* End PBXFrameworksBuildPhase section */
+ 
+ /* Begin PBXGroup section */
+@@ -64,6 +75,7 @@
+ 			children = (
+ 				958DCC722DB07C7200EA8C5F /* debug.xcconfig */,
+ 				504EC3061FED79650016851F /* App */,
++				QAUITEST00000000000008 /* LogbookQAUITests */,
+ 				504EC3051FED79650016851F /* Products */,
+ 			);
+ 			sourceTree = "<group>";
+@@ -72,6 +84,7 @@
+ 			isa = PBXGroup;
+ 			children = (
+ 				504EC3041FED79650016851F /* App.app */,
++				QAUITEST00000000000005 /* LogbookQAUITests.xctest */,
+ 			);
+ 			name = Products;
+ 			sourceTree = "<group>";
+@@ -101,6 +114,15 @@
+ 			path = App;
+ 			sourceTree = "<group>";
+ 		};
++		QAUITEST00000000000008 /* LogbookQAUITests */ = {
++			isa = PBXGroup;
++			children = (
++				QAUITEST00000000000006 /* LogbookQAUITests.swift */,
++				QAUITEST0000000000000F /* Info.plist */,
++			);
++			path = LogbookQAUITests;
++			sourceTree = "<group>";
++		};
+ /* End PBXGroup section */
+ 
+ /* Begin PBXNativeTarget section */
+@@ -124,8 +146,44 @@
+ 			productReference = 504EC3041FED79650016851F /* App.app */;
+ 			productType = "com.apple.product-type.application";
+ 		};
++		QAUITEST00000000000001 /* LogbookQAUITests */ = {
++			isa = PBXNativeTarget;
++			buildConfigurationList = QAUITEST00000000000009 /* Build configuration list for PBXNativeTarget "LogbookQAUITests" */;
++			buildPhases = (
++				QAUITEST00000000000002 /* Sources */,
++				QAUITEST00000000000003 /* Frameworks */,
++				QAUITEST00000000000004 /* Resources */,
++			);
++			buildRules = (
++			);
++			dependencies = (
++				QAUITEST0000000000000E /* PBXTargetDependency */,
++			);
++			name = LogbookQAUITests;
++			productName = LogbookQAUITests;
++			productReference = QAUITEST00000000000005 /* LogbookQAUITests.xctest */;
++			productType = "com.apple.product-type.bundle.ui-testing";
++		};
+ /* End PBXNativeTarget section */
+ 
++/* Begin PBXContainerItemProxy section */
++		QAUITEST0000000000000D /* PBXContainerItemProxy */ = {
++			isa = PBXContainerItemProxy;
++			containerPortal = 504EC2FC1FED79650016851F /* Project object */;
++			proxyType = 1;
++			remoteGlobalIDString = 504EC3031FED79650016851F;
++			remoteInfo = App;
++		};
++/* End PBXContainerItemProxy section */
++
++/* Begin PBXTargetDependency section */
++		QAUITEST0000000000000E /* PBXTargetDependency */ = {
++			isa = PBXTargetDependency;
++			target = 504EC3031FED79650016851F /* App */;
++			targetProxy = QAUITEST0000000000000D /* PBXContainerItemProxy */;
++		};
++/* End PBXTargetDependency section */
++
+ /* Begin PBXProject section */
+ 		504EC2FC1FED79650016851F /* Project object */ = {
+ 			isa = PBXProject;
+@@ -138,6 +196,11 @@
+ 						LastSwiftMigration = 1100;
+ 						ProvisioningStyle = Automatic;
+ 					};
++					QAUITEST00000000000001 = {
++						CreatedOnToolsVersion = 16.0;
++						ProvisioningStyle = Automatic;
++						TestTargetID = 504EC3031FED79650016851F;
++					};
+ 				};
+ 			};
+ 			buildConfigurationList = 504EC2FF1FED79650016851F /* Build configuration list for PBXProject "App" */;
+@@ -157,6 +220,7 @@
+ 			projectRoot = "";
+ 			targets = (
+ 				504EC3031FED79650016851F /* App */,
++				QAUITEST00000000000001 /* LogbookQAUITests */,
+ 			);
+ 		};
+ /* End PBXProject section */
+@@ -175,6 +239,13 @@
+ 			);
+ 			runOnlyForDeploymentPostprocessing = 0;
+ 		};
++		QAUITEST00000000000004 /* Resources */ = {
++			isa = PBXResourcesBuildPhase;
++			buildActionMask = 2147483647;
++			files = (
++			);
++			runOnlyForDeploymentPostprocessing = 0;
++		};
+ /* End PBXResourcesBuildPhase section */
+ 
+ /* Begin PBXSourcesBuildPhase section */
+@@ -193,6 +264,14 @@
+ 			);
+ 			runOnlyForDeploymentPostprocessing = 0;
+ 		};
++		QAUITEST00000000000002 /* Sources */ = {
++			isa = PBXSourcesBuildPhase;
++			buildActionMask = 2147483647;
++			files = (
++				QAUITEST00000000000007 /* LogbookQAUITests.swift in Sources */,
++			);
++			runOnlyForDeploymentPostprocessing = 0;
++		};
+ /* End PBXSourcesBuildPhase section */
+ 
+ /* Begin PBXVariantGroup section */
+@@ -484,6 +563,88 @@
+ 			defaultConfigurationIsVisible = 0;
+ 			defaultConfigurationName = Release;
+ 		};
++		QAUITEST0000000000000A /* Debug */ = {
++			isa = XCBuildConfiguration;
++			buildSettings = {
++				CODE_SIGN_STYLE = Automatic;
++				CURRENT_PROJECT_VERSION = 61;
++				DEVELOPMENT_TEAM = 2Z94YL957X;
++				GENERATE_INFOPLIST_FILE = NO;
++				INFOPLIST_FILE = LogbookQAUITests/Info.plist;
++				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
++				LD_RUNPATH_SEARCH_PATHS = (
++					"$(inherited)",
++					"@executable_path/Frameworks",
++					"@loader_path/Frameworks",
++				);
++				MARKETING_VERSION = 1.0;
++				PRODUCT_BUNDLE_IDENTIFIER = com.borikengenetics.logbookapp.qa.uitests;
++				PRODUCT_NAME = "$(TARGET_NAME)";
++				SWIFT_VERSION = 5.0;
++				TARGETED_DEVICE_FAMILY = "1,2";
++				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/App.app/App";
++				TEST_TARGET_NAME = App;
++			};
++			name = Debug;
++		};
++		QAUITEST0000000000000B /* Release */ = {
++			isa = XCBuildConfiguration;
++			buildSettings = {
++				CODE_SIGN_STYLE = Automatic;
++				CURRENT_PROJECT_VERSION = 61;
++				DEVELOPMENT_TEAM = 2Z94YL957X;
++				GENERATE_INFOPLIST_FILE = NO;
++				INFOPLIST_FILE = LogbookQAUITests/Info.plist;
++				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
++				LD_RUNPATH_SEARCH_PATHS = (
++					"$(inherited)",
++					"@executable_path/Frameworks",
++					"@loader_path/Frameworks",
++				);
++				MARKETING_VERSION = 1.0;
++				PRODUCT_BUNDLE_IDENTIFIER = com.borikengenetics.logbookapp.qa.uitests;
++				PRODUCT_NAME = "$(TARGET_NAME)";
++				SWIFT_VERSION = 5.0;
++				TARGETED_DEVICE_FAMILY = "1,2";
++				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/App.app/App";
++				TEST_TARGET_NAME = App;
++			};
++			name = Release;
++		};
++		QAUITEST0000000000000C /* QA */ = {
++			isa = XCBuildConfiguration;
++			buildSettings = {
++				CODE_SIGN_STYLE = Automatic;
++				CURRENT_PROJECT_VERSION = 61;
++				DEVELOPMENT_TEAM = 2Z94YL957X;
++				GENERATE_INFOPLIST_FILE = NO;
++				INFOPLIST_FILE = LogbookQAUITests/Info.plist;
++				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
++				LD_RUNPATH_SEARCH_PATHS = (
++					"$(inherited)",
++					"@executable_path/Frameworks",
++					"@loader_path/Frameworks",
++				);
++				MARKETING_VERSION = 1.0;
++				PRODUCT_BUNDLE_IDENTIFIER = com.borikengenetics.logbookapp.qa.uitests;
++				PRODUCT_NAME = "$(TARGET_NAME)";
++				SWIFT_VERSION = 5.0;
++				TARGETED_DEVICE_FAMILY = "1,2";
++				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/App.app/App";
++				TEST_TARGET_NAME = App;
++			};
++			name = QA;
++		};
++		QAUITEST00000000000009 /* Build configuration list for PBXNativeTarget "LogbookQAUITests" */ = {
++			isa = XCConfigurationList;
++			buildConfigurations = (
++				QAUITEST0000000000000A /* Debug */,
++				QAUITEST0000000000000B /* Release */,
++				QAUITEST0000000000000C /* QA */,
++			);
++			defaultConfigurationIsVisible = 0;
++			defaultConfigurationName = QA;
++		};
+ /* End XCConfigurationList section */
+ 
+ /* Begin XCLocalSwiftPackageReference section */
+--- a/ios/App/App.xcodeproj/xcshareddata/xcschemes/App-QA.xcscheme
++++ b/ios/App/App.xcodeproj/xcshareddata/xcschemes/App-QA.xcscheme
+@@ -20,6 +20,20 @@
+                ReferencedContainer = "container:App.xcodeproj">
+             </BuildableReference>
+          </BuildActionEntry>
++         <BuildActionEntry
++            buildForTesting = "YES"
++            buildForRunning = "NO"
++            buildForProfiling = "NO"
++            buildForArchiving = "NO"
++            buildForAnalyzing = "YES">
++            <BuildableReference
++               BuildableIdentifier = "primary"
++               BlueprintIdentifier = "QAUITEST00000000000001"
++               BuildableName = "LogbookQAUITests.xctest"
++               BlueprintName = "LogbookQAUITests"
++               ReferencedContainer = "container:App.xcodeproj">
++            </BuildableReference>
++         </BuildActionEntry>
+       </BuildActionEntries>
+    </BuildAction>
+    <TestAction
+@@ -27,6 +41,18 @@
+       selectedDebuggerIdentifier = "Xcode.DebuggerFoundation.Debugger.LLDB"
+       selectedLauncherIdentifier = "Xcode.DebuggerFoundation.Launcher.LLDB"
+       shouldUseLaunchSchemeArgsEnv = "YES">
++      <Testables>
++         <TestableReference
++            skipped = "NO">
++            <BuildableReference
++               BuildableIdentifier = "primary"
++               BlueprintIdentifier = "QAUITEST00000000000001"
++               BuildableName = "LogbookQAUITests.xctest"
++               BlueprintName = "LogbookQAUITests"
++               ReferencedContainer = "container:App.xcodeproj">
++            </BuildableReference>
++         </TestableReference>
++      </Testables>
+    </TestAction>
+    <LaunchAction
+       buildConfiguration = "QA"
+--- /dev/null
++++ b/ios/App/LogbookQAUITests/LogbookQAUITests.swift
+@@ -0,0 +1,128 @@
++import XCTest
++
++/// Designed-for-iPad proof for the QA app only.
++/// Screenshots are XCTest attachments with lifetime keepAlways, so they stay in the xcresult.
++/// This runner never launches the production bundle and never selects a photo from the library.
++final class LogbookQAUITests: XCTestCase {
++    private let productionDisplay = "Borikèn Logbook"
++    private let qaDisplay = "Borikèn Logbook QA"
++    private let productionBundle = "com.borikengenetics.logbookapp"
++    private let longName = "cannalien x afghan landrace"
++    private let motherName = "QA Landrace Mother"
++
++    override func setUpWithError() throws {
++        continueAfterFailure = false
++    }
++
++    private func addShot(_ app: XCUIApplication, _ name: String) {
++        let shot = XCTAttachment(screenshot: app.screenshot())
++        shot.name = name
++        shot.lifetime = .keepAlways
++        add(shot)
++    }
++
++    private func launchQA(shot name: String) -> XCUIApplication {
++        let production = XCUIApplication(bundleIdentifier: productionBundle)
++        XCTAssertNotEqual(production.state, .runningForeground, "Production Logbook is in the foreground. Stop.")
++        let app = XCUIApplication()
++        app.launch()
++        XCTAssertNotEqual(app.label, productionDisplay, "The launched app uses the production display name.")
++        if app.label != qaDisplay && app.label != "App" {
++            addShot(app, "unexpected-label-\(app.label)")
++        }
++        addShot(app, name)
++        XCTAssertNotEqual(production.state, .runningForeground, "Production Logbook came forward during launch.")
++        return app
++    }
++
++    @discardableResult
++    private func tap(_ app: XCUIApplication, _ label: String, timeout: TimeInterval = 6) -> Bool {
++        let queries = [
++            app.buttons[label].firstMatch,
++            app.tabBars.buttons[label].firstMatch,
++            app.staticTexts[label].firstMatch,
++            app.webViews.buttons[label].firstMatch,
++            app.webViews.staticTexts[label].firstMatch
++        ]
++        let end = Date().addingTimeInterval(timeout)
++        while Date() < end {
++            for element in queries where element.exists && element.isHittable {
++                element.tap()
++                return true
++            }
++            RunLoop.current.run(until: Date().addingTimeInterval(0.25))
++        }
++        return false
++    }
++
++    private func typeInField(_ app: XCUIApplication, placeholder: String, text: String) -> Bool {
++        let named = app.webViews.textFields[placeholder].firstMatch
++        let field = named.waitForExistence(timeout: 3) ? named : app.webViews.textFields.firstMatch
++        guard field.waitForExistence(timeout: 4), field.isHittable else { return false }
++        field.tap()
++        field.typeText(text)
++        return true
++    }
++
++    func testLongComplianceNameStaysReadable() throws {
++        let app = launchQA(shot: "01-launch")
++        XCTAssertTrue(tap(app, "Add plant") || tap(app, "Plants"), "Add plant was not hittable.")
++        if !app.webViews.textFields.firstMatch.exists {
++            XCTAssertTrue(tap(app, "Add plant", timeout: 4), "The plant form did not open.")
++        }
++        addShot(app, "02-add-plant")
++        XCTAssertTrue(typeInField(app, "Blue Dream, basil, Sungold tomato", longName), "The strain field was not hittable.")
++        XCTAssertTrue(tap(app, "Save plant"), "Save plant was not hittable.")
++        addShot(app, "03-after-save")
++        XCTAssertTrue(tap(app, "Compliance") || tap(app, "More"), "Compliance was not hittable.")
++        _ = tap(app, "Compliance", timeout: 3)
++        addShot(app, "04-compliance")
++        let name = app.staticTexts[longName].firstMatch
++        let button = app.buttons[longName].firstMatch
++        let shown = name.waitForExistence(timeout: 6) ? name : button
++        XCTAssertTrue(shown.exists, "The long plant name is not on the Compliance screen. The screenshot is the actual screen.")
++        XCTAssertGreaterThan(shown.frame.width, 40, "The long tag name is squeezed to about one letter. Width \(shown.frame.width).")
++        XCTAssertTrue(app.buttons["See all"].firstMatch.exists || app.staticTexts["Plant tags"].firstMatch.exists, "Plant tags and See all were not both reachable.")
++        addShot(app, "05-long-tag")
++    }
++
++    func testPhotoControlCancelThenRelaunch() throws {
++        let app = launchQA(shot: "10-launch")
++        XCTAssertTrue(tap(app, "Breeding"), "Breeding was not hittable.")
++        addShot(app, "11-breeding")
++        let opened = tap(app, "+ Add mother") || tap(app, "Add mother or father") || tap(app, "+ Add")
++        XCTAssertTrue(opened, "Add mother was not hittable.")
++        XCTAssertTrue(typeInField(app, "e.g., Strain name", motherName), "The mother name field was not hittable.")
++        XCTAssertTrue(tap(app, "Save"), "Save was not hittable on the mother form.")
++        addShot(app, "12-mother-saved")
++        _ = tap(app, motherName, timeout: 4)
++        addShot(app, "13-mother-profile")
++        let photo = tap(app, "+ Add photo", timeout: 3) || tap(app, "Add photo", timeout: 2) || tap(app, "Photo", timeout: 2)
++        addShot(app, "14-photo-control")
++        cancelSystemPicker()
++        addShot(app, "15-after-cancel")
++        app.terminate()
++        let again = launchQA(shot: "16-relaunch")
++        _ = tap(again, "Breeding", timeout: 4)
++        _ = tap(again, motherName, timeout: 4)
++        addShot(again, "17-mother-after-relaunch")
++        XCTAssertTrue(photo, "The photo control was not hittable, so no save was attempted.")
++        let image = again.images.firstMatch
++        if image.exists && image.frame.width > 20 {
++            return
++        }
++        XCTFail("No synthetic image was stored. The system picker was cancelled so a personal library photo was not chosen. Persistence is not proven. The xcresult screenshots are the actual screens.")
++    }
++
++    private func cancelSystemPicker() {
++        let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
++        let labels = ["Cancel", "Don’t Allow", "Don't Allow", "Not Now"]
++        for label in labels {
++            let button = springboard.buttons[label].firstMatch
++            if button.waitForExistence(timeout: 1), button.isHittable {
++                button.tap()
++                return
++            }
++        }
++    }
++}
+--- /dev/null
++++ b/ios/App/LogbookQAUITests/Info.plist
+@@ -0,0 +1,22 @@
++<?xml version="1.0" encoding="UTF-8"?>
++<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
++<plist version="1.0">
++<dict>
++	<key>CFBundleDevelopmentRegion</key>
++	<string>en</string>
++	<key>CFBundleExecutable</key>
++	<string>$(EXECUTABLE_NAME)</string>
++	<key>CFBundleIdentifier</key>
++	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
++	<key>CFBundleInfoDictionaryVersion</key>
++	<string>6.0</string>
++	<key>CFBundleName</key>
++	<string>$(PRODUCT_NAME)</string>
++	<key>CFBundlePackageType</key>
++	<string>BNDL</string>
++	<key>CFBundleShortVersionString</key>
++	<string>1.0</string>
++	<key>CFBundleVersion</key>
++	<string>61</string>
++</dict>
++</plist>
+--- /dev/null
++++ b/scripts/run-qa-uitest.sh
+@@ -0,0 +1,48 @@
++#!/bin/zsh
++# Build and run LogbookQAUITests on this Mac, Designed for iPad, QA bundle only.
++# Does not launch com.borikengenetics.logbookapp and does not pass -allowProvisioningUpdates
++# unless ALLOW_PROFILE_DOWNLOAD=1. Never set that if Xcode asks to register a device.
++set -euo pipefail
++cd "$(dirname "$0")/.."
++ROOT=$PWD
++REAL=com.borikengenetics.logbookapp
++QA=com.borikengenetics.logbookapp.qa
++APP_HINT="${QA_APP:-$ROOT/build/qa-derived/Build/Products/QA-iphoneos/App.app}"
++
++if [[ -f "$APP_HINT/Info.plist" ]]; then
++  ID=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP_HINT/Info.plist")
++  if [[ "$ID" != "$QA" ]]; then
++    echo "Refusing: $APP_HINT is $ID"
++    exit 4
++  fi
++  zsh "$ROOT/rig-guard.sh" "$APP_HINT" mac
++fi
++
++EXTRA=()
++if [[ "${ALLOW_PROFILE_DOWNLOAD:-}" == "1" ]]; then
++  echo "ALLOW_PROFILE_DOWNLOAD=1 adds -allowProvisioningUpdates."
++  echo "Stop immediately if Xcode asks to register a device. The Mac 00008142-00100936266B401C is already registered."
++  EXTRA+=(-allowProvisioningUpdates)
++fi
++
++rm -rf "$ROOT/build/qa-uitest.xcresult"
++xcodebuild test \
++  -project "$ROOT/ios/App/App.xcodeproj" \
++  -scheme App-QA \
++  -configuration QA \
++  -destination 'platform=macOS,variant=Designed for iPad' \
++  -derivedDataPath "$ROOT/build/qa-derived" \
++  -resultBundlePath "$ROOT/build/qa-uitest.xcresult" \
++  -only-testing:LogbookQAUITests \
++  CODE_SIGN_STYLE=Automatic \
++  DEVELOPMENT_TEAM=2Z94YL957X \
++  "${EXTRA[@]}"
++
++echo "xcresult: $ROOT/build/qa-uitest.xcresult"
++mkdir -p "$ROOT/build/qa-screenshots"
++if xcrun xcresulttool export attachments --path "$ROOT/build/qa-uitest.xcresult" --output-path "$ROOT/build/qa-screenshots"; then
++  echo "screenshots: $ROOT/build/qa-screenshots"
++else
++  echo "This Xcode has no attachment export helper. Open build/qa-uitest.xcresult for the screenshots."
++fi
++echo "Did not launch $REAL."
+--- /dev/null
++++ b/scripts/qa-uitest-harness.test.js
+@@ -0,0 +1,42 @@
++'use strict';
++
++const fs = require('fs');
++const path = require('path');
++
++const ROOT = process.env.HARNESS_ROOT || path.join(__dirname, '..');
++const FAIL = [];
++
++function check(name, ok, detail) {
++  if (ok) console.log('PASS', name);
++  else {
++    FAIL.push(name);
++    console.error('FAIL', name, detail || '');
++  }
++}
++
++const pbx = fs.readFileSync(path.join(ROOT, 'ios/App/App.xcodeproj/project.pbxproj'), 'utf8');
++const scheme = fs.readFileSync(path.join(ROOT, 'ios/App/App.xcodeproj/xcshareddata/xcschemes/App-QA.xcscheme'), 'utf8');
++const swift = fs.readFileSync(path.join(ROOT, 'ios/App/LogbookQAUITests/LogbookQAUITests.swift'), 'utf8');
++const runner = fs.readFileSync(path.join(ROOT, 'scripts/run-qa-uitest.sh'), 'utf8');
++
++check('runner bundle is the QA UI test id', pbx.includes('PRODUCT_BUNDLE_IDENTIFIER = com.borikengenetics.logbookapp.qa.uitests;'));
++check('QA app bundle stays com.borikengenetics.logbookapp.qa', pbx.includes('PRODUCT_BUNDLE_IDENTIFIER = com.borikengenetics.logbookapp.qa;'));
++check('production bundle remains on the app target', (pbx.match(/PRODUCT_BUNDLE_IDENTIFIER = com\.borikengenetics\.logbookapp;/g) || []).length >= 2);
++check('test host is the built App.app', pbx.includes('TEST_HOST = "$(BUILT_PRODUCTS_DIR)/App.app/App";'));
++check('team is 2Z94YL957X', pbx.includes('DEVELOPMENT_TEAM = 2Z94YL957X;'));
++check('UI test target has a QA configuration', pbx.includes('QAUITEST0000000000000C /* QA */'));
++check('scheme tests LogbookQAUITests with QA', scheme.includes('buildConfiguration = "QA"') && scheme.includes('BlueprintName = "LogbookQAUITests"'));
++check('runner destination is Designed for iPad', runner.includes("-destination 'platform=macOS,variant=Designed for iPad'"));
++check('runner scheme and configuration are QA', runner.includes('-scheme App-QA') && runner.includes('-configuration QA'));
++check('default command does not pass provisioning updates', !/xcodebuild[\s\S]*-allowProvisioningUpdates/.test(runner.replace(/ALLOW_PROFILE_DOWNLOAD[\s\S]*$/, '')));
++check('screenshots are keepAlways attachments', swift.includes('XCTAttachment') && swift.includes('.keepAlways'));
++check('production display name is refused', swift.includes('private let productionDisplay = "Borikèn Logbook"') && swift.includes('XCTAssertNotEqual(app.label, productionDisplay,'));
++check('production bundle is not launched', swift.includes('com.borikengenetics.logbookapp') && !swift.includes('XCUIApplication(bundleIdentifier: productionBundle).launch'));
++check('no webview script injection', !/evaluateJavaScript|WKUserScript/.test(swift));
++check('photo test cancels the picker instead of choosing a library photo', swift.includes('Don’t Allow') && swift.includes('No synthetic image was stored'));
++
++if (FAIL.length) {
++  console.error(FAIL.length + ' failed');
++  process.exit(1);
++}
++console.log('qa uitest harness checks passed');

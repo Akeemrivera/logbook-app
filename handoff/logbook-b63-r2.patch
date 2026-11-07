@@ -1,0 +1,2321 @@
+diff -ruN -U3 --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/app.js b62-app/app.js
+--- a/app.js	2026-11-07 02:47:28.000000000 +0000
++++ b/app.js	2026-11-07 14:57:32.804712392 +0000
+@@ -24,7 +24,7 @@
+ const DRAFT_STORAGE_KEY = 'boriken-genetics-logbook-drafts-v1';
+ const BACKUP_STORAGE_KEY = 'boriken-genetics-logbook-backups-v1';
+ const APP_VERSION = '1.0';
+-const APP_BUILD = '62'; // must equal CURRENT_PROJECT_VERSION in the Xcode project (scripts/build-www.js checks this)
++const APP_BUILD = '63'; // must equal CURRENT_PROJECT_VERSION in the Xcode project (scripts/build-www.js checks this)
+ const SCHEMA_VERSION = 2;
+ const MAX_SNAPSHOTS = 3; // keep only the latest few so history does not crowd live data in localStorage
+ const DAY_MS = 1000 * 60 * 60 * 24;
+@@ -1820,7 +1820,7 @@
+ }
+ 
+ function activeStrains() {
+-  return state.plants.filter((plant) => getPlantStatus(plant) === 'Active' && !plant.harvestDate);
++  return state.plants.filter((plant) => getPlantStatus(plant) === 'Active' && !plant.harvestDate && !(window.B63 && B63.explicitId && B63.explicitId(plant)));
+ }
+ 
+ function harvestedStrains() {
+@@ -1884,6 +1884,7 @@
+   const sort = $('#harvest-sort')?.value || 'recent';
+ 
+   const rows = harvestedStrains().filter((plant) => {
++    if (window.B63 && B63.explicitId && B63.explicitId(plant)) return false;
+     if (strain !== 'all' && plant.name !== strain) return false;
+     const roomValue = plant.areaOrRoom || plant.location || '';
+     if (room !== 'all' && roomValue !== room) return false;
+@@ -2031,7 +2032,7 @@
+     button.onclick = () => returnToActive(button.dataset.harvestReturn);
+   });
+   $$('[data-harvest-archive]').forEach((button) => {
+-    button.onclick = () => archivePlant(button.dataset.harvestArchive);
++    button.onclick = () => archivePlant(button.dataset.harvestArchive, { fromCard: true });
+   });
+ }
+ 
+@@ -3197,6 +3198,13 @@
+ // moves seed missing dates with today; backward/reopen moves preserve every
+ // recorded date so no history is lost.
+ function applyPlantStatus(plant, toStatus) {
++  if (!plant) return false;
++  if (toStatus === 'archived') {
++    const shown = typeof detailPlantId === 'function' ? detailPlantId() : '';
++    const cardOk = typeof archiveCardId === 'string' && archiveCardId && archiveCardId === plant.id;
++    if (cardOk) archiveCardId = '';
++    else if (window.B63 && typeof B63.allowArchive === 'function' && !B63.allowArchive(shown, plant.id)) return false;
++  }
+   const today = toInputDate(getToday());
+   plant.status = toStatus;
+   plant.completed = toStatus !== 'active';
+@@ -3255,7 +3263,7 @@
+     message,
+     acceptLabel,
+     action: () => {
+-      applyPlantStatus(plant, toStatus);
++      if (applyPlantStatus(plant, toStatus) === false) return;
+       // Preserve compliance history through the workflow: log the stage change
+       // plus a specific lifecycle event, keeping the patient/tag link intact.
+       const eventType = STATUS_TRANSITION_EVENTS[toStatus] || 'changed stage';
+@@ -3324,9 +3332,14 @@
+ }
+ 
+ // Manual archive for genetics retired from production.
+-function archivePlant(id) {
++let archiveCardId = '';
++function archivePlant(id, opts) {
+   const plant = state.plants.find((item) => item.id === id);
+   if (!plant || plant.status === 'archived') return;
++  const fromCard = !!(opts && opts.fromCard);
++  const shown = typeof detailPlantId === 'function' ? detailPlantId() : '';
++  archiveCardId = fromCard ? id : '';
++  if (!fromCard && window.B63 && typeof B63.allowArchive === 'function' && !B63.allowArchive(shown, id)) return;
+   transitionPlant(id, 'archived', {
+     title: `Archive ${plant.name}?`,
+     message: 'Removes this genetic from Active Strains and the Harvest Archive, and files it under Archived Genetics. Nothing is deleted — every date, note, photo, yield, and test result is preserved, and you can return it to Active anytime.',
+diff -ruN -U3 --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/build13.js b62-app/build13.js
+--- a/build13.js	2026-11-07 02:04:25.000000000 +0000
++++ b/build13.js	2026-11-07 14:55:15.156943191 +0000
+@@ -192,7 +192,7 @@
+ 
+ function mfSectionHtml() {
+   const all = mfList();
+-  const live = all.filter((m) => !m.archived);
++  const live = all.filter((m) => (window.B63 && typeof B63.showMother === 'function' ? B63.showMother(m) : (m && !m.archived && m.status !== 'Retired')));
+   const arch = all.filter((m) => m.archived);
+   const pill = (t, c = 'c') => `<span class="m-pill ${c}">${escapeHtml(t)}</span>`;
+   const card = (m) => `<div class="m-row" data-mf="open" data-id="${escapeHtml(m.id)}" role="button" tabindex="0">
+diff -ruN -U3 --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/build41.js b62-app/build41.js
+--- a/build41.js	2026-11-03 15:11:42.000000000 +0000
++++ b/build41.js	2026-11-07 14:55:14.424946691 +0000
+@@ -164,7 +164,7 @@
+   /* Mothers & Fathers: its own page, opened from one row on Breeding (approved v3 mothers-fathers/mf-page.js). */
+   let mfpOn = false; let mfpTab = 'm'; let mfpKeep = null; // Build 42: Mothers / Fathers tabs are real filters
+   const esc = (s) => escapeHtml(String(s == null ? '' : s));
+-  const list = () => (state.motherFatherPlants || []).filter((m) => !m.archived);
++  const list = () => (state.motherFatherPlants || []).filter((m) => (window.B63 && typeof B63.showMother === 'function' ? B63.showMother(m) : (m && !m.archived && m.status !== 'Retired')));
+   const tot = (a) => (a || []).reduce((n, e) => n + (Number(e.count) || 0), 0);
+   const row = (m) => `<div class="m-row mfp-row" data-mf="open" data-id="${esc(m.id)}" role="button" tabindex="0"><div class="m-ph mf-ph ${m.role === 'father' ? 'father' : 'mother'}">${m.role === 'father' ? '♂' : '♀'}</div><div class="m-grow"><div class="m-t">${esc(m.name)}</div><div class="m-s">${esc([m.status || 'Active', m.role === 'father' ? `${(m.pollen || []).length} pollen lots` : `${tot(m.cuttings)} cuttings`].join(' · '))}</div></div><span class="m-pill c">${m.role === 'father' ? 'Father' : 'Mother'}</span><i aria-hidden="true">›</i></div>`;
+   function entry() {
+diff -ruN -U3 --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/build42.js b62-app/build42.js
+--- a/build42.js	2026-11-03 15:11:43.000000000 +0000
++++ b/build42.js	2026-11-07 14:55:21.204915370 +0000
+@@ -143,7 +143,7 @@
+ 
+   /* ---- Mac list next to a mother / father profile: only that group, with the same tabs ---- */
+   function listHtml() {
+-    const m = mfById(detailMfId); const fa = isF(m); const L = mfAll().filter((x) => !x.archived);
++    const m = mfById(detailMfId); const fa = isF(m); const L = mfAll().filter((x) => (window.B63 && typeof B63.showMother === 'function' ? B63.showMother(x) : (x && !x.archived && x.status !== 'Retired')));
+     const M = L.filter((x) => !isF(x)), F = L.filter(isF); const show = fa ? F : M;
+     return `<div class="mfx-list"><div class="b18-seg mfp-seg" role="tablist"><button type="button" class="${fa ? '' : 'on'}" role="tab" aria-selected="${!fa}" data-b42="tab" data-t="m">Mothers · ${M.length}</button><button type="button" class="${fa ? 'on' : ''}" role="tab" aria-selected="${fa}" data-b42="tab" data-t="f">Fathers · ${F.length}</button></div>
+       <div class="m-card">${show.map((x) => `<button type="button" class="w-li mfx-li${x.id === detailMfId ? ' on' : ''}" data-mf="open" data-id="${esc(x.id)}"${x.id === detailMfId ? ' aria-current="true"' : ''}><span class="m-ph mf-ph ${isF(x) ? 'father' : 'mother'}" aria-hidden="true">${isF(x) ? '♂' : '♀'}</span><span class="w-li-t"><b>${esc(x.name)}</b><small>${esc(isF(x) ? `${(x.pollen || []).length} pollen lots` : `${tot(x.cuttings)} cuttings`)}</small></span></button>`).join('')}</div></div>`;
+@@ -157,7 +157,7 @@
+       e.preventDefault(); e.stopPropagation();
+       if (a === 'back') { const m = mfById(detailMfId); if (m) B41.mfpTab(isF(m) ? 'f' : 'm'); switchView('breeding'); renderAll(); B41.mfpOpen(); }
+       else if (a === 'plant') openPlantDetail(b42.dataset.id, 'plants');
+-      else if (a === 'tab') { B41.mfpTab(b42.dataset.t); const L = mfAll().filter((x) => !x.archived && (b42.dataset.t === 'f') === isF(x)); if (L.length) openPlantDetail(L[0].id, 'mf'); else { switchView('breeding'); renderAll(); B41.mfpOpen(); } }
++      else if (a === 'tab') { B41.mfpTab(b42.dataset.t); const L = mfAll().filter((x) => (window.B63 && typeof B63.showMother === 'function' ? B63.showMother(x) : (x && !x.archived && x.status !== 'Retired')) && (b42.dataset.t === 'f') === isF(x)); if (L.length) openPlantDetail(L[0].id, 'mf'); else { switchView('breeding'); renderAll(); B41.mfpOpen(); } }
+       return;
+     }
+     const el = e.target.closest('[data-mf]'); if (!el || el.closest('#breeding-mobile')) return; // build13 handles its own box
+diff -ruN -U3 --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/build49.js b62-app/build49.js
+--- a/build49.js	2026-11-03 15:11:43.000000000 +0000
++++ b/build49.js	2026-11-07 14:54:58.085032367 +0000
+@@ -88,10 +88,30 @@
+   }
+   const gcls = (g) => (g === 'F1' ? 'F1' : /^F/.test(g) ? 'F2' : g === 'S1' ? 'S1' : /^BX/.test(g) ? 'BX' : 'P');
+   const badge = (key) => { const g = gen(key); return `<span class="b49-gen g-${gcls(g)}" aria-label="Generation ${g}">${g}</span>`; };
++  function nodeId(k) { const s = String(k || ''); const i = s.indexOf(':'); return i < 0 ? '' : s.slice(i + 1); }
++  function sameNode(a, b) {
++    if (!a || !b) return false;
++    if (a === b) return true;
++    return String(a).split(':')[0] === String(b).split(':')[0] && nodeId(a) !== '' && nodeId(a) === nodeId(b);
++  }
++  function hiddenNode(k) { return !!(window.B63 && typeof B63.explicitKey === 'function' && B63.explicitKey(k)); }
+   function children(key) {
+-    const out = []; const add = (k) => { const p = par(k); if (p && p.some((x) => same(x, key)) && !out.some((o) => low(nameOf(o)) === low(nameOf(k)))) out.push(k); };
++    const out = [];
++    const add = (k) => {
++      if (!k || sameNode(k, key) || hiddenNode(k) || out.some((o) => sameNode(o, k))) return;
++      const p = par(k);
++      if (p && p.some((x) => sameNode(x, key))) out.push(k);
++    };
+     coll.pr().filter((p) => p.status !== 'Archived').forEach((p) => add(`pr:${p.id}`));
+     coll.pl().filter((p) => p.status !== 'archived').forEach((p) => add(`pl:${p.id}`)); coll.bp().forEach((p) => add(`bp:${p.id}`)); coll.mf().filter((m) => !m.archived).forEach((m) => add(`mf:${m.id}`));
++    /* An id stored on the project is a kid even when the name resolver did not return that parent. Names are not links. */
++    const id = nodeId(key);
++    if (id) coll.pr().filter((p) => p.status !== 'Archived').forEach((p) => {
++      const k = `pr:${p.id}`;
++      if (sameNode(k, key) || hiddenNode(k) || out.some((o) => sameNode(o, k))) return;
++      const refs = [p.motherId, p.fatherId, nodeId(p.b49Mother), nodeId(p.b49Father)];
++      if (refs.some((x) => x && x === id)) out.push(k);
++    });
+     return dedupeKids(out);
+   }
+   /* b59: a cross (pr) and the plant grown from it are one kid, not two. Same plant = linked by id (b49ProjectId / projFor)
+diff -ruN -U3 --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/build57.js b62-app/build57.js
+--- a/build57.js	2026-11-03 15:11:43.000000000 +0000
++++ b/build57.js	2026-11-07 14:55:02.725006539 +0000
+@@ -25,7 +25,13 @@
+   const COLL = { pl: () => state.plants || [], bp: () => state.breedingPlants || [], mf: () => state.motherFatherPlants || [], pr: () => state.breedingProjects || [] };
+   function rec(key) { const [t, ...r] = String(key || '').split(':'); const a = COLL[t]; return a ? a().find((x) => x.id === r.join(':')) || null : null; }
+   const name = (k) => B49.nameOf(k) || (/^(tx|dx):/.test(String(k)) ? String(k).slice(3) : '');
+-  const same = (a, b) => a === b || (!!a && !!b && low(name(a)) !== '' && low(name(a)) === low(name(b)));
++  const same = (a, b) => {
++    if (!a || !b) return false;
++    if (a === b) return true;
++    const as = String(a), bs = String(b);
++    const ai = as.split(':').slice(1).join(':'), bi = bs.split(':').slice(1).join(':');
++    return as.split(':')[0] === bs.split(':')[0] && !!ai && ai === bi;
++  };
+   function styleOf(key) { const r = rec(key); if (r && !ok(r.treeStyle)) { r.treeStyle = 1 + rnd(N); try { saveState(); } catch (e) { /* */ } } return r ? Number(r.treeStyle) : 1 + (low(name(key)).split('').reduce((s, c) => s + c.charCodeAt(0), 0) % N); }
+   function photo(key, d = 0) {
+     const r = rec(key); if (!r || d > 3) return '';
+@@ -69,7 +75,7 @@
+     for (let g = 1; g <= 40; g++) {
+       const row = []; lv[g - 1].forEach((x) => { if (!x.k || x.ref || x.self || isUnk(x.k)) return; const p = par2(x.k); if (!p) return;
+         const s1 = p[0] && p[1] && same(p[0], p[1]);
+-        p.forEach((k, i) => { if (s1 && i === 1) { row.push({ k: '', self: 1, via: x.k, side: 'f', role: `Self-pollinated (S1) · same as ${nm2(p[0])}` }); return; }
++        p.forEach((k, i) => { if (k && window.B63 && B63.explicitKey && B63.explicitKey(k)) return; if (s1 && i === 1) { row.push({ k: '', self: 1, via: x.k, side: 'f', role: `Self-pollinated (S1) · same as ${nm2(p[0])}` }); return; }
+           if (!k) { row.push({ k: '', none: 1, via: x.k, side: i ? 'f' : 'm', role: `${rl(g, i)} · not recorded` }); return; }
+           if (!isUnk(k) && seen.some((q) => same(q, k))) { if (!row.some((y) => y.ref && same(y.k, k))) row.push({ k, ref: 1, via: x.k, side: i ? 'f' : 'm', role: `${rl(g, i)} · appears again (backcross)` }); return; }
+           if (!isUnk(k)) seen.push(k); row.push({ k, via: x.k, side: i ? 'f' : 'm', role: rl(g, i) }); }); });
+@@ -145,7 +151,7 @@
+   /* ---------- b59 partner row: this plant × the plant it was bred with, bracket down to its Kids ---------- */
+   function partners(k, ks) {
+     const G = []; ks.forEach((x) => { if (!x.k) return; const p = par2(x.k) || []; const i = same(p[0], k) ? 0 : same(p[1], k) ? 1 : -1; if (i < 0) return;
+-      const o = (i === 0 ? p[1] : p[0]) || ''; const self = !!o && same(o, k); const key = isUnk(o) ? '?' : o; let g = G.find((y) => (key === '?' ? y.key === '?' : y.key !== '?' && same(y.key, key)));
++      const o = (i === 0 ? p[1] : p[0]) || ''; if (o && !isUnk(o) && window.B63 && B63.explicitKey && B63.explicitKey(o)) return; const self = !!o && same(o, k); const key = isUnk(o) ? '?' : o; let g = G.find((y) => (key === '?' ? y.key === '?' : y.key !== '?' && same(y.key, key)));
+       if (!g) { g = { key, self, side: i === 0 ? 'Father' : 'Mother', kids: [] }; G.push(g); } g.kids.push(x); });
+     return G;
+   }
+@@ -156,7 +162,7 @@
+     if (g.key === '?') return `<div class="b59-pc pt" data-partner="?" data-node="?"><span class="b57-ph mono big" aria-hidden="true">?</span></div>`;
+     return `<button type="button" class="b59-pc pt" data-b57="sel" data-node="${esc(g.key)}" data-k="${esc(g.key)}" data-partner="${esc(g.key)}" aria-label="${esc(name(g.key))}, bred with this plant">${ph(g.key, 1)}</button>`;
+   }
+-  const pLab = (g) => `<div class="b59-plab"><b>${esc(g.self ? 'Itself' : g.key === '?' ? 'Unknown' : name(g.key))}</b><small>${g.self ? 'Self-pollinated · S1' : `Bred with · ${g.side}`}</small></div>`;
++  const pLab = (g) => `<div class="b59-plab"><b>${esc(g.self ? 'Itself' : g.key === '?' ? 'Unknown' : name(g.key))}</b><small>${g.self ? 'Self-pollinated · S1' : `Also crossed with · ${g.side}`}</small></div>`;
+   function fam(k, ks, o = {}) {
+     const G = partners(k, ks); const rest = ks.filter((x) => !G.some((g) => g.kids.includes(x)));
+     const ban = `<div class="b57-ban"><b>${esc(name(k))}${gen(k) ? ` · ${esc(gen(k))}` : ''}</b><small>${esc(crossTxt(k))}</small></div>`;
+@@ -240,7 +246,7 @@
+     const trail = (pg.trail || []).length ? `<div class="b57-trail">${pg.trail.map((t) => `<button type="button" data-b57="walkto" data-k="${esc(t)}">${esc(name(t))}</button>`).join('<span>›</span>')}<span>›</span><b>${esc(name(k))}</b></div>` : '';
+     return `<div class="b57${pg.edit ? ' b58-editing' : ''}" data-b57s="${sn}" data-b57k="${st.k}" data-b57lay="${st.lay}" data-depth="${depth}">${head}<h2 class="b18-h1">Family tree</h2><p class="b57-subt">${esc(subT)}</p>
+ <div class="b57-tools"><span class="m-s">${depth ? `${depth} generation${depth > 1 ? 's' : ''} recorded` : (stat(k).t === 'bought' ? stat(k).l : 'No parents recorded')}</span><button type="button" class="b58-edit${pg.edit ? ' on' : ''}" data-b58="edit" aria-pressed="${pg.edit ? 'true' : 'false'}">${pg.edit ? 'Done' : 'Edit'}</button><span class="b57-z"><button type="button" data-b57="z-" aria-label="Zoom out">−</button><button type="button" data-b57="z0" aria-label="Reset zoom">Zoom</button><button type="button" data-b57="z+" aria-label="Zoom in">+</button></span></div>${trail}
+-${pg.edit ? '<div class="b58-banner" role="status">Edit mode · tap any plant to change, add, relink or remove it. Hand edits are kept and never overwritten automatically.</div>' : ''}<div class="b57-scroll"><div class="b57-canvas" style="zoom:${pg.zoom || 1}">${body}${depth > 2 ? `<div class="b57-older">${lab('Older generations · scroll sideways, tap a plant to open it, long-press to walk up')}${older(lv, 3)}</div>` : ''}</div></div>${sel}
++${pg.edit ? '<div class="b58-banner" role="status">Edit mode · tap any plant to change, add, relink or remove it. Hand edits are kept and never overwritten automatically.</div>' : ''}<div class="b57-scroll"><div class="b57-canvas" style="zoom:${pg.zoom || 1}">${body}${depth > 2 ? `<div class="b57-older">${lab('Older generations · tap a plant to open it, long-press to walk up')}${older(lv, 3)}</div>` : ''}</div></div>${sel}
+ <p class="m-s b57-note">Tap any plant to open its profile; long-press it to walk up its line. ${p && !k.startsWith('pr:') ? esc(B49.why(k)) + '.' : ''}</p></div>`;
+   }
+   const _page = b18BrPageHtml;
+@@ -266,7 +272,7 @@
+     const out = [];
+     (state.breedingProjects || []).filter((p) => p.status !== 'Archived').forEach((p) => out.push({ k: `pr:${p.id}`, kind: 'Breeding project', r: p }));
+     [['pl', state.plants], ['bp', state.breedingPlants]].forEach(([t, a]) => (a || []).forEach((x) => { if (plantsRunning(x) > 1 && !(typeof isClonePlant === 'function' && isClonePlant(x)) && !/archiv/i.test(String(x.status || ''))) out.push({ k: `${t}:${x.id}`, kind: `Seed run · ${plantsRunning(x)} plants`, r: x }); }));
+-    return out;
++    return out.filter((x) => !(window.B63 && B63.explicitId && B63.explicitId(x.r)));
+   }
+   function linHtml() {
+     const L = lineageList();
+diff -ruN -U3 --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/build60.js b62-app/build60.js
+--- a/build60.js	2026-11-03 15:11:42.000000000 +0000
++++ b/build60.js	2026-11-07 14:55:10.144967716 +0000
+@@ -12,7 +12,16 @@
+   const COUNTRY = [[/afghan/i, 'Afghanistan'], [/\bthai/i, 'Thailand'], [/colombi/i, 'Colombia'], [/mexic/i, 'Mexico'], [/jamaic/i, 'Jamaica'], [/nepal/i, 'Nepal'], [/pakistan/i, 'Pakistan'], [/hindu ?kush/i, 'Afghanistan / Pakistan'], [/malawi/i, 'Malawi'], [/durban|south africa/i, 'South Africa'], [/lebanes/i, 'Lebanon'], [/morocc/i, 'Morocco'], [/puerto ?ric|borinquen|boric?u?a/i, 'Puerto Rico']];
+   const gen = (k) => { try { return B49.gen(k); } catch (e) { return ''; } };
+   const real = (k) => !!k && !B.isUnk(k) && !!B.rec(k);
+-  function isLand(k) { const r = B.rec(k); if (!r) return false; return !!(r.landrace || r.originRegion || r.originCountry || /land ?race/i.test(B.name(k))) && !B.par2(k); }
++  function shownOrigin(k) {
++    const r = B.rec(k) || {};
++    const over = window.B63 && typeof B63.originView === 'function' ? B63.originView(r) : null;
++    return {
++      originRegion: (over && over.originRegion) || r.originRegion || '',
++      originCountry: (over && over.originCountry) || r.originCountry || '',
++      landrace: over ? !!over.landrace : !!(r.landrace || r.originRegion || r.originCountry),
++    };
++  }
++  function isLand(k) { const r = B.rec(k); if (!r) return false; const o = shownOrigin(k); return !!(o.landrace || o.originRegion || o.originCountry) && !B.par2(k); }
+   function country(k) { const r = B.rec(k) || {}; if (r.originCountry) return { c: r.originCountry, inferred: false }; const n = B.name(k); const m = COUNTRY.find(([re]) => re.test(n)); return m ? { c: m[1], inferred: true } : { c: '', inferred: false }; }
+   const RL = (g) => (g === 1 ? 'Parents' : g === 2 ? 'Grandparents' : g === 3 ? 'Great-grandparents' : `${g - 2}× great-grandparents${g >= 6 ? ' · F6+ back' : ''}`);
+   /* line(root) -> rows[g] (g = 1 parents ...), each a list of cells */
+@@ -20,7 +29,8 @@
+     const rows = []; const seen = new Set([root]); let cur = [{ k: root, t: 'plant' }];
+     for (let g = 1; g <= MAX && cur.length; g++) {
+       const next = [];
+-      cur.forEach((x) => { if (x.t !== 'plant' || !real(x.k)) return;
++      cur.forEach((x) => { if (x.t !== 'plant') return;
++        if (!real(x.k)) { next.push({ t: 'none', of: x.k }); return; }
+         if (isLand(x.k)) { next.push({ t: 'origin', k: x.k }); return; }
+         const p = B.par2(x.k); if (!p || (!p[0] && !p[1])) { next.push({ t: 'none', of: x.k }); return; }
+         p.forEach((q, i) => { const side = i ? 'f' : 'm';
+@@ -36,15 +46,20 @@
+     if (x.t === 'none' || x.t === 'none1') return `<button type="button" class="b60-c slot" data-b58="add" data-b60t="none" data-up="${esc(x.of)}" data-of="${esc(x.of)}" data-side="${x.side || 'm'}"><b>Not recorded</b><small>${x.t === 'none' ? `Parents of ${esc(B.name(x.of))}` : `${SIDE[x.side]} of ${esc(B.name(x.of))}`}</small></button>`;
+     if (x.t === 'wild') return `<button type="button" class="b60-c slot wild" data-b58="add" data-b60t="wild" data-up="origin:${esc(x.of)}" data-of="${esc(x.of)}" data-side="m"><b>Wild ancestors</b><small>Not traceable · landrace</small></button>`;
+     if (x.t === 'unk') return `<button type="button" class="b60-c slot" data-b58="add" data-b60t="unk" data-up="${esc(x.of)}" data-of="${esc(x.of)}" data-side="${x.side}"><b>Unknown</b><small>${SIDE[x.side]} of ${esc(B.name(x.of))} · open pollination</small></button>`;
+-    if (x.t === 'origin') { const c = country(x.k); const r = B.rec(x.k) || {}; const ini = (c.c || 'LR').replace(/[^A-Za-z ]/g, '').slice(0, 2).toUpperCase();
+-      return `<button type="button" class="b60-c origin" data-b60="open" data-b60t="origin" data-node="origin:${esc(x.k)}" data-up="${esc(x.k)}" data-k="${esc(x.k)}" aria-label="Origin of ${esc(B.name(x.k))}, open profile"><span class="b57-ph mono" aria-hidden="true">${esc(ini)}</span><b>Landrace${c.c ? ` · ${esc(c.c)}` : ''}</b><small>${esc(r.originRegion || 'Region not recorded')}</small><em class="b57-tag bought">Origin</em></button>`; }
++    if (x.t === 'origin') { const c = country(x.k); const o = shownOrigin(x.k); const ini = (c.c || o.originCountry || 'LR').replace(/[^A-Za-z ]/g, '').slice(0, 2).toUpperCase();
++      return `<button type="button" class="b60-c origin" data-b60="open" data-b60t="origin" data-node="origin:${esc(x.k)}" data-up="${esc(x.k)}" data-k="${esc(x.k)}" aria-label="Origin of ${esc(B.name(x.k))}, open profile"><span class="b57-ph mono" aria-hidden="true">${esc(ini)}</span><b>Landrace${(o.originCountry || c.c) ? ` · ${esc(o.originCountry || c.c)}` : ''}</b><small>${esc(o.originRegion || 'Region not recorded')}</small><em class="b57-tag bought">Origin</em></button>`; }
+     const st = B.stat(x.k); const tag = st.t === 'bought' ? `<em class="b57-tag bought">${esc(window.B58 && B58.boughtBadge ? B58.boughtBadge(st.br) : 'Bought')}</em>` : st.t === 'culled' ? '<em class="b57-tag cull">Culled</em>' : st.t === 'removed' ? '<em class="b57-tag gone">Deleted plant</em>' : x.t === 'ref' ? '<em class="b57-tag ref">↺ also above</em>' : '';
+     return `<button type="button" class="b60-c" data-b57="sel" data-b60t="plant" data-node="${esc(x.k)}" data-up="${esc(x.of)}" data-k="${esc(x.k)}" data-of="${esc(x.of)}" data-side="${x.side}">${B.ph(x.k)}<b>${esc(B.name(x.k))}</b><small>${SIDE[x.side]}${gen(x.k) ? ' · ' + esc(gen(x.k)) : ''}</small>${tag}</button>`;
+   }
+   function rows(k, g, up) {
+     if (!g || g.self) return '';
+-    const L = line(k); const R = g.key === '?' ? [[{ t: 'unk', of: k, side: g.side === 'Father' ? 'f' : 'm' }]] : line(g.key); const n = Math.max(L.length, R.length); if (!n) return '';
+-    const meLine = g.side === 'Father' ? "Mother's line" : "Father's line"; const ptLine = g.side === 'Father' ? "Father's line" : "Mother's line";
++    const parents = String(k).startsWith('pr:') ? B.par2(k) : null;
++    const splitParents = !!(parents && (parents[0] || parents[1]));
++    const L = splitParents ? (parents[0] ? line(parents[0]) : []) : line(k);
++    const R = splitParents ? (parents[1] ? line(parents[1]) : []) : (g.key === '?' ? [[{ t: 'unk', of: k, side: g.side === 'Father' ? 'f' : 'm' }]] : line(g.key));
++    const n = Math.max(L.length, R.length); if (!n) return '';
++    const meLine = splitParents ? "Mother's line" : (g.side === 'Father' ? "Mother's line" : "Father's line");
++    const ptLine = splitParents ? "Father's line" : (g.side === 'Father' ? "Father's line" : "Mother's line");
+     const order = [...Array(n).keys()].map((i) => i + 1); if (!up) order.reverse();
+     const col = (rw, sd) => `<div class="b60-col ${sd}">${(rw || []).map(cell).join('') || '<span class="b60-gap" aria-hidden="true"></span>'}</div>`;
+     const body = order.map((gi) => `<div class="b60-gen" data-gen="${gi}"><div class="b57-lab">${esc(RL(gi))}</div><div class="b60-cols">${col(L[gi - 1], 'l')}${col(R[gi - 1], 'r')}</div></div>`).join('');
+diff -ruN -U3 --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/build63.css b62-app/build63.css
+--- a/build63.css	1970-01-01 00:00:00.000000000 +0000
++++ b/build63.css	2026-11-07 15:15:10.202496324 +0000
+@@ -0,0 +1,86 @@
++/* Build 63. Narrow layouts reflow. They do not add a horizontal scroll port. */
++#compliance-panel-inspection .table-wrap {
++  overflow: visible;
++  max-width: 100%;
++}
++#compliance-panel-inspection table.compliance-table {
++  min-width: 0;
++  width: 100%;
++  table-layout: fixed;
++}
++#compliance-panel-inspection .compliance-table th,
++#compliance-panel-inspection .compliance-table td {
++  overflow-wrap: normal;
++  word-break: normal;
++  hyphens: manual;
++  white-space: normal;
++  overflow: visible;
++  text-overflow: clip;
++  vertical-align: top;
++}
++@media (max-width: 720px) {
++  #compliance-panel-inspection table.compliance-table,
++  #compliance-panel-inspection .compliance-table tbody,
++  #compliance-panel-inspection .compliance-table tr,
++  #compliance-panel-inspection .compliance-table td {
++    display: block;
++    width: 100%;
++  }
++  #compliance-panel-inspection .compliance-table thead {
++    position: absolute;
++    width: 1px;
++    height: 1px;
++    overflow: hidden;
++    clip: rect(0, 0, 0, 0);
++  }
++  #compliance-panel-inspection .compliance-table td {
++    display: grid;
++    grid-template-columns: minmax(0, 7.5rem) minmax(0, 1fr);
++    gap: 0.35rem;
++  }
++  #compliance-panel-inspection .compliance-table td:nth-child(1)::before { content: "Plant code"; }
++  #compliance-panel-inspection .compliance-table td:nth-child(2)::before { content: "Patient alias"; }
++  #compliance-panel-inspection .compliance-table td:nth-child(3)::before { content: "Cert ID"; }
++  #compliance-panel-inspection .compliance-table td:nth-child(4)::before { content: "Cultivar"; }
++  #compliance-panel-inspection .compliance-table td:nth-child(5)::before { content: "Stage"; }
++  #compliance-panel-inspection .compliance-table td:nth-child(6)::before { content: "Area"; }
++  #compliance-panel-inspection .compliance-table td:nth-child(7)::before { content: "Tag status"; }
++  #compliance-panel-inspection .compliance-table td:nth-child(8)::before { content: "Last updated"; }
++}
++.b57 {
++  margin-left: 0;
++  margin-right: 0;
++  width: auto;
++  max-width: 100%;
++  box-sizing: border-box;
++}
++.b57-scroll, .b57-row.scroll, .b59-kids, .b60-col {
++  overflow: visible;
++  max-width: 100%;
++  touch-action: pan-y;
++  scroll-snap-type: none;
++}
++.b57-row, .b59-kids, .b60-col { flex-wrap: wrap; max-width: 100%; }
++.b57-n, .b60-col > .b60-c { flex: 1 1 8rem; width: auto; max-width: 100%; min-width: 0; }
++.b57-n b, .b57-n small {
++  white-space: normal;
++  overflow-wrap: break-word;
++  word-break: normal;
++  hyphens: manual;
++  max-width: 100%;
++}
++.b60-full { max-width: 100%; }
++.b60-c { flex: 1 1 100%; min-width: 0; max-width: 100%; }
++.b57 .b18-h1, .b57-subt, .b57-tools { max-width: 100%; overflow-wrap: break-word; word-break: normal; }
++@media (max-width: 720px) {
++  .b60-cols { gap: 8px; }
++  .b60-c { min-height: 72px; }
++  .b57-n { flex: 1 1 calc(50% - 8px); }
++}
++.w-side, nav.w-side, .mfx-list, .w-list { min-width: 0; max-width: 100%; overflow: visible; }
++.w-side .w-l, .w-side .w-foot, .w-side .w-n, .w-side .w-li-t, .w-side .w-li-t b, .mfx-list .w-li-t b {
++  min-width: 0;
++  overflow-wrap: break-word;
++  word-break: normal;
++  white-space: normal;
++}
+diff -ruN -U3 --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/build63.js b62-app/build63.js
+--- a/build63.js	1970-01-01 00:00:00.000000000 +0000
++++ b/build63.js	2026-11-07 14:59:40.753044058 +0000
+@@ -0,0 +1,164 @@
++/* Build 63. View projections only. Nothing here writes state, merges records, or deletes history.
++   Hidden ids start empty. A record is hidden only when its id is passed to configure.
++   Names, sample flags, and descendant links are not used. */
++(function () {
++  'use strict';
++  const hiddenIds = new Set();
++  let originById = {};
++  function configure(opts) {
++    hiddenIds.clear();
++    originById = {};
++    const ids = opts && Array.isArray(opts.hideIds) ? opts.hideIds : [];
++    ids.forEach((id) => { if (typeof id === 'string' && id) hiddenIds.add(id); });
++    const map = opts && opts.originById && typeof opts.originById === 'object' ? opts.originById : {};
++    Object.keys(map).forEach((id) => {
++      const row = map[id];
++      if (typeof id !== 'string' || !id || !row || typeof row !== 'object') return;
++      originById[id] = {
++        originRegion: typeof row.originRegion === 'string' ? row.originRegion : '',
++        originCountry: typeof row.originCountry === 'string' ? row.originCountry : '',
++        landrace: !!row.landrace || (typeof row.originRegion === 'string' && !!row.originRegion),
++      };
++    });
++    return { hideIds: [...hiddenIds], originIds: Object.keys(originById) };
++  }
++  function readLocalConfig() {
++    try {
++      if (typeof localStorage === 'undefined') return;
++      const raw = localStorage.getItem('boriken-b63-view');
++      if (!raw) return;
++      const opts = JSON.parse(raw);
++      if (!opts || typeof opts !== 'object' || Array.isArray(opts)) return;
++      configure({ hideIds: opts.hideIds, originById: opts.originById });
++    } catch (e) { /* absent or unreadable config leaves the view unchanged */ }
++  }
++  function originView(record) {
++    const extra = record && record.id ? originById[record.id] : null;
++    return {
++      originRegion: (extra && extra.originRegion) || (record && record.originRegion) || '',
++      originCountry: (extra && extra.originCountry) || (record && record.originCountry) || '',
++      landrace: !!(record && record.landrace) || !!(extra && extra.landrace),
++    };
++  }
++  function showMother(m) {
++    return !!(m && !m.archived && m.status !== 'Retired' && !explicitId(m));
++  }
++  function retiredMf(r) {
++    return !!(r && (r.status === 'Retired' || r.archived));
++  }
++  function explicitId(r) {
++    return !!(r && r.id && hiddenIds.has(r.id));
++  }
++  function explicitKey(k) {
++    if (!k || k === '?') return false;
++    const text = String(k);
++    if (hiddenIds.has(text)) return true;
++    const id = text.split(':').slice(1).join(':');
++    return !!(id && hiddenIds.has(id));
++  }
++  function projectActiveMothers(list) {
++    return (list || []).filter((r) => r && !retiredMf(r) && !explicitId(r));
++  }
++  function projectVisible(list) {
++    return (list || []).filter((r) => r && !explicitId(r));
++  }
++  function sameRecord(a, b) {
++    if (!a || !b) return false;
++    if (a === b) return true;
++    const as = String(a); const bs = String(b);
++    const ai = as.split(':').slice(1).join(':');
++    const bi = bs.split(':').slice(1).join(':');
++    return as.split(':')[0] === bs.split(':')[0] && ai && ai === bi;
++  }
++  function keepChild(parentKey, childKey) {
++    if (!childKey || childKey === parentKey || sameRecord(parentKey, childKey)) return false;
++    if (explicitKey(childKey)) return false;
++    return true;
++  }
++  function allowArchive(shownId, requestedId) {
++    if (!requestedId) return false;
++    if (shownId && shownId !== requestedId) return false;
++    return true;
++  }
++  function pendingMetadata() {
++    return [
++      'Sample record stable id, and any verified sample-only link ids. hideIds is empty, so nothing is hidden.',
++      'Duplicate parent record ids and the grow-plant ids for the missing crosses. No merge and no partner rewrite.',
++      'The one parent record id for the origin text. No name-matched write.',
++      'The retired mother id from the reported count. Every Retired mother or father leaves active lists. That count is not verified here.',
++      'The grow-plant id and the archive event. No date or status rewrite.',
++    ];
++  }
++  function projectMotherDom(doc) {
++    if (!doc || typeof doc.querySelectorAll !== 'function') return;
++    doc.querySelectorAll('#mfp-mc [data-id], #mfp-fc [data-id], #mfp-entry [data-id], .mfx-list [data-id]').forEach((el) => {
++      if (el.closest && el.closest('.b57, .b59-fam')) return;
++      const id = el.getAttribute('data-id');
++      const status = el.querySelector ? (el.querySelector('.m-s') || {}).textContent || '' : '';
++      if (hiddenIds.has(id) || /^Retired\b/.test(String(status).trim())) el.remove();
++    });
++    const setCount = (sel, tab, label) => {
++      const n = doc.querySelectorAll(sel).length;
++      doc.querySelectorAll('[data-mfp="tab"][data-t="' + tab + '"]').forEach((b) => { b.textContent = label + n; });
++    };
++    setCount('#mfp-mc .mfp-row', 'm', 'Mothers · ');
++    setCount('#mfp-fc .mfp-row', 'f', 'Fathers · ');
++  }
++  function install() {
++    if (window.B49 && typeof B49.children === 'function' && !B49.children.b63) {
++      const orig = B49.children;
++      const wrapped = function (key) { return orig.apply(this, arguments).filter((k) => keepChild(key, k)); };
++      wrapped.b63 = true;
++      B49.children = wrapped;
++    }
++    if (window.B57 && typeof B57.partners === 'function' && !B57.partners.b63) {
++      const orig = B57.partners;
++      const wrapped = function () {
++        return orig.apply(this, arguments).filter((g) => !g || !g.key || g.key === '?' || !explicitKey(g.key));
++      };
++      wrapped.b63 = true;
++      B57.partners = wrapped;
++    }
++    if (window.B57 && typeof B57.lineageList === 'function' && !B57.lineageList.b63) {
++      const orig = B57.lineageList;
++      const wrapped = function () { return orig.apply(this, arguments).filter((x) => x && !explicitId(x.r)); };
++      wrapped.b63 = true;
++      B57.lineageList = wrapped;
++    }
++    if (window.B41 && typeof B41.mfpOpen === 'function' && !B41.mfpOpen.b63) {
++      const orig = B41.mfpOpen;
++      const wrapped = function () {
++        const result = orig.apply(this, arguments);
++        projectMotherDom(typeof document !== 'undefined' ? document : null);
++        return result;
++      };
++      wrapped.b63 = true;
++      B41.mfpOpen = wrapped;
++    }
++    ['activeStrains', 'sortedActiveStrains'].forEach((name) => {
++      const orig = window[name];
++      if (typeof orig !== 'function' || orig.b63) return;
++      const wrapped = function () { return projectVisible(orig.apply(this, arguments)); };
++      wrapped.b63 = true;
++      window[name] = wrapped;
++    });
++    if (typeof window.archivePlant === 'function' && !window.archivePlant.b63) {
++      const orig = window.archivePlant;
++      const wrapped = function (id, opts) {
++        const shown = typeof detailPlantId === 'function' ? detailPlantId() : '';
++        const fromCard = !!(opts && opts.fromCard);
++        if (!fromCard && !allowArchive(shown, id)) return;
++        return orig.apply(this, arguments);
++      };
++      wrapped.b63 = true;
++      window.archivePlant = wrapped;
++    }
++  }
++  window.B63 = {
++    configure, readLocalConfig, originView, showMother, retiredMf, explicitId, explicitKey, projectActiveMothers, projectVisible,
++    sameRecord, keepChild, allowArchive, pendingMetadata, projectMotherDom, install,
++    hiddenIds: () => [...hiddenIds],
++  };
++  install();
++  readLocalConfig();
++})();
+diff -ruN -U3 --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/index.html b62-app/index.html
+--- a/index.html	2026-11-03 15:11:42.000000000 +0000
++++ b/index.html	2026-11-07 14:43:16.502706148 +0000
+@@ -60,6 +60,7 @@
+     <link rel="stylesheet" href="build58.css" />
+     <link rel="stylesheet" href="build59.css" />
+     <link rel="stylesheet" href="build60.css" />
++    <link rel="stylesheet" href="build63.css" />
+   </head>
+   <body>
+     <a class="skip-link" href="#main">Skip to tracker</a>
+@@ -1376,5 +1377,6 @@
+     <script src="build58.js" defer></script>
+     <script src="build59.js" defer></script>
+     <script src="build60.js" defer></script>
++    <script src="build63.js" defer></script>
+   </body>
+ </html>
+diff -ruN -U3 --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/ios/App/App/public/app.js b62-app/ios/App/App/public/app.js
+--- a/ios/App/App/public/app.js	2026-11-07 02:47:38.000000000 +0000
++++ b/ios/App/App/public/app.js	2026-11-07 15:15:46.766330696 +0000
+@@ -24,7 +24,7 @@
+ const DRAFT_STORAGE_KEY = 'boriken-genetics-logbook-drafts-v1';
+ const BACKUP_STORAGE_KEY = 'boriken-genetics-logbook-backups-v1';
+ const APP_VERSION = '1.0';
+-const APP_BUILD = '62'; // must equal CURRENT_PROJECT_VERSION in the Xcode project (scripts/build-www.js checks this)
++const APP_BUILD = '63'; // must equal CURRENT_PROJECT_VERSION in the Xcode project (scripts/build-www.js checks this)
+ const SCHEMA_VERSION = 2;
+ const MAX_SNAPSHOTS = 3; // keep only the latest few so history does not crowd live data in localStorage
+ const DAY_MS = 1000 * 60 * 60 * 24;
+@@ -1820,7 +1820,7 @@
+ }
+ 
+ function activeStrains() {
+-  return state.plants.filter((plant) => getPlantStatus(plant) === 'Active' && !plant.harvestDate);
++  return state.plants.filter((plant) => getPlantStatus(plant) === 'Active' && !plant.harvestDate && !(window.B63 && B63.explicitId && B63.explicitId(plant)));
+ }
+ 
+ function harvestedStrains() {
+@@ -1884,6 +1884,7 @@
+   const sort = $('#harvest-sort')?.value || 'recent';
+ 
+   const rows = harvestedStrains().filter((plant) => {
++    if (window.B63 && B63.explicitId && B63.explicitId(plant)) return false;
+     if (strain !== 'all' && plant.name !== strain) return false;
+     const roomValue = plant.areaOrRoom || plant.location || '';
+     if (room !== 'all' && roomValue !== room) return false;
+@@ -2031,7 +2032,7 @@
+     button.onclick = () => returnToActive(button.dataset.harvestReturn);
+   });
+   $$('[data-harvest-archive]').forEach((button) => {
+-    button.onclick = () => archivePlant(button.dataset.harvestArchive);
++    button.onclick = () => archivePlant(button.dataset.harvestArchive, { fromCard: true });
+   });
+ }
+ 
+@@ -3197,6 +3198,13 @@
+ // moves seed missing dates with today; backward/reopen moves preserve every
+ // recorded date so no history is lost.
+ function applyPlantStatus(plant, toStatus) {
++  if (!plant) return false;
++  if (toStatus === 'archived') {
++    const shown = typeof detailPlantId === 'function' ? detailPlantId() : '';
++    const cardOk = typeof archiveCardId === 'string' && archiveCardId && archiveCardId === plant.id;
++    if (cardOk) archiveCardId = '';
++    else if (window.B63 && typeof B63.allowArchive === 'function' && !B63.allowArchive(shown, plant.id)) return false;
++  }
+   const today = toInputDate(getToday());
+   plant.status = toStatus;
+   plant.completed = toStatus !== 'active';
+@@ -3255,7 +3263,7 @@
+     message,
+     acceptLabel,
+     action: () => {
+-      applyPlantStatus(plant, toStatus);
++      if (applyPlantStatus(plant, toStatus) === false) return;
+       // Preserve compliance history through the workflow: log the stage change
+       // plus a specific lifecycle event, keeping the patient/tag link intact.
+       const eventType = STATUS_TRANSITION_EVENTS[toStatus] || 'changed stage';
+@@ -3324,9 +3332,14 @@
+ }
+ 
+ // Manual archive for genetics retired from production.
+-function archivePlant(id) {
++let archiveCardId = '';
++function archivePlant(id, opts) {
+   const plant = state.plants.find((item) => item.id === id);
+   if (!plant || plant.status === 'archived') return;
++  const fromCard = !!(opts && opts.fromCard);
++  const shown = typeof detailPlantId === 'function' ? detailPlantId() : '';
++  archiveCardId = fromCard ? id : '';
++  if (!fromCard && window.B63 && typeof B63.allowArchive === 'function' && !B63.allowArchive(shown, id)) return;
+   transitionPlant(id, 'archived', {
+     title: `Archive ${plant.name}?`,
+     message: 'Removes this genetic from Active Strains and the Harvest Archive, and files it under Archived Genetics. Nothing is deleted — every date, note, photo, yield, and test result is preserved, and you can return it to Active anytime.',
+diff -ruN -U3 --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/ios/App/App/public/build13.js b62-app/ios/App/App/public/build13.js
+--- a/ios/App/App/public/build13.js	2026-11-07 02:47:38.000000000 +0000
++++ b/ios/App/App/public/build13.js	2026-11-07 15:15:46.770330679 +0000
+@@ -192,7 +192,7 @@
+ 
+ function mfSectionHtml() {
+   const all = mfList();
+-  const live = all.filter((m) => !m.archived);
++  const live = all.filter((m) => (window.B63 && typeof B63.showMother === 'function' ? B63.showMother(m) : (m && !m.archived && m.status !== 'Retired')));
+   const arch = all.filter((m) => m.archived);
+   const pill = (t, c = 'c') => `<span class="m-pill ${c}">${escapeHtml(t)}</span>`;
+   const card = (m) => `<div class="m-row" data-mf="open" data-id="${escapeHtml(m.id)}" role="button" tabindex="0">
+diff -ruN -U3 --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/ios/App/App/public/build41.js b62-app/ios/App/App/public/build41.js
+--- a/ios/App/App/public/build41.js	2026-11-07 02:47:38.000000000 +0000
++++ b/ios/App/App/public/build41.js	2026-11-07 15:15:46.770330679 +0000
+@@ -164,7 +164,7 @@
+   /* Mothers & Fathers: its own page, opened from one row on Breeding (approved v3 mothers-fathers/mf-page.js). */
+   let mfpOn = false; let mfpTab = 'm'; let mfpKeep = null; // Build 42: Mothers / Fathers tabs are real filters
+   const esc = (s) => escapeHtml(String(s == null ? '' : s));
+-  const list = () => (state.motherFatherPlants || []).filter((m) => !m.archived);
++  const list = () => (state.motherFatherPlants || []).filter((m) => (window.B63 && typeof B63.showMother === 'function' ? B63.showMother(m) : (m && !m.archived && m.status !== 'Retired')));
+   const tot = (a) => (a || []).reduce((n, e) => n + (Number(e.count) || 0), 0);
+   const row = (m) => `<div class="m-row mfp-row" data-mf="open" data-id="${esc(m.id)}" role="button" tabindex="0"><div class="m-ph mf-ph ${m.role === 'father' ? 'father' : 'mother'}">${m.role === 'father' ? '♂' : '♀'}</div><div class="m-grow"><div class="m-t">${esc(m.name)}</div><div class="m-s">${esc([m.status || 'Active', m.role === 'father' ? `${(m.pollen || []).length} pollen lots` : `${tot(m.cuttings)} cuttings`].join(' · '))}</div></div><span class="m-pill c">${m.role === 'father' ? 'Father' : 'Mother'}</span><i aria-hidden="true">›</i></div>`;
+   function entry() {
+diff -ruN -U3 --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/ios/App/App/public/build42.js b62-app/ios/App/App/public/build42.js
+--- a/ios/App/App/public/build42.js	2026-11-07 02:47:38.000000000 +0000
++++ b/ios/App/App/public/build42.js	2026-11-07 15:15:46.774330662 +0000
+@@ -143,7 +143,7 @@
+ 
+   /* ---- Mac list next to a mother / father profile: only that group, with the same tabs ---- */
+   function listHtml() {
+-    const m = mfById(detailMfId); const fa = isF(m); const L = mfAll().filter((x) => !x.archived);
++    const m = mfById(detailMfId); const fa = isF(m); const L = mfAll().filter((x) => (window.B63 && typeof B63.showMother === 'function' ? B63.showMother(x) : (x && !x.archived && x.status !== 'Retired')));
+     const M = L.filter((x) => !isF(x)), F = L.filter(isF); const show = fa ? F : M;
+     return `<div class="mfx-list"><div class="b18-seg mfp-seg" role="tablist"><button type="button" class="${fa ? '' : 'on'}" role="tab" aria-selected="${!fa}" data-b42="tab" data-t="m">Mothers · ${M.length}</button><button type="button" class="${fa ? 'on' : ''}" role="tab" aria-selected="${fa}" data-b42="tab" data-t="f">Fathers · ${F.length}</button></div>
+       <div class="m-card">${show.map((x) => `<button type="button" class="w-li mfx-li${x.id === detailMfId ? ' on' : ''}" data-mf="open" data-id="${esc(x.id)}"${x.id === detailMfId ? ' aria-current="true"' : ''}><span class="m-ph mf-ph ${isF(x) ? 'father' : 'mother'}" aria-hidden="true">${isF(x) ? '♂' : '♀'}</span><span class="w-li-t"><b>${esc(x.name)}</b><small>${esc(isF(x) ? `${(x.pollen || []).length} pollen lots` : `${tot(x.cuttings)} cuttings`)}</small></span></button>`).join('')}</div></div>`;
+@@ -157,7 +157,7 @@
+       e.preventDefault(); e.stopPropagation();
+       if (a === 'back') { const m = mfById(detailMfId); if (m) B41.mfpTab(isF(m) ? 'f' : 'm'); switchView('breeding'); renderAll(); B41.mfpOpen(); }
+       else if (a === 'plant') openPlantDetail(b42.dataset.id, 'plants');
+-      else if (a === 'tab') { B41.mfpTab(b42.dataset.t); const L = mfAll().filter((x) => !x.archived && (b42.dataset.t === 'f') === isF(x)); if (L.length) openPlantDetail(L[0].id, 'mf'); else { switchView('breeding'); renderAll(); B41.mfpOpen(); } }
++      else if (a === 'tab') { B41.mfpTab(b42.dataset.t); const L = mfAll().filter((x) => (window.B63 && typeof B63.showMother === 'function' ? B63.showMother(x) : (x && !x.archived && x.status !== 'Retired')) && (b42.dataset.t === 'f') === isF(x)); if (L.length) openPlantDetail(L[0].id, 'mf'); else { switchView('breeding'); renderAll(); B41.mfpOpen(); } }
+       return;
+     }
+     const el = e.target.closest('[data-mf]'); if (!el || el.closest('#breeding-mobile')) return; // build13 handles its own box
+diff -ruN -U3 --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/ios/App/App/public/build49.js b62-app/ios/App/App/public/build49.js
+--- a/ios/App/App/public/build49.js	2026-11-07 02:47:38.000000000 +0000
++++ b/ios/App/App/public/build49.js	2026-11-07 15:15:46.778330645 +0000
+@@ -88,10 +88,30 @@
+   }
+   const gcls = (g) => (g === 'F1' ? 'F1' : /^F/.test(g) ? 'F2' : g === 'S1' ? 'S1' : /^BX/.test(g) ? 'BX' : 'P');
+   const badge = (key) => { const g = gen(key); return `<span class="b49-gen g-${gcls(g)}" aria-label="Generation ${g}">${g}</span>`; };
++  function nodeId(k) { const s = String(k || ''); const i = s.indexOf(':'); return i < 0 ? '' : s.slice(i + 1); }
++  function sameNode(a, b) {
++    if (!a || !b) return false;
++    if (a === b) return true;
++    return String(a).split(':')[0] === String(b).split(':')[0] && nodeId(a) !== '' && nodeId(a) === nodeId(b);
++  }
++  function hiddenNode(k) { return !!(window.B63 && typeof B63.explicitKey === 'function' && B63.explicitKey(k)); }
+   function children(key) {
+-    const out = []; const add = (k) => { const p = par(k); if (p && p.some((x) => same(x, key)) && !out.some((o) => low(nameOf(o)) === low(nameOf(k)))) out.push(k); };
++    const out = [];
++    const add = (k) => {
++      if (!k || sameNode(k, key) || hiddenNode(k) || out.some((o) => sameNode(o, k))) return;
++      const p = par(k);
++      if (p && p.some((x) => sameNode(x, key))) out.push(k);
++    };
+     coll.pr().filter((p) => p.status !== 'Archived').forEach((p) => add(`pr:${p.id}`));
+     coll.pl().filter((p) => p.status !== 'archived').forEach((p) => add(`pl:${p.id}`)); coll.bp().forEach((p) => add(`bp:${p.id}`)); coll.mf().filter((m) => !m.archived).forEach((m) => add(`mf:${m.id}`));
++    /* An id stored on the project is a kid even when the name resolver did not return that parent. Names are not links. */
++    const id = nodeId(key);
++    if (id) coll.pr().filter((p) => p.status !== 'Archived').forEach((p) => {
++      const k = `pr:${p.id}`;
++      if (sameNode(k, key) || hiddenNode(k) || out.some((o) => sameNode(o, k))) return;
++      const refs = [p.motherId, p.fatherId, nodeId(p.b49Mother), nodeId(p.b49Father)];
++      if (refs.some((x) => x && x === id)) out.push(k);
++    });
+     return dedupeKids(out);
+   }
+   /* b59: a cross (pr) and the plant grown from it are one kid, not two. Same plant = linked by id (b49ProjectId / projFor)
+diff -ruN -U3 --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/ios/App/App/public/build57.js b62-app/ios/App/App/public/build57.js
+--- a/ios/App/App/public/build57.js	2026-11-07 02:47:38.000000000 +0000
++++ b/ios/App/App/public/build57.js	2026-11-07 15:15:46.778330645 +0000
+@@ -25,7 +25,13 @@
+   const COLL = { pl: () => state.plants || [], bp: () => state.breedingPlants || [], mf: () => state.motherFatherPlants || [], pr: () => state.breedingProjects || [] };
+   function rec(key) { const [t, ...r] = String(key || '').split(':'); const a = COLL[t]; return a ? a().find((x) => x.id === r.join(':')) || null : null; }
+   const name = (k) => B49.nameOf(k) || (/^(tx|dx):/.test(String(k)) ? String(k).slice(3) : '');
+-  const same = (a, b) => a === b || (!!a && !!b && low(name(a)) !== '' && low(name(a)) === low(name(b)));
++  const same = (a, b) => {
++    if (!a || !b) return false;
++    if (a === b) return true;
++    const as = String(a), bs = String(b);
++    const ai = as.split(':').slice(1).join(':'), bi = bs.split(':').slice(1).join(':');
++    return as.split(':')[0] === bs.split(':')[0] && !!ai && ai === bi;
++  };
+   function styleOf(key) { const r = rec(key); if (r && !ok(r.treeStyle)) { r.treeStyle = 1 + rnd(N); try { saveState(); } catch (e) { /* */ } } return r ? Number(r.treeStyle) : 1 + (low(name(key)).split('').reduce((s, c) => s + c.charCodeAt(0), 0) % N); }
+   function photo(key, d = 0) {
+     const r = rec(key); if (!r || d > 3) return '';
+@@ -69,7 +75,7 @@
+     for (let g = 1; g <= 40; g++) {
+       const row = []; lv[g - 1].forEach((x) => { if (!x.k || x.ref || x.self || isUnk(x.k)) return; const p = par2(x.k); if (!p) return;
+         const s1 = p[0] && p[1] && same(p[0], p[1]);
+-        p.forEach((k, i) => { if (s1 && i === 1) { row.push({ k: '', self: 1, via: x.k, side: 'f', role: `Self-pollinated (S1) · same as ${nm2(p[0])}` }); return; }
++        p.forEach((k, i) => { if (k && window.B63 && B63.explicitKey && B63.explicitKey(k)) return; if (s1 && i === 1) { row.push({ k: '', self: 1, via: x.k, side: 'f', role: `Self-pollinated (S1) · same as ${nm2(p[0])}` }); return; }
+           if (!k) { row.push({ k: '', none: 1, via: x.k, side: i ? 'f' : 'm', role: `${rl(g, i)} · not recorded` }); return; }
+           if (!isUnk(k) && seen.some((q) => same(q, k))) { if (!row.some((y) => y.ref && same(y.k, k))) row.push({ k, ref: 1, via: x.k, side: i ? 'f' : 'm', role: `${rl(g, i)} · appears again (backcross)` }); return; }
+           if (!isUnk(k)) seen.push(k); row.push({ k, via: x.k, side: i ? 'f' : 'm', role: rl(g, i) }); }); });
+@@ -145,7 +151,7 @@
+   /* ---------- b59 partner row: this plant × the plant it was bred with, bracket down to its Kids ---------- */
+   function partners(k, ks) {
+     const G = []; ks.forEach((x) => { if (!x.k) return; const p = par2(x.k) || []; const i = same(p[0], k) ? 0 : same(p[1], k) ? 1 : -1; if (i < 0) return;
+-      const o = (i === 0 ? p[1] : p[0]) || ''; const self = !!o && same(o, k); const key = isUnk(o) ? '?' : o; let g = G.find((y) => (key === '?' ? y.key === '?' : y.key !== '?' && same(y.key, key)));
++      const o = (i === 0 ? p[1] : p[0]) || ''; if (o && !isUnk(o) && window.B63 && B63.explicitKey && B63.explicitKey(o)) return; const self = !!o && same(o, k); const key = isUnk(o) ? '?' : o; let g = G.find((y) => (key === '?' ? y.key === '?' : y.key !== '?' && same(y.key, key)));
+       if (!g) { g = { key, self, side: i === 0 ? 'Father' : 'Mother', kids: [] }; G.push(g); } g.kids.push(x); });
+     return G;
+   }
+@@ -156,7 +162,7 @@
+     if (g.key === '?') return `<div class="b59-pc pt" data-partner="?" data-node="?"><span class="b57-ph mono big" aria-hidden="true">?</span></div>`;
+     return `<button type="button" class="b59-pc pt" data-b57="sel" data-node="${esc(g.key)}" data-k="${esc(g.key)}" data-partner="${esc(g.key)}" aria-label="${esc(name(g.key))}, bred with this plant">${ph(g.key, 1)}</button>`;
+   }
+-  const pLab = (g) => `<div class="b59-plab"><b>${esc(g.self ? 'Itself' : g.key === '?' ? 'Unknown' : name(g.key))}</b><small>${g.self ? 'Self-pollinated · S1' : `Bred with · ${g.side}`}</small></div>`;
++  const pLab = (g) => `<div class="b59-plab"><b>${esc(g.self ? 'Itself' : g.key === '?' ? 'Unknown' : name(g.key))}</b><small>${g.self ? 'Self-pollinated · S1' : `Also crossed with · ${g.side}`}</small></div>`;
+   function fam(k, ks, o = {}) {
+     const G = partners(k, ks); const rest = ks.filter((x) => !G.some((g) => g.kids.includes(x)));
+     const ban = `<div class="b57-ban"><b>${esc(name(k))}${gen(k) ? ` · ${esc(gen(k))}` : ''}</b><small>${esc(crossTxt(k))}</small></div>`;
+@@ -240,7 +246,7 @@
+     const trail = (pg.trail || []).length ? `<div class="b57-trail">${pg.trail.map((t) => `<button type="button" data-b57="walkto" data-k="${esc(t)}">${esc(name(t))}</button>`).join('<span>›</span>')}<span>›</span><b>${esc(name(k))}</b></div>` : '';
+     return `<div class="b57${pg.edit ? ' b58-editing' : ''}" data-b57s="${sn}" data-b57k="${st.k}" data-b57lay="${st.lay}" data-depth="${depth}">${head}<h2 class="b18-h1">Family tree</h2><p class="b57-subt">${esc(subT)}</p>
+ <div class="b57-tools"><span class="m-s">${depth ? `${depth} generation${depth > 1 ? 's' : ''} recorded` : (stat(k).t === 'bought' ? stat(k).l : 'No parents recorded')}</span><button type="button" class="b58-edit${pg.edit ? ' on' : ''}" data-b58="edit" aria-pressed="${pg.edit ? 'true' : 'false'}">${pg.edit ? 'Done' : 'Edit'}</button><span class="b57-z"><button type="button" data-b57="z-" aria-label="Zoom out">−</button><button type="button" data-b57="z0" aria-label="Reset zoom">Zoom</button><button type="button" data-b57="z+" aria-label="Zoom in">+</button></span></div>${trail}
+-${pg.edit ? '<div class="b58-banner" role="status">Edit mode · tap any plant to change, add, relink or remove it. Hand edits are kept and never overwritten automatically.</div>' : ''}<div class="b57-scroll"><div class="b57-canvas" style="zoom:${pg.zoom || 1}">${body}${depth > 2 ? `<div class="b57-older">${lab('Older generations · scroll sideways, tap a plant to open it, long-press to walk up')}${older(lv, 3)}</div>` : ''}</div></div>${sel}
++${pg.edit ? '<div class="b58-banner" role="status">Edit mode · tap any plant to change, add, relink or remove it. Hand edits are kept and never overwritten automatically.</div>' : ''}<div class="b57-scroll"><div class="b57-canvas" style="zoom:${pg.zoom || 1}">${body}${depth > 2 ? `<div class="b57-older">${lab('Older generations · tap a plant to open it, long-press to walk up')}${older(lv, 3)}</div>` : ''}</div></div>${sel}
+ <p class="m-s b57-note">Tap any plant to open its profile; long-press it to walk up its line. ${p && !k.startsWith('pr:') ? esc(B49.why(k)) + '.' : ''}</p></div>`;
+   }
+   const _page = b18BrPageHtml;
+@@ -266,7 +272,7 @@
+     const out = [];
+     (state.breedingProjects || []).filter((p) => p.status !== 'Archived').forEach((p) => out.push({ k: `pr:${p.id}`, kind: 'Breeding project', r: p }));
+     [['pl', state.plants], ['bp', state.breedingPlants]].forEach(([t, a]) => (a || []).forEach((x) => { if (plantsRunning(x) > 1 && !(typeof isClonePlant === 'function' && isClonePlant(x)) && !/archiv/i.test(String(x.status || ''))) out.push({ k: `${t}:${x.id}`, kind: `Seed run · ${plantsRunning(x)} plants`, r: x }); }));
+-    return out;
++    return out.filter((x) => !(window.B63 && B63.explicitId && B63.explicitId(x.r)));
+   }
+   function linHtml() {
+     const L = lineageList();
+diff -ruN -U3 --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/ios/App/App/public/build60.js b62-app/ios/App/App/public/build60.js
+--- a/ios/App/App/public/build60.js	2026-11-07 02:47:38.000000000 +0000
++++ b/ios/App/App/public/build60.js	2026-11-07 15:15:46.782330629 +0000
+@@ -12,7 +12,16 @@
+   const COUNTRY = [[/afghan/i, 'Afghanistan'], [/\bthai/i, 'Thailand'], [/colombi/i, 'Colombia'], [/mexic/i, 'Mexico'], [/jamaic/i, 'Jamaica'], [/nepal/i, 'Nepal'], [/pakistan/i, 'Pakistan'], [/hindu ?kush/i, 'Afghanistan / Pakistan'], [/malawi/i, 'Malawi'], [/durban|south africa/i, 'South Africa'], [/lebanes/i, 'Lebanon'], [/morocc/i, 'Morocco'], [/puerto ?ric|borinquen|boric?u?a/i, 'Puerto Rico']];
+   const gen = (k) => { try { return B49.gen(k); } catch (e) { return ''; } };
+   const real = (k) => !!k && !B.isUnk(k) && !!B.rec(k);
+-  function isLand(k) { const r = B.rec(k); if (!r) return false; return !!(r.landrace || r.originRegion || r.originCountry || /land ?race/i.test(B.name(k))) && !B.par2(k); }
++  function shownOrigin(k) {
++    const r = B.rec(k) || {};
++    const over = window.B63 && typeof B63.originView === 'function' ? B63.originView(r) : null;
++    return {
++      originRegion: (over && over.originRegion) || r.originRegion || '',
++      originCountry: (over && over.originCountry) || r.originCountry || '',
++      landrace: over ? !!over.landrace : !!(r.landrace || r.originRegion || r.originCountry),
++    };
++  }
++  function isLand(k) { const r = B.rec(k); if (!r) return false; const o = shownOrigin(k); return !!(o.landrace || o.originRegion || o.originCountry) && !B.par2(k); }
+   function country(k) { const r = B.rec(k) || {}; if (r.originCountry) return { c: r.originCountry, inferred: false }; const n = B.name(k); const m = COUNTRY.find(([re]) => re.test(n)); return m ? { c: m[1], inferred: true } : { c: '', inferred: false }; }
+   const RL = (g) => (g === 1 ? 'Parents' : g === 2 ? 'Grandparents' : g === 3 ? 'Great-grandparents' : `${g - 2}× great-grandparents${g >= 6 ? ' · F6+ back' : ''}`);
+   /* line(root) -> rows[g] (g = 1 parents ...), each a list of cells */
+@@ -20,7 +29,8 @@
+     const rows = []; const seen = new Set([root]); let cur = [{ k: root, t: 'plant' }];
+     for (let g = 1; g <= MAX && cur.length; g++) {
+       const next = [];
+-      cur.forEach((x) => { if (x.t !== 'plant' || !real(x.k)) return;
++      cur.forEach((x) => { if (x.t !== 'plant') return;
++        if (!real(x.k)) { next.push({ t: 'none', of: x.k }); return; }
+         if (isLand(x.k)) { next.push({ t: 'origin', k: x.k }); return; }
+         const p = B.par2(x.k); if (!p || (!p[0] && !p[1])) { next.push({ t: 'none', of: x.k }); return; }
+         p.forEach((q, i) => { const side = i ? 'f' : 'm';
+@@ -36,15 +46,20 @@
+     if (x.t === 'none' || x.t === 'none1') return `<button type="button" class="b60-c slot" data-b58="add" data-b60t="none" data-up="${esc(x.of)}" data-of="${esc(x.of)}" data-side="${x.side || 'm'}"><b>Not recorded</b><small>${x.t === 'none' ? `Parents of ${esc(B.name(x.of))}` : `${SIDE[x.side]} of ${esc(B.name(x.of))}`}</small></button>`;
+     if (x.t === 'wild') return `<button type="button" class="b60-c slot wild" data-b58="add" data-b60t="wild" data-up="origin:${esc(x.of)}" data-of="${esc(x.of)}" data-side="m"><b>Wild ancestors</b><small>Not traceable · landrace</small></button>`;
+     if (x.t === 'unk') return `<button type="button" class="b60-c slot" data-b58="add" data-b60t="unk" data-up="${esc(x.of)}" data-of="${esc(x.of)}" data-side="${x.side}"><b>Unknown</b><small>${SIDE[x.side]} of ${esc(B.name(x.of))} · open pollination</small></button>`;
+-    if (x.t === 'origin') { const c = country(x.k); const r = B.rec(x.k) || {}; const ini = (c.c || 'LR').replace(/[^A-Za-z ]/g, '').slice(0, 2).toUpperCase();
+-      return `<button type="button" class="b60-c origin" data-b60="open" data-b60t="origin" data-node="origin:${esc(x.k)}" data-up="${esc(x.k)}" data-k="${esc(x.k)}" aria-label="Origin of ${esc(B.name(x.k))}, open profile"><span class="b57-ph mono" aria-hidden="true">${esc(ini)}</span><b>Landrace${c.c ? ` · ${esc(c.c)}` : ''}</b><small>${esc(r.originRegion || 'Region not recorded')}</small><em class="b57-tag bought">Origin</em></button>`; }
++    if (x.t === 'origin') { const c = country(x.k); const o = shownOrigin(x.k); const ini = (c.c || o.originCountry || 'LR').replace(/[^A-Za-z ]/g, '').slice(0, 2).toUpperCase();
++      return `<button type="button" class="b60-c origin" data-b60="open" data-b60t="origin" data-node="origin:${esc(x.k)}" data-up="${esc(x.k)}" data-k="${esc(x.k)}" aria-label="Origin of ${esc(B.name(x.k))}, open profile"><span class="b57-ph mono" aria-hidden="true">${esc(ini)}</span><b>Landrace${(o.originCountry || c.c) ? ` · ${esc(o.originCountry || c.c)}` : ''}</b><small>${esc(o.originRegion || 'Region not recorded')}</small><em class="b57-tag bought">Origin</em></button>`; }
+     const st = B.stat(x.k); const tag = st.t === 'bought' ? `<em class="b57-tag bought">${esc(window.B58 && B58.boughtBadge ? B58.boughtBadge(st.br) : 'Bought')}</em>` : st.t === 'culled' ? '<em class="b57-tag cull">Culled</em>' : st.t === 'removed' ? '<em class="b57-tag gone">Deleted plant</em>' : x.t === 'ref' ? '<em class="b57-tag ref">↺ also above</em>' : '';
+     return `<button type="button" class="b60-c" data-b57="sel" data-b60t="plant" data-node="${esc(x.k)}" data-up="${esc(x.of)}" data-k="${esc(x.k)}" data-of="${esc(x.of)}" data-side="${x.side}">${B.ph(x.k)}<b>${esc(B.name(x.k))}</b><small>${SIDE[x.side]}${gen(x.k) ? ' · ' + esc(gen(x.k)) : ''}</small>${tag}</button>`;
+   }
+   function rows(k, g, up) {
+     if (!g || g.self) return '';
+-    const L = line(k); const R = g.key === '?' ? [[{ t: 'unk', of: k, side: g.side === 'Father' ? 'f' : 'm' }]] : line(g.key); const n = Math.max(L.length, R.length); if (!n) return '';
+-    const meLine = g.side === 'Father' ? "Mother's line" : "Father's line"; const ptLine = g.side === 'Father' ? "Father's line" : "Mother's line";
++    const parents = String(k).startsWith('pr:') ? B.par2(k) : null;
++    const splitParents = !!(parents && (parents[0] || parents[1]));
++    const L = splitParents ? (parents[0] ? line(parents[0]) : []) : line(k);
++    const R = splitParents ? (parents[1] ? line(parents[1]) : []) : (g.key === '?' ? [[{ t: 'unk', of: k, side: g.side === 'Father' ? 'f' : 'm' }]] : line(g.key));
++    const n = Math.max(L.length, R.length); if (!n) return '';
++    const meLine = splitParents ? "Mother's line" : (g.side === 'Father' ? "Mother's line" : "Father's line");
++    const ptLine = splitParents ? "Father's line" : (g.side === 'Father' ? "Father's line" : "Mother's line");
+     const order = [...Array(n).keys()].map((i) => i + 1); if (!up) order.reverse();
+     const col = (rw, sd) => `<div class="b60-col ${sd}">${(rw || []).map(cell).join('') || '<span class="b60-gap" aria-hidden="true"></span>'}</div>`;
+     const body = order.map((gi) => `<div class="b60-gen" data-gen="${gi}"><div class="b57-lab">${esc(RL(gi))}</div><div class="b60-cols">${col(L[gi - 1], 'l')}${col(R[gi - 1], 'r')}</div></div>`).join('');
+diff -ruN -U3 --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/ios/App/App/public/build63.css b62-app/ios/App/App/public/build63.css
+--- a/ios/App/App/public/build63.css	1970-01-01 00:00:00.000000000 +0000
++++ b/ios/App/App/public/build63.css	2026-11-07 15:15:46.786330613 +0000
+@@ -0,0 +1,86 @@
++/* Build 63. Narrow layouts reflow. They do not add a horizontal scroll port. */
++#compliance-panel-inspection .table-wrap {
++  overflow: visible;
++  max-width: 100%;
++}
++#compliance-panel-inspection table.compliance-table {
++  min-width: 0;
++  width: 100%;
++  table-layout: fixed;
++}
++#compliance-panel-inspection .compliance-table th,
++#compliance-panel-inspection .compliance-table td {
++  overflow-wrap: normal;
++  word-break: normal;
++  hyphens: manual;
++  white-space: normal;
++  overflow: visible;
++  text-overflow: clip;
++  vertical-align: top;
++}
++@media (max-width: 720px) {
++  #compliance-panel-inspection table.compliance-table,
++  #compliance-panel-inspection .compliance-table tbody,
++  #compliance-panel-inspection .compliance-table tr,
++  #compliance-panel-inspection .compliance-table td {
++    display: block;
++    width: 100%;
++  }
++  #compliance-panel-inspection .compliance-table thead {
++    position: absolute;
++    width: 1px;
++    height: 1px;
++    overflow: hidden;
++    clip: rect(0, 0, 0, 0);
++  }
++  #compliance-panel-inspection .compliance-table td {
++    display: grid;
++    grid-template-columns: minmax(0, 7.5rem) minmax(0, 1fr);
++    gap: 0.35rem;
++  }
++  #compliance-panel-inspection .compliance-table td:nth-child(1)::before { content: "Plant code"; }
++  #compliance-panel-inspection .compliance-table td:nth-child(2)::before { content: "Patient alias"; }
++  #compliance-panel-inspection .compliance-table td:nth-child(3)::before { content: "Cert ID"; }
++  #compliance-panel-inspection .compliance-table td:nth-child(4)::before { content: "Cultivar"; }
++  #compliance-panel-inspection .compliance-table td:nth-child(5)::before { content: "Stage"; }
++  #compliance-panel-inspection .compliance-table td:nth-child(6)::before { content: "Area"; }
++  #compliance-panel-inspection .compliance-table td:nth-child(7)::before { content: "Tag status"; }
++  #compliance-panel-inspection .compliance-table td:nth-child(8)::before { content: "Last updated"; }
++}
++.b57 {
++  margin-left: 0;
++  margin-right: 0;
++  width: auto;
++  max-width: 100%;
++  box-sizing: border-box;
++}
++.b57-scroll, .b57-row.scroll, .b59-kids, .b60-col {
++  overflow: visible;
++  max-width: 100%;
++  touch-action: pan-y;
++  scroll-snap-type: none;
++}
++.b57-row, .b59-kids, .b60-col { flex-wrap: wrap; max-width: 100%; }
++.b57-n, .b60-col > .b60-c { flex: 1 1 8rem; width: auto; max-width: 100%; min-width: 0; }
++.b57-n b, .b57-n small {
++  white-space: normal;
++  overflow-wrap: break-word;
++  word-break: normal;
++  hyphens: manual;
++  max-width: 100%;
++}
++.b60-full { max-width: 100%; }
++.b60-c { flex: 1 1 100%; min-width: 0; max-width: 100%; }
++.b57 .b18-h1, .b57-subt, .b57-tools { max-width: 100%; overflow-wrap: break-word; word-break: normal; }
++@media (max-width: 720px) {
++  .b60-cols { gap: 8px; }
++  .b60-c { min-height: 72px; }
++  .b57-n { flex: 1 1 calc(50% - 8px); }
++}
++.w-side, nav.w-side, .mfx-list, .w-list { min-width: 0; max-width: 100%; overflow: visible; }
++.w-side .w-l, .w-side .w-foot, .w-side .w-n, .w-side .w-li-t, .w-side .w-li-t b, .mfx-list .w-li-t b {
++  min-width: 0;
++  overflow-wrap: break-word;
++  word-break: normal;
++  white-space: normal;
++}
+diff -ruN -U3 --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/ios/App/App/public/build63.js b62-app/ios/App/App/public/build63.js
+--- a/ios/App/App/public/build63.js	1970-01-01 00:00:00.000000000 +0000
++++ b/ios/App/App/public/build63.js	2026-11-07 15:15:46.782330629 +0000
+@@ -0,0 +1,164 @@
++/* Build 63. View projections only. Nothing here writes state, merges records, or deletes history.
++   Hidden ids start empty. A record is hidden only when its id is passed to configure.
++   Names, sample flags, and descendant links are not used. */
++(function () {
++  'use strict';
++  const hiddenIds = new Set();
++  let originById = {};
++  function configure(opts) {
++    hiddenIds.clear();
++    originById = {};
++    const ids = opts && Array.isArray(opts.hideIds) ? opts.hideIds : [];
++    ids.forEach((id) => { if (typeof id === 'string' && id) hiddenIds.add(id); });
++    const map = opts && opts.originById && typeof opts.originById === 'object' ? opts.originById : {};
++    Object.keys(map).forEach((id) => {
++      const row = map[id];
++      if (typeof id !== 'string' || !id || !row || typeof row !== 'object') return;
++      originById[id] = {
++        originRegion: typeof row.originRegion === 'string' ? row.originRegion : '',
++        originCountry: typeof row.originCountry === 'string' ? row.originCountry : '',
++        landrace: !!row.landrace || (typeof row.originRegion === 'string' && !!row.originRegion),
++      };
++    });
++    return { hideIds: [...hiddenIds], originIds: Object.keys(originById) };
++  }
++  function readLocalConfig() {
++    try {
++      if (typeof localStorage === 'undefined') return;
++      const raw = localStorage.getItem('boriken-b63-view');
++      if (!raw) return;
++      const opts = JSON.parse(raw);
++      if (!opts || typeof opts !== 'object' || Array.isArray(opts)) return;
++      configure({ hideIds: opts.hideIds, originById: opts.originById });
++    } catch (e) { /* absent or unreadable config leaves the view unchanged */ }
++  }
++  function originView(record) {
++    const extra = record && record.id ? originById[record.id] : null;
++    return {
++      originRegion: (extra && extra.originRegion) || (record && record.originRegion) || '',
++      originCountry: (extra && extra.originCountry) || (record && record.originCountry) || '',
++      landrace: !!(record && record.landrace) || !!(extra && extra.landrace),
++    };
++  }
++  function showMother(m) {
++    return !!(m && !m.archived && m.status !== 'Retired' && !explicitId(m));
++  }
++  function retiredMf(r) {
++    return !!(r && (r.status === 'Retired' || r.archived));
++  }
++  function explicitId(r) {
++    return !!(r && r.id && hiddenIds.has(r.id));
++  }
++  function explicitKey(k) {
++    if (!k || k === '?') return false;
++    const text = String(k);
++    if (hiddenIds.has(text)) return true;
++    const id = text.split(':').slice(1).join(':');
++    return !!(id && hiddenIds.has(id));
++  }
++  function projectActiveMothers(list) {
++    return (list || []).filter((r) => r && !retiredMf(r) && !explicitId(r));
++  }
++  function projectVisible(list) {
++    return (list || []).filter((r) => r && !explicitId(r));
++  }
++  function sameRecord(a, b) {
++    if (!a || !b) return false;
++    if (a === b) return true;
++    const as = String(a); const bs = String(b);
++    const ai = as.split(':').slice(1).join(':');
++    const bi = bs.split(':').slice(1).join(':');
++    return as.split(':')[0] === bs.split(':')[0] && ai && ai === bi;
++  }
++  function keepChild(parentKey, childKey) {
++    if (!childKey || childKey === parentKey || sameRecord(parentKey, childKey)) return false;
++    if (explicitKey(childKey)) return false;
++    return true;
++  }
++  function allowArchive(shownId, requestedId) {
++    if (!requestedId) return false;
++    if (shownId && shownId !== requestedId) return false;
++    return true;
++  }
++  function pendingMetadata() {
++    return [
++      'Sample record stable id, and any verified sample-only link ids. hideIds is empty, so nothing is hidden.',
++      'Duplicate parent record ids and the grow-plant ids for the missing crosses. No merge and no partner rewrite.',
++      'The one parent record id for the origin text. No name-matched write.',
++      'The retired mother id from the reported count. Every Retired mother or father leaves active lists. That count is not verified here.',
++      'The grow-plant id and the archive event. No date or status rewrite.',
++    ];
++  }
++  function projectMotherDom(doc) {
++    if (!doc || typeof doc.querySelectorAll !== 'function') return;
++    doc.querySelectorAll('#mfp-mc [data-id], #mfp-fc [data-id], #mfp-entry [data-id], .mfx-list [data-id]').forEach((el) => {
++      if (el.closest && el.closest('.b57, .b59-fam')) return;
++      const id = el.getAttribute('data-id');
++      const status = el.querySelector ? (el.querySelector('.m-s') || {}).textContent || '' : '';
++      if (hiddenIds.has(id) || /^Retired\b/.test(String(status).trim())) el.remove();
++    });
++    const setCount = (sel, tab, label) => {
++      const n = doc.querySelectorAll(sel).length;
++      doc.querySelectorAll('[data-mfp="tab"][data-t="' + tab + '"]').forEach((b) => { b.textContent = label + n; });
++    };
++    setCount('#mfp-mc .mfp-row', 'm', 'Mothers · ');
++    setCount('#mfp-fc .mfp-row', 'f', 'Fathers · ');
++  }
++  function install() {
++    if (window.B49 && typeof B49.children === 'function' && !B49.children.b63) {
++      const orig = B49.children;
++      const wrapped = function (key) { return orig.apply(this, arguments).filter((k) => keepChild(key, k)); };
++      wrapped.b63 = true;
++      B49.children = wrapped;
++    }
++    if (window.B57 && typeof B57.partners === 'function' && !B57.partners.b63) {
++      const orig = B57.partners;
++      const wrapped = function () {
++        return orig.apply(this, arguments).filter((g) => !g || !g.key || g.key === '?' || !explicitKey(g.key));
++      };
++      wrapped.b63 = true;
++      B57.partners = wrapped;
++    }
++    if (window.B57 && typeof B57.lineageList === 'function' && !B57.lineageList.b63) {
++      const orig = B57.lineageList;
++      const wrapped = function () { return orig.apply(this, arguments).filter((x) => x && !explicitId(x.r)); };
++      wrapped.b63 = true;
++      B57.lineageList = wrapped;
++    }
++    if (window.B41 && typeof B41.mfpOpen === 'function' && !B41.mfpOpen.b63) {
++      const orig = B41.mfpOpen;
++      const wrapped = function () {
++        const result = orig.apply(this, arguments);
++        projectMotherDom(typeof document !== 'undefined' ? document : null);
++        return result;
++      };
++      wrapped.b63 = true;
++      B41.mfpOpen = wrapped;
++    }
++    ['activeStrains', 'sortedActiveStrains'].forEach((name) => {
++      const orig = window[name];
++      if (typeof orig !== 'function' || orig.b63) return;
++      const wrapped = function () { return projectVisible(orig.apply(this, arguments)); };
++      wrapped.b63 = true;
++      window[name] = wrapped;
++    });
++    if (typeof window.archivePlant === 'function' && !window.archivePlant.b63) {
++      const orig = window.archivePlant;
++      const wrapped = function (id, opts) {
++        const shown = typeof detailPlantId === 'function' ? detailPlantId() : '';
++        const fromCard = !!(opts && opts.fromCard);
++        if (!fromCard && !allowArchive(shown, id)) return;
++        return orig.apply(this, arguments);
++      };
++      wrapped.b63 = true;
++      window.archivePlant = wrapped;
++    }
++  }
++  window.B63 = {
++    configure, readLocalConfig, originView, showMother, retiredMf, explicitId, explicitKey, projectActiveMothers, projectVisible,
++    sameRecord, keepChild, allowArchive, pendingMetadata, projectMotherDom, install,
++    hiddenIds: () => [...hiddenIds],
++  };
++  install();
++  readLocalConfig();
++})();
+diff -ruN -U3 --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/ios/App/App/public/index.html b62-app/ios/App/App/public/index.html
+--- a/ios/App/App/public/index.html	2026-11-07 02:47:38.000000000 +0000
++++ b/ios/App/App/public/index.html	2026-11-07 14:43:16.502706148 +0000
+@@ -60,6 +60,7 @@
+     <link rel="stylesheet" href="build58.css" />
+     <link rel="stylesheet" href="build59.css" />
+     <link rel="stylesheet" href="build60.css" />
++    <link rel="stylesheet" href="build63.css" />
+   </head>
+   <body>
+     <a class="skip-link" href="#main">Skip to tracker</a>
+@@ -1376,5 +1377,6 @@
+     <script src="build58.js" defer></script>
+     <script src="build59.js" defer></script>
+     <script src="build60.js" defer></script>
++    <script src="build63.js" defer></script>
+   </body>
+ </html>
+diff -ruN -U3 --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/ios/App/App/public/service-worker.js b62-app/ios/App/App/public/service-worker.js
+--- a/ios/App/App/public/service-worker.js	2026-11-07 02:47:38.000000000 +0000
++++ b/ios/App/App/public/service-worker.js	2026-11-07 14:43:16.502706148 +0000
+@@ -6,7 +6,7 @@
+   so users should still export JSON backups for long-term records.
+ */
+ 
+-const CACHE_NAME = 'boriken-genetics-logbook-app-v80';
++const CACHE_NAME = 'boriken-genetics-logbook-app-v81';
+ const APP_SHELL = [
+   './',
+   './index.html',
+@@ -68,6 +68,8 @@
+   './build59.css',
+   './build60.js',
+   './build60.css',
++  './build63.js',
++  './build63.css',
+   './build53.js',
+   './build53.css',
+   './assets/looks/pr01.jpg',
+diff -ruN -U3 --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/ios/App/App/public/wide.js b62-app/ios/App/App/public/wide.js
+--- a/ios/App/App/public/wide.js	2026-11-07 02:47:38.000000000 +0000
++++ b/ios/App/App/public/wide.js	2026-11-07 15:15:46.790330596 +0000
+@@ -24,7 +24,7 @@
+ ];
+ function wCurrentView() { if (typeof activeView !== 'undefined' && activeView === 'plant-detail' && typeof detailColl !== 'undefined' && (detailColl === 'breedingPlants' || detailColl === 'mf')) return 'breeding'; /* Build 42: Breeding stays highlighted */ return typeof activeView !== 'undefined' ? activeView : (document.querySelector('.view.active')?.id || '').replace(/-view$/, ''); }
+ function wNavCounts() {
+-  const plants = (state.plants || []).filter((p) => p.status === 'active').length;
++  const plants = (state.plants || []).filter((p) => p.status === 'active' && !(window.B63 && B63.explicitId && B63.explicitId(p))).length;
+   const today = typeof b19Today === 'function' ? b19Today() : new Date().toISOString().slice(0, 10);
+   const soon = toInputDateSafe(new Date(Date.now() + 14 * 864e5));
+   let planned = 0;
+diff -ruN -U3 --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/ios/App/App.xcodeproj/project.pbxproj b62-app/ios/App/App.xcodeproj/project.pbxproj
+--- a/ios/App/App.xcodeproj/project.pbxproj	2026-11-07 02:47:28.000000000 +0000
++++ b/ios/App/App.xcodeproj/project.pbxproj	2026-11-07 14:43:16.498706097 +0000
+@@ -412,7 +412,7 @@
+ 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
+ 				CODE_SIGN_ENTITLEMENTS = App/App.entitlements;
+ 				CODE_SIGN_STYLE = Automatic;
+-				CURRENT_PROJECT_VERSION = 62;
++				CURRENT_PROJECT_VERSION = 63;
+ 				DEVELOPMENT_TEAM = 2Z94YL957X;
+ 				INFOPLIST_FILE = App/Info.plist;
+ 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+@@ -438,7 +438,7 @@
+ 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
+ 				CODE_SIGN_ENTITLEMENTS = App/App.entitlements;
+ 				CODE_SIGN_STYLE = Automatic;
+-				CURRENT_PROJECT_VERSION = 62;
++				CURRENT_PROJECT_VERSION = 63;
+ 				DEVELOPMENT_TEAM = 2Z94YL957X;
+ 				INFOPLIST_FILE = App/Info.plist;
+ 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+@@ -522,7 +522,7 @@
+ 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
+ 				CODE_SIGN_ENTITLEMENTS = App/App.qa.entitlements;
+ 				CODE_SIGN_STYLE = Automatic;
+-				CURRENT_PROJECT_VERSION = 62;
++				CURRENT_PROJECT_VERSION = 63;
+ 				DEVELOPMENT_TEAM = 2Z94YL957X;
+ 				INFOPLIST_FILE = App/Info.qa.plist;
+ 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+@@ -567,7 +567,7 @@
+ 			isa = XCBuildConfiguration;
+ 			buildSettings = {
+ 				CODE_SIGN_STYLE = Automatic;
+-				CURRENT_PROJECT_VERSION = 62;
++				CURRENT_PROJECT_VERSION = 63;
+ 				DEVELOPMENT_TEAM = 2Z94YL957X;
+ 				GENERATE_INFOPLIST_FILE = NO;
+ 				INFOPLIST_FILE = LogbookQAUITests/Info.plist;
+@@ -590,7 +590,7 @@
+ 			isa = XCBuildConfiguration;
+ 			buildSettings = {
+ 				CODE_SIGN_STYLE = Automatic;
+-				CURRENT_PROJECT_VERSION = 62;
++				CURRENT_PROJECT_VERSION = 63;
+ 				DEVELOPMENT_TEAM = 2Z94YL957X;
+ 				GENERATE_INFOPLIST_FILE = NO;
+ 				INFOPLIST_FILE = LogbookQAUITests/Info.plist;
+@@ -613,7 +613,7 @@
+ 			isa = XCBuildConfiguration;
+ 			buildSettings = {
+ 				CODE_SIGN_STYLE = Automatic;
+-				CURRENT_PROJECT_VERSION = 62;
++				CURRENT_PROJECT_VERSION = 63;
+ 				DEVELOPMENT_TEAM = 2Z94YL957X;
+ 				GENERATE_INFOPLIST_FILE = NO;
+ 				INFOPLIST_FILE = LogbookQAUITests/Info.plist;
+diff -ruN -U3 --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/scripts/b63-integration.test.js b62-app/scripts/b63-integration.test.js
+--- a/scripts/b63-integration.test.js	1970-01-01 00:00:00.000000000 +0000
++++ b/scripts/b63-integration.test.js	2026-11-07 15:15:22.442437730 +0000
+@@ -0,0 +1,383 @@
++'use strict';
++const fs = require('fs');
++const path = require('path');
++const vm = require('vm');
++const { execFileSync } = require('child_process');
++const ROOT = path.join(__dirname, '..');
++const FAIL = [];
++function check(name, fn) {
++  try { fn(); console.log('PASS', name); }
++  catch (e) { FAIL.push(name); console.error('FAIL', name, e && e.stack || e); process.exit(1); }
++}
++function extractFunction(src, name) {
++  const start = src.indexOf('function ' + name);
++  if (start < 0) throw new Error('missing ' + name);
++  let i = src.indexOf('{', start);
++  let depth = 0;
++  for (; i < src.length; i++) {
++    const ch = src[i];
++    if (ch === '{') depth += 1;
++    else if (ch === '}') { depth -= 1; if (!depth) return src.slice(start, i + 1); }
++  }
++  throw new Error('unclosed ' + name);
++}
++
++const store = new Map();
++function element(id) {
++  const el = {
++    id: id || '',
++    tagName: 'DIV',
++    innerHTML: '',
++    textContent: '',
++    value: '',
++    hidden: false,
++    open: false,
++    className: '',
++    dataset: {},
++    style: {},
++    children: [],
++    classList: { add() {}, remove() {}, toggle() {}, contains() { return false; } },
++    setAttribute(k, v) { if (k === 'id') el.id = v; },
++    getAttribute(k) { return k === 'id' ? el.id : ''; },
++    addEventListener() {},
++    removeEventListener() {},
++    querySelector() { return element(); },
++    querySelectorAll() { return []; },
++    appendChild() {},
++    insertAdjacentHTML() {},
++    closest() { return null; },
++    showModal() { el.open = true; },
++    close() { el.open = false; },
++    focus() {},
++    click() {},
++    getContext() { return new Proxy({}, { get: () => () => ({ width: 0 }) }); },
++  };
++  return el;
++}
++const byId = {};
++function remember(id) { if (!byId[id]) byId[id] = element(id); return byId[id]; }
++const document = {
++  readyState: 'complete',
++  body: element('body'),
++  documentElement: element('html'),
++  addEventListener() {},
++  removeEventListener() {},
++  createElement() { return element(); },
++  createDocumentFragment() { return { appendChild() {} }; },
++  getElementById(id) { if (id === 'tabbar' || id === 'more-view') return null; return remember(id); },
++  querySelector(sel) {
++    const m = /^#([\w-]+)$/.exec(sel || '');
++    if (m) return remember(m[1]);
++    return null;
++  },
++  querySelectorAll() { return []; },
++};
++const localStorage = {
++  getItem(k) { return store.has(k) ? store.get(k) : null; },
++  setItem(k, v) { store.set(k, String(v)); },
++  removeItem(k) { store.delete(k); },
++};
++const g = {
++  console, document, localStorage, setInterval() { return 0; }, setTimeout() { return 0; }, clearInterval() {}, clearTimeout() {},
++  requestAnimationFrame(fn) { return 0; }, cancelAnimationFrame() {},
++  matchMedia() { return { matches: false, addEventListener() {}, removeEventListener() {} }; },
++  MutationObserver: class { observe() {} disconnect() {} },
++  getComputedStyle() { return { backgroundColor: 'rgb(255,255,255)', display: 'block', position: 'static', overflowY: 'visible', visibility: 'visible', getPropertyValue() { return ''; } }; },
++  navigator: { storage: { persist() { return Promise.resolve(false); } } },
++  crypto: { randomUUID: () => 'synthetic-uuid', getRandomValues: (a) => { a[0] = 1; return a; } },
++  HTMLDialogElement: { prototype: {} },
++  URL: { createObjectURL() { return ''; }, revokeObjectURL() {} },
++  Blob: class { constructor() {} },
++  Map, Date, JSON, Math, Number, String, Array, Object, RegExp, Promise, Set, WeakMap,
++  parseDate(v) { return v ? new Date(v + 'T12:00:00') : null; },
++  b18FmtShort(v) { return v || ''; },
++  b18Today() { return '2026-11-07'; },
++  b18EvalFor() { return null; },
++  b18BrPageHtml() { return '<div class="b18-pagehead"></div>'; },
++  B18: { brPage: null },
++  renderPlantDetail() {},
++  switchView() {},
++  openPlantDetail() {},
++  renderBreeding() {},
++  wRenderSidebar() {},
++  showToast() {},
++  scrollTo() {},
++  innerWidth: 390,
++  innerHeight: 844,
++  addEventListener() {},
++  removeEventListener() {},
++  location: { hash: '' },
++};
++g.window = g;
++g.globalThis = g;
++vm.createContext(g);
++function load(rel) {
++  vm.runInContext(fs.readFileSync(path.join(ROOT, rel), 'utf8'), g, { filename: rel });
++}
++load('app.js');
++vm.runInContext(fs.readFileSync(path.join(ROOT, 'build18.js'), 'utf8').match(/const b18ById = .*/)[0] + '\n' + extractFunction(fs.readFileSync(path.join(ROOT, 'build18.js'), 'utf8'), 'b18ProjParent'), g, { filename: 'b18ProjParent.js' });
++load('mobile.js');
++load('build13.js');
++load('build49.js');
++load('build57.js');
++load('build60.js');
++load('build41.js');
++load('build42.js');
++load('wide.js');
++load('build63.js');
++
++const state = vm.runInContext('state', g);
++function setShown(id) { vm.runInContext('selectedPlantId = ' + JSON.stringify(id), g); }
++function setColl(v) { vm.runInContext('detailColl = ' + JSON.stringify(v), g); }
++const snap = () => JSON.stringify({
++  mothers: state.motherFatherPlants,
++  projects: state.breedingProjects,
++  plants: state.plants.map((p) => ({ id: p.id, name: p.name, status: p.status, notes: p.notes, logs: p.logs, flowerStartDate: p.flowerStartDate, plannedFlipDate: p.plannedFlipDate, originRegion: p.originRegion })),
++});
++
++function plant(id, extra) { return Object.assign({ id, name: 'Plant ' + id, status: 'active', count: 1, logs: [{ id: 'log-' + id, notes: 'kept note', date: '2026-01-01' }], treeStyle: 2, originRegion: '' }, extra); }
++function mother(id, extra) { return Object.assign({ id, name: 'Mother ' + id, role: 'mother', status: 'Active', archived: false, treeStyle: 2, cuttings: [], pollen: [], originRegion: '' }, extra); }
++
++state.motherFatherPlants = [
++  mother('m-live', { name: 'Mother Live' }),
++  mother('m-retired', { name: 'Mother Retired', status: 'Retired' }),
++  mother('m-hide', { name: 'Mother Hide' }),
++  mother('f-origin', { name: 'Shared Name', role: 'father', originRegion: 'District One', landrace: true }),
++  mother('f-other', { name: 'Shared Name', role: 'father' }),
++  mother('f-retired', { name: 'Father Retired', role: 'father', status: 'Retired' }),
++];
++state.motherFatherPlants[0].b49Mother = 'tx:Typed Parent';
++state.motherFatherPlants[0].b49Father = 'tx:Second Typed';
++state.breedingProjects = [
++  { id: 'pr-linked', name: 'Cross One', status: 'Planning', motherId: 'm-live', fatherId: 'f-origin', treeStyle: 2 },
++  { id: 'pr-b49', name: 'Cross Two', status: 'Planning', motherId: '', fatherId: '', b49Mother: 'mf:m-live', b49Father: 'mf:f-origin', treeStyle: 2 },
++  { id: 'pr-self', name: 'Cross Self', status: 'Planning', motherId: 'pr-self', fatherId: '', treeStyle: 2 },
++];
++state.plants = [
++  plant('p-shown', { name: 'Shown Plant', notes: 'old note' }),
++  plant('p-other', { name: 'Other Plant' }),
++  plant('p-hide', { name: 'Hidden Plant', harvestDate: '2026-01-02', status: 'harvest' }),
++  plant('p-future', { name: 'Future Flip', flowerFlipDate: '2999-01-01' }),
++];
++setShown('p-shown');
++setColl('plants');
++g.B63.configure({ hideIds: ['m-hide', 'p-hide'] });
++const before = snap();
++const mothersRef = state.motherFatherPlants;
++const plantsRef = state.plants;
++
++check('mothers page render drops retired and the configured id and keeps the array', () => {
++  g.B41.mfpOpen();
++  const html = byId['breeding-view'].innerHTML;
++  if (!html.includes('Mother Live') || html.includes('Mother Retired') || html.includes('Mother Hide')) throw new Error(html);
++  if (!html.includes('Mothers · 1') || !html.includes('Fathers · 2')) throw new Error(html);
++  if (!html.includes('data-id="f-origin"') || !html.includes('data-id="f-other"')) throw new Error('same-name ids collapsed');
++  if (state.motherFatherPlants !== mothersRef) throw new Error('array replaced');
++  if (mothersRef.length !== 6) throw new Error('record removed');
++});
++check('sidebar list and breeding section use the same projection', () => {
++  setColl('mf');
++  try { g.B42.open('m-live'); } catch (e) { /* id is stored before the view chrome runs */ }
++  const side = g.B42.listHtml();
++  if (side.includes('Mother Retired') || side.includes('Mother Hide') || !side.includes('Mothers · 1')) throw new Error(side);
++  const section = g.mfSectionHtml();
++  if (section.includes('Mother Retired') || section.includes('Mother Hide') || !section.includes('Mother Live')) throw new Error(section);
++  setColl('plants');
++});
++check('harvest search and active count omit the configured id', () => {
++  remember('harvest-search').value = 'Hidden';
++  const found = g.filteredHarvestRecords();
++  if (found.some((p) => p.id === 'p-hide')) throw new Error('search');
++  const hidden = state.plants.find((p) => p.id === 'p-hide');
++  hidden.harvestDate = '';
++  hidden.status = 'active';
++  const active = g.activeStrains().map((p) => p.id);
++  if (active.includes('p-hide') || !active.includes('p-shown')) throw new Error(active.join(','));
++  const counts = g.wNavCounts();
++  if (counts.home !== active.length) throw new Error('sidebar count ' + counts.home);
++});
++check('id-linked crosses are kids and a same-name other id is not', () => {
++  const kids = g.B49.children('mf:m-live');
++  if (!kids.includes('pr:pr-linked') || !kids.includes('pr:pr-b49')) throw new Error(kids.join(','));
++  if (kids.includes('mf:m-live') || kids.includes('pr:pr-self')) throw new Error('self ' + kids.join(','));
++  const originKids = g.B49.children('mf:f-origin');
++  const otherKids = g.B49.children('mf:f-other');
++  if (!originKids.includes('pr:pr-linked') || otherKids.includes('pr:pr-linked')) throw new Error(originKids + ' | ' + otherKids);
++  const lines = g.B57.ancestors('mf:m-live').flat();
++  const ids = lines.map((x) => x.k).filter(Boolean);
++  if (ids.filter((k) => k === 'tx:Typed Parent').length > 1) throw new Error('repeated ' + ids.join(','));
++});
++check('tree page hides the configured partner and says Also crossed with', () => {
++  g.B18.brPage = { type: 'b49tree', key: 'mf:m-live', forceStyle: 2 };
++  const html = g.b18BrPageHtml();
++  if (!html.includes('Family tree')) throw new Error('header');
++  if (html.includes('scroll sideways')) throw new Error('scroll wording');
++  if (!html.includes('Also crossed with')) throw new Error(html.slice(0, 500));
++  if (html.includes('m-hide') || html.includes('Mother Hide')) throw new Error('hidden partner');
++  if (html.includes('data-k="mf:f-other"') && html.includes('pr:pr-linked')) throw new Error('wrong partner');
++});
++check('typed parent gets a Not recorded slot and origin stays on the flagged side', () => {
++  const line = g.B60.line('mf:m-live');
++  const flat = line.flat();
++  if (!flat.some((c) => c.t === 'none' && String(c.of || '').indexOf('tx:') === 0)) throw new Error(JSON.stringify(flat.map((c) => c.t + ':' + (c.of || c.k))));
++  const html = g.B60.rows('pr:pr-linked', { key: 'mf:f-origin', side: 'Father' }, false);
++  const cols = html.split('class="b60-col ');
++  const left = cols.filter((c) => c.startsWith('l"')).join('\n');
++  const right = cols.filter((c) => c.startsWith('r"')).join('\n');
++  if (!right.includes('b60-c origin') || !right.includes('District One')) throw new Error(right);
++  if (left.includes('b60-c origin') || left.includes('District One')) throw new Error(left);
++  if (!html.includes('Not recorded')) throw new Error('placeholder');
++  const record = state.motherFatherPlants.find((m) => m.id === 'f-other');
++  g.B63.configure({ hideIds: ['m-hide', 'p-hide'], originById: { 'f-other': { originRegion: 'View Region', landrace: true } } });
++  const over = g.B60.line('mf:f-other').flat();
++  if (!over.some((c) => c.t === 'origin')) throw new Error(JSON.stringify(over));
++  const rendered = g.B60.rows('mf:m-live', { key: 'mf:f-other', side: 'Father', kids: [] }, false);
++  if (!rendered.includes('View Region')) throw new Error('overlay');
++  if (record.originRegion) throw new Error('wrote origin');
++  g.B63.configure({ hideIds: ['m-hide', 'p-hide'] });
++});
++check('archive selection, status, and card paths do not touch the other plant', () => {
++  const other = state.plants.find((p) => p.id === 'p-other');
++  setShown('p-shown');
++  g.archivePlant('p-other');
++  if (other.status !== 'active') throw new Error('selection archived');
++  if (g.applyPlantStatus(other, 'archived') !== false || other.status !== 'active') throw new Error('status path');
++  let ran = false;
++  g.__runConfirm = (opts) => { ran = true; opts.action(); };
++  vm.runInContext('openConfirmModal = __runConfirm', g);
++  g.archivePlant('p-other', { fromCard: true });
++  if (!ran || other.status !== 'archived') throw new Error('card ' + other.status);
++  const shown = state.plants.find((p) => p.id === 'p-shown');
++  if (shown.status !== 'active' || shown.logs[0].notes !== 'kept note') throw new Error('other record');
++  if (state.plants !== plantsRef) throw new Error('plants replaced');
++});
++check('future flip, notes save, and photo id stay on the record', () => {
++  const future = g.normalizePlant(state.plants.find((p) => p.id === 'p-future'));
++  if (future.flowerStartDate || future.plannedFlipDate !== '2999-01-01') throw new Error(JSON.stringify(future));
++  const fields = {
++    'plant-id': 'p-shown', 'plant-name': 'Shown Plant', 'plant-count': '1', 'plant-source': 'seed',
++    'plant-grow-type': 'Photo', 'plant-location': 'Tent', 'plant-start': '2026-01-01', 'plant-veg': '',
++    'plant-flip': '', 'plant-flower-start': '', 'plant-veg-days': '0', 'plant-flower-days': '0',
++    'plant-notes': 'saved note', 'plant-status': '', 'plant-form': '',
++  };
++  Object.keys(fields).forEach((id) => { remember(id).value = fields[id]; remember(id).id = id; });
++  remember('plant-form').querySelector = () => null;
++  g.savePlantFromForm({ preventDefault() {} });
++  const shown = state.plants.find((p) => p.id === 'p-shown');
++  if (shown.notes !== 'saved note' || shown.logs[0].notes !== 'kept note') throw new Error(JSON.stringify(shown));
++  const log = { photoId: 'photo-1', notes: 'picture' };
++  if (!g.hasPhoto(log) || g.photoSrc(log) !== '') throw new Error('photo id dropped');
++  if (g.photoSrc({ photo: 'data:image/gif;base64,AAAA' }) !== 'data:image/gif;base64,AAAA') throw new Error('data photo');
++});
++check('render did not write records or local config', () => {
++  if (store.has('boriken-b63-view')) throw new Error('config write');
++  const origin = state.motherFatherPlants.find((m) => m.id === 'f-origin');
++  if (origin.originRegion !== 'District One') throw new Error('origin changed');
++  if (!state.motherFatherPlants.find((m) => m.id === 'm-retired')) throw new Error('retired deleted');
++});
++
++function layoutHtml(label) {
++  const htmlPath = '/tmp/b63-layout-' + label + '.html';
++  const css = ['styles.css', 'build57.css', 'build59.css', 'build60.css', 'build63.css', 'wide.css']
++    .map((f) => '<link rel="stylesheet" href="file://' + path.join(ROOT, f) + '">').join('');
++  fs.writeFileSync(htmlPath, '<!doctype html><html><head><meta name="viewport" content="width=device-width, initial-scale=1">' + css + '</head><body style="margin:0">'
++    + '<div class="b57"><h2 class="b18-h1">Family tree</h2><p class="b57-subt">Also crossed with</p>'
++    + '<div class="b60-full"><div class="b60-cols"><div class="b60-col l"><button class="b60-c"><b>Longnameparent One Two Three</b><small>Mother</small></button></div>'
++    + '<div class="b60-col r"><button class="b60-c"><b>Longnameparent Four Five Six</b><small>Father</small></button></div></div></div></div>'
++    + '<nav class="w-side" data-wide="sidebar"><button class="w-nav"><span class="w-l">Longnameparent sidebar label text</span></button></nav>'
++    + '<div class="tag-top" style="width:180px"><div class="m-t">AlphaBetaGamma DeltaEpsilon</div></div>'
++    + '<dialog class="modal" id="closed"><div class="modal-card"><button type="button">Closed save</button></div></dialog>'
++    + '<dialog class="modal" id="opened" open><div class="modal-card"><button type="button">Open save</button></div></dialog>'
++    + '</body></html>');
++  return htmlPath;
++}
++const MEASURE = `(() => {
++  const view = window.innerWidth;
++  const doc = document.documentElement.scrollWidth;
++  const box = document.querySelector('.b57').getBoundingClientRect();
++  const nodes = [...document.querySelectorAll('button, a, input, .b57, .b60-c, .w-side, h2')];
++  const outside = nodes.filter((el) => {
++    const r = el.getBoundingClientRect();
++    if (r.width < 1 && r.height < 1) return false;
++    return r.left < -0.5 || r.right > view + 0.5;
++  }).map((el) => (el.id || el.className || el.tagName) + '@' + Math.round(el.getBoundingClientRect().left) + '..' + Math.round(el.getBoundingClientRect().right));
++  return {
++    innerWidth: view,
++    docWidth: doc,
++    pagePast: doc > view + 0.5 || box.left < -0.5 || box.right > view + 0.5 || outside.length > 0,
++    box: Math.round(box.width),
++    boxRight: Math.round(box.right),
++    outside,
++    sideW: Math.round(document.querySelector('.w-side').getBoundingClientRect().width),
++    word: getComputedStyle(document.querySelector('.tag-top .m-t')).wordBreak,
++    closed: getComputedStyle(document.querySelector('#closed')).display,
++    opened: getComputedStyle(document.querySelector('#opened')).display,
++    h1: document.querySelector('h2').textContent,
++  };
++})()`;
++function sleep(ms) { return new Promise((resolve) => setTimeout(resolve, ms)); }
++async function cdp(ws, method, params, wait) {
++  const id = cdp.next++;
++  const result = new Promise((resolve, reject) => {
++    const timer = setTimeout(() => reject(new Error('cdp timeout ' + method)), 8000);
++    cdp.pending.set(id, (msg) => { clearTimeout(timer); if (msg.error) reject(new Error(method + ' ' + JSON.stringify(msg.error))); else resolve(msg.result); });
++  });
++  ws.send(JSON.stringify({ id, method, params: params || {} }));
++  return wait ? result : result.catch((e) => { throw e; });
++}
++cdp.next = 1;
++cdp.pending = new Map();
++async function measureWidths() {
++  const port = 9333;
++  const dir = '/tmp/b63-chrome-cdp';
++  fs.rmSync(dir, { recursive: true, force: true });
++  const proc = require('child_process').spawn('/opt/google/chrome/chrome', [
++    '--headless=new', '--disable-gpu', '--no-sandbox', '--disable-dev-shm-usage',
++    '--user-data-dir=' + dir, '--remote-debugging-port=' + port, 'about:blank',
++  ], { stdio: 'ignore' });
++  try {
++    let page = null;
++    for (let i = 0; i < 50 && !page; i++) {
++      try {
++        const list = await (await fetch('http://127.0.0.1:' + port + '/json/list')).json();
++        page = list.find((t) => t.type === 'page' && t.webSocketDebuggerUrl);
++      } catch (e) { await sleep(100); }
++    }
++    if (!page) throw new Error('chrome debugging page did not open');
++    const ws = new WebSocket(page.webSocketDebuggerUrl);
++    await new Promise((resolve, reject) => { ws.addEventListener('open', resolve); ws.addEventListener('error', reject); });
++    ws.addEventListener('message', (ev) => {
++      const msg = JSON.parse(ev.data);
++      if (msg.id && cdp.pending.has(msg.id)) { const done = cdp.pending.get(msg.id); cdp.pending.delete(msg.id); done(msg); }
++    });
++    const sizes = [[320, 568, 'w320'], [375, 667, 'w375'], [390, 844, 'w390'], [430, 932, 'w430'], [1024, 768, 'ipad']];
++    const out = {};
++    for (const [width, height, label] of sizes) {
++      const htmlPath = layoutHtml(label);
++      await cdp(ws, 'Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 1, mobile: width < 800 });
++      await cdp(ws, 'Page.enable');
++      await cdp(ws, 'Page.navigate', { url: 'file://' + htmlPath });
++      for (let i = 0; i < 80; i++) {
++        const ready = await cdp(ws, 'Runtime.evaluate', { expression: 'document.readyState', returnByValue: true });
++        if (ready.result && ready.result.value === 'complete' && await (async () => { const h = await cdp(ws, 'Runtime.evaluate', { expression: '!!document.querySelector(".b57")', returnByValue: true }); return h.result && h.result.value; })()) break;
++        await sleep(50);
++      }
++      const measured = await cdp(ws, 'Runtime.evaluate', { expression: MEASURE, returnByValue: true });
++      if (!measured.result || measured.result.subtype === 'error') throw new Error(JSON.stringify(measured));
++      const d = measured.result.value;
++      if (d.innerWidth !== width) throw new Error('viewport was not ' + width + ' ' + JSON.stringify(d));
++      if (d.pagePast !== false || d.docWidth > width) throw new Error('page overflow at ' + width + ' ' + JSON.stringify(d));
++      if (d.word !== 'normal' || d.closed !== 'none' || d.opened === 'none' || d.h1 !== 'Family tree') throw new Error(JSON.stringify(d));
++      out[label] = d;
++    }
++    return out;
++  } finally { proc.kill('SIGKILL'); }
++}
++console.log('PRIOR layout: 15:11:20Z exit 1 was pagePast true, box 422, frame 390. Cause: .b57 margin 0 -16px (32px). 15:11:42Z exit 0 kept that overflow and allowed box <= frame+33. That green result is withdrawn.');
++measureWidths().then((out) => {
++  console.log('LAYOUT', JSON.stringify(out));
++  console.log('b63 integration: all checks passed');
++}).catch((e) => {
++  console.error('FAIL phone widths', e && e.stack || e);
++  process.exit(1);
++});
+diff -ruN -U3 --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/scripts/b63-remaining.test.js b62-app/scripts/b63-remaining.test.js
+--- a/scripts/b63-remaining.test.js	1970-01-01 00:00:00.000000000 +0000
++++ b/scripts/b63-remaining.test.js	2026-11-07 15:14:23.610750004 +0000
+@@ -0,0 +1,106 @@
++'use strict';
++const fs = require('fs');
++const path = require('path');
++const vm = require('vm');
++const ROOT = path.join(__dirname, '..');
++const FAIL = [];
++function check(name, fn) {
++  try { fn(); console.log('PASS', name); }
++  catch (e) { FAIL.push(name); console.error('FAIL', name, e.message); console.error('FAILED', FAIL.length); process.exit(1); }
++}
++const src = fs.readFileSync(path.join(ROOT, 'build63.js'), 'utf8');
++const css = fs.readFileSync(path.join(ROOT, 'build63.css'), 'utf8');
++const app = fs.readFileSync(path.join(ROOT, 'app.js'), 'utf8');
++const b59 = fs.readFileSync(path.join(ROOT, 'build59.css'), 'utf8');
++const tags = fs.readFileSync(path.join(ROOT, 'styles.css'), 'utf8');
++
++function boot(state) {
++  const recs = {};
++  (state.motherFatherPlants || []).forEach((r) => { recs['mf:' + r.id] = r; });
++  (state.plants || []).forEach((r) => { recs['pl:' + r.id] = r; });
++  (state.breedingProjects || []).forEach((r) => { recs['pr:' + r.id] = r; });
++  const g = {
++    state,
++    console,
++    document: { readyState: 'complete', addEventListener() {} },
++    B57: { rec: (k) => recs[k] || null },
++    B49: { children(key) { return state._kids[key] || []; } },
++    B41: { mfpOpen() { g.seen = (state.motherFatherPlants || []).map((m) => m.id); } },
++    B42: { listHtml() { g.listed = (state.motherFatherPlants || []).map((m) => m.id); return ''; } },
++    activeStrains() { return (state.plants || []).filter((p) => p.status === 'active'); },
++    sortedActiveStrains() { return g.activeStrains(); },
++    archivePlant(id) { const p = state.plants.find((x) => x.id === id); if (p) p.archivedByTest = true; },
++    detailPlantId() { return state.shown || ''; },
++  };
++  g.window = g;
++  vm.createContext(g);
++  vm.runInContext(src, g, { filename: 'build63.js' });
++  return g;
++}
++
++check('an unset id list hides no sample flag and no descendant', () => {
++  const named = { id: 'r1', name: 'Sample Name', sample: true, provenance: 'sample', status: 'Active' };
++  const child = { id: 'low', name: 'Lower cross', b49Father: 'mf:r1', status: 'active' };
++  const g = boot({ motherFatherPlants: [named], plants: [child], breedingProjects: [], _kids: {} });
++  if (g.B63.explicitId(named) || g.B63.projectVisible([named, child]).length !== 2) throw new Error('default hid a record');
++  if (g.B63.pendingMetadata().join(' ').indexOf('hideIds is empty') < 0) throw new Error('pending metadata');
++  const before = JSON.stringify(g.state.motherFatherPlants);
++  g.B41.mfpOpen();
++  if (JSON.stringify(g.state.motherFatherPlants) !== before) throw new Error('state changed');
++});
++check('only the configured id is hidden and its child stays', () => {
++  const named = { id: 'r1', name: 'Sample Name', status: 'Active' };
++  const child = { id: 'low', name: 'Lower cross', b49Father: 'mf:r1', status: 'active' };
++  const g = boot({
++    motherFatherPlants: [named],
++    plants: [child],
++    breedingProjects: [],
++    _kids: { 'pr:me': ['pr:me', 'mf:r1', 'pl:low'] },
++  });
++  g.B63.configure({ hideIds: ['r1'] });
++  if (!g.B63.explicitId(named) || g.B63.explicitId(child)) throw new Error('id scope');
++  const kids = g.B49.children('pr:me');
++  if (kids.includes('pr:me') || kids.includes('mf:r1')) throw new Error(kids.join(','));
++  if (!kids.includes('pl:low')) throw new Error('descendant hidden');
++  if (JSON.stringify(g.state.motherFatherPlants) !== JSON.stringify([named])) throw new Error('state written');
++});
++check('a retired mother leaves the active projection and stays in the record array', () => {
++  const retired = { id: 'nl', name: 'Retired Mother', status: 'Retired' };
++  const live = { id: 'c', name: 'Active Mother', status: 'Active' };
++  const rows = [retired, live];
++  const g = boot({ motherFatherPlants: rows, plants: [], breedingProjects: [], _kids: {} });
++  const active = g.B63.projectActiveMothers(rows);
++  if (active.some((m) => m.id === 'nl') || !active.some((m) => m.id === 'c')) throw new Error('active projection');
++  if (g.B63.projectVisible(rows).length !== 2) throw new Error('retired removed from history projection');
++  g.B41.mfpOpen();
++  if (g.state.motherFatherPlants !== rows) throw new Error('array replaced');
++});
++check('archive refuses a stale shown id and keeps the plant', () => {
++  const plant = { id: 'p2', name: 'Other', status: 'active' };
++  const g = boot({ motherFatherPlants: [], plants: [plant], breedingProjects: [], _kids: {}, shown: 'p1' });
++  g.archivePlant('p2');
++  if (plant.archivedByTest) throw new Error('stale id archived');
++  g.state.shown = 'p2';
++  g.archivePlant('p2');
++  if (!plant.archivedByTest) throw new Error('explicit id blocked');
++});
++check('build 62 flower guard and tag wrap and sheet lock are still present', () => {
++  if (!app.includes("const APP_BUILD = '63';")) throw new Error('build');
++  if (!app.includes('if (legacyFlip <= todayKey) p.flowerStartDate = legacyFlip;')) throw new Error('future flip guard missing');
++  if (!app.includes('else p.plannedFlipDate = legacyFlip;')) throw new Error('planned flip missing');
++  if (!tags.includes('.tag-top .m-t') || !tags.includes('word-break: normal')) throw new Error('tag wrap');
++  if (!b59.includes('dialog.modal[open]')) throw new Error('sheet lock selector');
++});
++check('inspection and tree reflow without a horizontal scroll port', () => {
++  if (!css.includes('#compliance-panel-inspection .compliance-table th')) throw new Error('table');
++  if (!css.includes('word-break: normal') || !css.includes('overflow: visible')) throw new Error('clip');
++  if (!css.includes('grid-template-columns')) throw new Error('reflow');
++  if (/overflow-x:\s*auto/.test(css) || /overflow-x:\s*hidden/.test(css)) throw new Error('horizontal scroll');
++  if (!css.includes('margin-left: 0') || !css.includes('overflow: visible')) throw new Error('tree still bleeds or scrolls');
++});
++check('no production id is hardcoded', () => {
++  const bad = ['Sample Name'];
++  bad.forEach((s) => { if (src.includes(s) || css.includes(s)) throw new Error('name ' + s); });
++});
++
++console.log('b63 remaining: all checks passed');
+diff -ruN -U3 --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/scripts/build-www.js b62-app/scripts/build-www.js
+--- a/scripts/build-www.js	2026-11-07 00:14:38.000000000 +0000
++++ b/scripts/build-www.js	2026-11-07 14:43:16.502706148 +0000
+@@ -49,7 +49,7 @@
+   'build45.css',
+   'build46.js',
+   'build46.css',
+-  'build46-black.css', 'build47.css', 'build48.js', 'build48.css', 'build49.js', 'build49.css', 'build49-sales.js', 'build49-sales.css', 'build50.js', 'build50.css', 'holiday-icons.js', 'build51.js', 'build51.css', 'build53.js', 'build53.css', 'build56.css', 'build57.js', 'build57.css', 'build58.js', 'build59.js', 'build60.js', 'build58.css', 'build59.css', 'build60.css', 'build61.js', 'build61.css', 'vendor/pdf-lib.min.js',
++  'build46-black.css', 'build47.css', 'build48.js', 'build48.css', 'build49.js', 'build49.css', 'build49-sales.js', 'build49-sales.css', 'build50.js', 'build50.css', 'holiday-icons.js', 'build51.js', 'build51.css', 'build53.js', 'build53.css', 'build56.css', 'build57.js', 'build57.css', 'build58.js', 'build59.js', 'build60.js', 'build58.css', 'build59.css', 'build60.css', 'build61.js', 'build61.css', 'build63.js', 'build63.css', 'vendor/pdf-lib.min.js',
+   'build32.css',
+   'wide.js',
+   'wide.css',
+diff -ruN -U3 --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/service-worker.js b62-app/service-worker.js
+--- a/service-worker.js	2026-11-06 23:56:01.000000000 +0000
++++ b/service-worker.js	2026-11-07 14:43:16.502706148 +0000
+@@ -6,7 +6,7 @@
+   so users should still export JSON backups for long-term records.
+ */
+ 
+-const CACHE_NAME = 'boriken-genetics-logbook-app-v80';
++const CACHE_NAME = 'boriken-genetics-logbook-app-v81';
+ const APP_SHELL = [
+   './',
+   './index.html',
+@@ -68,6 +68,8 @@
+   './build59.css',
+   './build60.js',
+   './build60.css',
++  './build63.js',
++  './build63.css',
+   './build53.js',
+   './build53.css',
+   './assets/looks/pr01.jpg',
+diff -ruN -U3 --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/wide.js b62-app/wide.js
+--- a/wide.js	2026-11-03 15:11:43.000000000 +0000
++++ b/wide.js	2026-11-07 14:55:15.528941427 +0000
+@@ -24,7 +24,7 @@
+ ];
+ function wCurrentView() { if (typeof activeView !== 'undefined' && activeView === 'plant-detail' && typeof detailColl !== 'undefined' && (detailColl === 'breedingPlants' || detailColl === 'mf')) return 'breeding'; /* Build 42: Breeding stays highlighted */ return typeof activeView !== 'undefined' ? activeView : (document.querySelector('.view.active')?.id || '').replace(/-view$/, ''); }
+ function wNavCounts() {
+-  const plants = (state.plants || []).filter((p) => p.status === 'active').length;
++  const plants = (state.plants || []).filter((p) => p.status === 'active' && !(window.B63 && B63.explicitId && B63.explicitId(p))).length;
+   const today = typeof b19Today === 'function' ? b19Today() : new Date().toISOString().slice(0, 10);
+   const soon = toInputDateSafe(new Date(Date.now() + 14 * 864e5));
+   let planned = 0;
+diff -ruN -U3 --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/www/app.js b62-app/www/app.js
+--- a/www/app.js	2026-11-07 02:47:38.000000000 +0000
++++ b/www/app.js	2026-11-07 15:15:46.762330712 +0000
+@@ -24,7 +24,7 @@
+ const DRAFT_STORAGE_KEY = 'boriken-genetics-logbook-drafts-v1';
+ const BACKUP_STORAGE_KEY = 'boriken-genetics-logbook-backups-v1';
+ const APP_VERSION = '1.0';
+-const APP_BUILD = '62'; // must equal CURRENT_PROJECT_VERSION in the Xcode project (scripts/build-www.js checks this)
++const APP_BUILD = '63'; // must equal CURRENT_PROJECT_VERSION in the Xcode project (scripts/build-www.js checks this)
+ const SCHEMA_VERSION = 2;
+ const MAX_SNAPSHOTS = 3; // keep only the latest few so history does not crowd live data in localStorage
+ const DAY_MS = 1000 * 60 * 60 * 24;
+@@ -1820,7 +1820,7 @@
+ }
+ 
+ function activeStrains() {
+-  return state.plants.filter((plant) => getPlantStatus(plant) === 'Active' && !plant.harvestDate);
++  return state.plants.filter((plant) => getPlantStatus(plant) === 'Active' && !plant.harvestDate && !(window.B63 && B63.explicitId && B63.explicitId(plant)));
+ }
+ 
+ function harvestedStrains() {
+@@ -1884,6 +1884,7 @@
+   const sort = $('#harvest-sort')?.value || 'recent';
+ 
+   const rows = harvestedStrains().filter((plant) => {
++    if (window.B63 && B63.explicitId && B63.explicitId(plant)) return false;
+     if (strain !== 'all' && plant.name !== strain) return false;
+     const roomValue = plant.areaOrRoom || plant.location || '';
+     if (room !== 'all' && roomValue !== room) return false;
+@@ -2031,7 +2032,7 @@
+     button.onclick = () => returnToActive(button.dataset.harvestReturn);
+   });
+   $$('[data-harvest-archive]').forEach((button) => {
+-    button.onclick = () => archivePlant(button.dataset.harvestArchive);
++    button.onclick = () => archivePlant(button.dataset.harvestArchive, { fromCard: true });
+   });
+ }
+ 
+@@ -3197,6 +3198,13 @@
+ // moves seed missing dates with today; backward/reopen moves preserve every
+ // recorded date so no history is lost.
+ function applyPlantStatus(plant, toStatus) {
++  if (!plant) return false;
++  if (toStatus === 'archived') {
++    const shown = typeof detailPlantId === 'function' ? detailPlantId() : '';
++    const cardOk = typeof archiveCardId === 'string' && archiveCardId && archiveCardId === plant.id;
++    if (cardOk) archiveCardId = '';
++    else if (window.B63 && typeof B63.allowArchive === 'function' && !B63.allowArchive(shown, plant.id)) return false;
++  }
+   const today = toInputDate(getToday());
+   plant.status = toStatus;
+   plant.completed = toStatus !== 'active';
+@@ -3255,7 +3263,7 @@
+     message,
+     acceptLabel,
+     action: () => {
+-      applyPlantStatus(plant, toStatus);
++      if (applyPlantStatus(plant, toStatus) === false) return;
+       // Preserve compliance history through the workflow: log the stage change
+       // plus a specific lifecycle event, keeping the patient/tag link intact.
+       const eventType = STATUS_TRANSITION_EVENTS[toStatus] || 'changed stage';
+@@ -3324,9 +3332,14 @@
+ }
+ 
+ // Manual archive for genetics retired from production.
+-function archivePlant(id) {
++let archiveCardId = '';
++function archivePlant(id, opts) {
+   const plant = state.plants.find((item) => item.id === id);
+   if (!plant || plant.status === 'archived') return;
++  const fromCard = !!(opts && opts.fromCard);
++  const shown = typeof detailPlantId === 'function' ? detailPlantId() : '';
++  archiveCardId = fromCard ? id : '';
++  if (!fromCard && window.B63 && typeof B63.allowArchive === 'function' && !B63.allowArchive(shown, id)) return;
+   transitionPlant(id, 'archived', {
+     title: `Archive ${plant.name}?`,
+     message: 'Removes this genetic from Active Strains and the Harvest Archive, and files it under Archived Genetics. Nothing is deleted — every date, note, photo, yield, and test result is preserved, and you can return it to Active anytime.',
+diff -ruN -U3 --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/www/build13.js b62-app/www/build13.js
+--- a/www/build13.js	2026-11-07 02:47:38.000000000 +0000
++++ b/www/build13.js	2026-11-07 15:15:46.766330696 +0000
+@@ -192,7 +192,7 @@
+ 
+ function mfSectionHtml() {
+   const all = mfList();
+-  const live = all.filter((m) => !m.archived);
++  const live = all.filter((m) => (window.B63 && typeof B63.showMother === 'function' ? B63.showMother(m) : (m && !m.archived && m.status !== 'Retired')));
+   const arch = all.filter((m) => m.archived);
+   const pill = (t, c = 'c') => `<span class="m-pill ${c}">${escapeHtml(t)}</span>`;
+   const card = (m) => `<div class="m-row" data-mf="open" data-id="${escapeHtml(m.id)}" role="button" tabindex="0">
+diff -ruN -U3 --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/www/build41.js b62-app/www/build41.js
+--- a/www/build41.js	2026-11-07 02:47:38.000000000 +0000
++++ b/www/build41.js	2026-11-07 15:15:46.770330679 +0000
+@@ -164,7 +164,7 @@
+   /* Mothers & Fathers: its own page, opened from one row on Breeding (approved v3 mothers-fathers/mf-page.js). */
+   let mfpOn = false; let mfpTab = 'm'; let mfpKeep = null; // Build 42: Mothers / Fathers tabs are real filters
+   const esc = (s) => escapeHtml(String(s == null ? '' : s));
+-  const list = () => (state.motherFatherPlants || []).filter((m) => !m.archived);
++  const list = () => (state.motherFatherPlants || []).filter((m) => (window.B63 && typeof B63.showMother === 'function' ? B63.showMother(m) : (m && !m.archived && m.status !== 'Retired')));
+   const tot = (a) => (a || []).reduce((n, e) => n + (Number(e.count) || 0), 0);
+   const row = (m) => `<div class="m-row mfp-row" data-mf="open" data-id="${esc(m.id)}" role="button" tabindex="0"><div class="m-ph mf-ph ${m.role === 'father' ? 'father' : 'mother'}">${m.role === 'father' ? '♂' : '♀'}</div><div class="m-grow"><div class="m-t">${esc(m.name)}</div><div class="m-s">${esc([m.status || 'Active', m.role === 'father' ? `${(m.pollen || []).length} pollen lots` : `${tot(m.cuttings)} cuttings`].join(' · '))}</div></div><span class="m-pill c">${m.role === 'father' ? 'Father' : 'Mother'}</span><i aria-hidden="true">›</i></div>`;
+   function entry() {
+diff -ruN -U3 --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/www/build42.js b62-app/www/build42.js
+--- a/www/build42.js	2026-11-07 02:47:38.000000000 +0000
++++ b/www/build42.js	2026-11-07 15:15:46.774330662 +0000
+@@ -143,7 +143,7 @@
+ 
+   /* ---- Mac list next to a mother / father profile: only that group, with the same tabs ---- */
+   function listHtml() {
+-    const m = mfById(detailMfId); const fa = isF(m); const L = mfAll().filter((x) => !x.archived);
++    const m = mfById(detailMfId); const fa = isF(m); const L = mfAll().filter((x) => (window.B63 && typeof B63.showMother === 'function' ? B63.showMother(x) : (x && !x.archived && x.status !== 'Retired')));
+     const M = L.filter((x) => !isF(x)), F = L.filter(isF); const show = fa ? F : M;
+     return `<div class="mfx-list"><div class="b18-seg mfp-seg" role="tablist"><button type="button" class="${fa ? '' : 'on'}" role="tab" aria-selected="${!fa}" data-b42="tab" data-t="m">Mothers · ${M.length}</button><button type="button" class="${fa ? 'on' : ''}" role="tab" aria-selected="${fa}" data-b42="tab" data-t="f">Fathers · ${F.length}</button></div>
+       <div class="m-card">${show.map((x) => `<button type="button" class="w-li mfx-li${x.id === detailMfId ? ' on' : ''}" data-mf="open" data-id="${esc(x.id)}"${x.id === detailMfId ? ' aria-current="true"' : ''}><span class="m-ph mf-ph ${isF(x) ? 'father' : 'mother'}" aria-hidden="true">${isF(x) ? '♂' : '♀'}</span><span class="w-li-t"><b>${esc(x.name)}</b><small>${esc(isF(x) ? `${(x.pollen || []).length} pollen lots` : `${tot(x.cuttings)} cuttings`)}</small></span></button>`).join('')}</div></div>`;
+@@ -157,7 +157,7 @@
+       e.preventDefault(); e.stopPropagation();
+       if (a === 'back') { const m = mfById(detailMfId); if (m) B41.mfpTab(isF(m) ? 'f' : 'm'); switchView('breeding'); renderAll(); B41.mfpOpen(); }
+       else if (a === 'plant') openPlantDetail(b42.dataset.id, 'plants');
+-      else if (a === 'tab') { B41.mfpTab(b42.dataset.t); const L = mfAll().filter((x) => !x.archived && (b42.dataset.t === 'f') === isF(x)); if (L.length) openPlantDetail(L[0].id, 'mf'); else { switchView('breeding'); renderAll(); B41.mfpOpen(); } }
++      else if (a === 'tab') { B41.mfpTab(b42.dataset.t); const L = mfAll().filter((x) => (window.B63 && typeof B63.showMother === 'function' ? B63.showMother(x) : (x && !x.archived && x.status !== 'Retired')) && (b42.dataset.t === 'f') === isF(x)); if (L.length) openPlantDetail(L[0].id, 'mf'); else { switchView('breeding'); renderAll(); B41.mfpOpen(); } }
+       return;
+     }
+     const el = e.target.closest('[data-mf]'); if (!el || el.closest('#breeding-mobile')) return; // build13 handles its own box
+diff -ruN -U3 --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/www/build49.js b62-app/www/build49.js
+--- a/www/build49.js	2026-11-07 02:47:38.000000000 +0000
++++ b/www/build49.js	2026-11-07 15:15:46.774330662 +0000
+@@ -88,10 +88,30 @@
+   }
+   const gcls = (g) => (g === 'F1' ? 'F1' : /^F/.test(g) ? 'F2' : g === 'S1' ? 'S1' : /^BX/.test(g) ? 'BX' : 'P');
+   const badge = (key) => { const g = gen(key); return `<span class="b49-gen g-${gcls(g)}" aria-label="Generation ${g}">${g}</span>`; };
++  function nodeId(k) { const s = String(k || ''); const i = s.indexOf(':'); return i < 0 ? '' : s.slice(i + 1); }
++  function sameNode(a, b) {
++    if (!a || !b) return false;
++    if (a === b) return true;
++    return String(a).split(':')[0] === String(b).split(':')[0] && nodeId(a) !== '' && nodeId(a) === nodeId(b);
++  }
++  function hiddenNode(k) { return !!(window.B63 && typeof B63.explicitKey === 'function' && B63.explicitKey(k)); }
+   function children(key) {
+-    const out = []; const add = (k) => { const p = par(k); if (p && p.some((x) => same(x, key)) && !out.some((o) => low(nameOf(o)) === low(nameOf(k)))) out.push(k); };
++    const out = [];
++    const add = (k) => {
++      if (!k || sameNode(k, key) || hiddenNode(k) || out.some((o) => sameNode(o, k))) return;
++      const p = par(k);
++      if (p && p.some((x) => sameNode(x, key))) out.push(k);
++    };
+     coll.pr().filter((p) => p.status !== 'Archived').forEach((p) => add(`pr:${p.id}`));
+     coll.pl().filter((p) => p.status !== 'archived').forEach((p) => add(`pl:${p.id}`)); coll.bp().forEach((p) => add(`bp:${p.id}`)); coll.mf().filter((m) => !m.archived).forEach((m) => add(`mf:${m.id}`));
++    /* An id stored on the project is a kid even when the name resolver did not return that parent. Names are not links. */
++    const id = nodeId(key);
++    if (id) coll.pr().filter((p) => p.status !== 'Archived').forEach((p) => {
++      const k = `pr:${p.id}`;
++      if (sameNode(k, key) || hiddenNode(k) || out.some((o) => sameNode(o, k))) return;
++      const refs = [p.motherId, p.fatherId, nodeId(p.b49Mother), nodeId(p.b49Father)];
++      if (refs.some((x) => x && x === id)) out.push(k);
++    });
+     return dedupeKids(out);
+   }
+   /* b59: a cross (pr) and the plant grown from it are one kid, not two. Same plant = linked by id (b49ProjectId / projFor)
+diff -ruN -U3 --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/www/build57.js b62-app/www/build57.js
+--- a/www/build57.js	2026-11-07 02:47:38.000000000 +0000
++++ b/www/build57.js	2026-11-07 15:15:46.778330645 +0000
+@@ -25,7 +25,13 @@
+   const COLL = { pl: () => state.plants || [], bp: () => state.breedingPlants || [], mf: () => state.motherFatherPlants || [], pr: () => state.breedingProjects || [] };
+   function rec(key) { const [t, ...r] = String(key || '').split(':'); const a = COLL[t]; return a ? a().find((x) => x.id === r.join(':')) || null : null; }
+   const name = (k) => B49.nameOf(k) || (/^(tx|dx):/.test(String(k)) ? String(k).slice(3) : '');
+-  const same = (a, b) => a === b || (!!a && !!b && low(name(a)) !== '' && low(name(a)) === low(name(b)));
++  const same = (a, b) => {
++    if (!a || !b) return false;
++    if (a === b) return true;
++    const as = String(a), bs = String(b);
++    const ai = as.split(':').slice(1).join(':'), bi = bs.split(':').slice(1).join(':');
++    return as.split(':')[0] === bs.split(':')[0] && !!ai && ai === bi;
++  };
+   function styleOf(key) { const r = rec(key); if (r && !ok(r.treeStyle)) { r.treeStyle = 1 + rnd(N); try { saveState(); } catch (e) { /* */ } } return r ? Number(r.treeStyle) : 1 + (low(name(key)).split('').reduce((s, c) => s + c.charCodeAt(0), 0) % N); }
+   function photo(key, d = 0) {
+     const r = rec(key); if (!r || d > 3) return '';
+@@ -69,7 +75,7 @@
+     for (let g = 1; g <= 40; g++) {
+       const row = []; lv[g - 1].forEach((x) => { if (!x.k || x.ref || x.self || isUnk(x.k)) return; const p = par2(x.k); if (!p) return;
+         const s1 = p[0] && p[1] && same(p[0], p[1]);
+-        p.forEach((k, i) => { if (s1 && i === 1) { row.push({ k: '', self: 1, via: x.k, side: 'f', role: `Self-pollinated (S1) · same as ${nm2(p[0])}` }); return; }
++        p.forEach((k, i) => { if (k && window.B63 && B63.explicitKey && B63.explicitKey(k)) return; if (s1 && i === 1) { row.push({ k: '', self: 1, via: x.k, side: 'f', role: `Self-pollinated (S1) · same as ${nm2(p[0])}` }); return; }
+           if (!k) { row.push({ k: '', none: 1, via: x.k, side: i ? 'f' : 'm', role: `${rl(g, i)} · not recorded` }); return; }
+           if (!isUnk(k) && seen.some((q) => same(q, k))) { if (!row.some((y) => y.ref && same(y.k, k))) row.push({ k, ref: 1, via: x.k, side: i ? 'f' : 'm', role: `${rl(g, i)} · appears again (backcross)` }); return; }
+           if (!isUnk(k)) seen.push(k); row.push({ k, via: x.k, side: i ? 'f' : 'm', role: rl(g, i) }); }); });
+@@ -145,7 +151,7 @@
+   /* ---------- b59 partner row: this plant × the plant it was bred with, bracket down to its Kids ---------- */
+   function partners(k, ks) {
+     const G = []; ks.forEach((x) => { if (!x.k) return; const p = par2(x.k) || []; const i = same(p[0], k) ? 0 : same(p[1], k) ? 1 : -1; if (i < 0) return;
+-      const o = (i === 0 ? p[1] : p[0]) || ''; const self = !!o && same(o, k); const key = isUnk(o) ? '?' : o; let g = G.find((y) => (key === '?' ? y.key === '?' : y.key !== '?' && same(y.key, key)));
++      const o = (i === 0 ? p[1] : p[0]) || ''; if (o && !isUnk(o) && window.B63 && B63.explicitKey && B63.explicitKey(o)) return; const self = !!o && same(o, k); const key = isUnk(o) ? '?' : o; let g = G.find((y) => (key === '?' ? y.key === '?' : y.key !== '?' && same(y.key, key)));
+       if (!g) { g = { key, self, side: i === 0 ? 'Father' : 'Mother', kids: [] }; G.push(g); } g.kids.push(x); });
+     return G;
+   }
+@@ -156,7 +162,7 @@
+     if (g.key === '?') return `<div class="b59-pc pt" data-partner="?" data-node="?"><span class="b57-ph mono big" aria-hidden="true">?</span></div>`;
+     return `<button type="button" class="b59-pc pt" data-b57="sel" data-node="${esc(g.key)}" data-k="${esc(g.key)}" data-partner="${esc(g.key)}" aria-label="${esc(name(g.key))}, bred with this plant">${ph(g.key, 1)}</button>`;
+   }
+-  const pLab = (g) => `<div class="b59-plab"><b>${esc(g.self ? 'Itself' : g.key === '?' ? 'Unknown' : name(g.key))}</b><small>${g.self ? 'Self-pollinated · S1' : `Bred with · ${g.side}`}</small></div>`;
++  const pLab = (g) => `<div class="b59-plab"><b>${esc(g.self ? 'Itself' : g.key === '?' ? 'Unknown' : name(g.key))}</b><small>${g.self ? 'Self-pollinated · S1' : `Also crossed with · ${g.side}`}</small></div>`;
+   function fam(k, ks, o = {}) {
+     const G = partners(k, ks); const rest = ks.filter((x) => !G.some((g) => g.kids.includes(x)));
+     const ban = `<div class="b57-ban"><b>${esc(name(k))}${gen(k) ? ` · ${esc(gen(k))}` : ''}</b><small>${esc(crossTxt(k))}</small></div>`;
+@@ -240,7 +246,7 @@
+     const trail = (pg.trail || []).length ? `<div class="b57-trail">${pg.trail.map((t) => `<button type="button" data-b57="walkto" data-k="${esc(t)}">${esc(name(t))}</button>`).join('<span>›</span>')}<span>›</span><b>${esc(name(k))}</b></div>` : '';
+     return `<div class="b57${pg.edit ? ' b58-editing' : ''}" data-b57s="${sn}" data-b57k="${st.k}" data-b57lay="${st.lay}" data-depth="${depth}">${head}<h2 class="b18-h1">Family tree</h2><p class="b57-subt">${esc(subT)}</p>
+ <div class="b57-tools"><span class="m-s">${depth ? `${depth} generation${depth > 1 ? 's' : ''} recorded` : (stat(k).t === 'bought' ? stat(k).l : 'No parents recorded')}</span><button type="button" class="b58-edit${pg.edit ? ' on' : ''}" data-b58="edit" aria-pressed="${pg.edit ? 'true' : 'false'}">${pg.edit ? 'Done' : 'Edit'}</button><span class="b57-z"><button type="button" data-b57="z-" aria-label="Zoom out">−</button><button type="button" data-b57="z0" aria-label="Reset zoom">Zoom</button><button type="button" data-b57="z+" aria-label="Zoom in">+</button></span></div>${trail}
+-${pg.edit ? '<div class="b58-banner" role="status">Edit mode · tap any plant to change, add, relink or remove it. Hand edits are kept and never overwritten automatically.</div>' : ''}<div class="b57-scroll"><div class="b57-canvas" style="zoom:${pg.zoom || 1}">${body}${depth > 2 ? `<div class="b57-older">${lab('Older generations · scroll sideways, tap a plant to open it, long-press to walk up')}${older(lv, 3)}</div>` : ''}</div></div>${sel}
++${pg.edit ? '<div class="b58-banner" role="status">Edit mode · tap any plant to change, add, relink or remove it. Hand edits are kept and never overwritten automatically.</div>' : ''}<div class="b57-scroll"><div class="b57-canvas" style="zoom:${pg.zoom || 1}">${body}${depth > 2 ? `<div class="b57-older">${lab('Older generations · tap a plant to open it, long-press to walk up')}${older(lv, 3)}</div>` : ''}</div></div>${sel}
+ <p class="m-s b57-note">Tap any plant to open its profile; long-press it to walk up its line. ${p && !k.startsWith('pr:') ? esc(B49.why(k)) + '.' : ''}</p></div>`;
+   }
+   const _page = b18BrPageHtml;
+@@ -266,7 +272,7 @@
+     const out = [];
+     (state.breedingProjects || []).filter((p) => p.status !== 'Archived').forEach((p) => out.push({ k: `pr:${p.id}`, kind: 'Breeding project', r: p }));
+     [['pl', state.plants], ['bp', state.breedingPlants]].forEach(([t, a]) => (a || []).forEach((x) => { if (plantsRunning(x) > 1 && !(typeof isClonePlant === 'function' && isClonePlant(x)) && !/archiv/i.test(String(x.status || ''))) out.push({ k: `${t}:${x.id}`, kind: `Seed run · ${plantsRunning(x)} plants`, r: x }); }));
+-    return out;
++    return out.filter((x) => !(window.B63 && B63.explicitId && B63.explicitId(x.r)));
+   }
+   function linHtml() {
+     const L = lineageList();
+diff -ruN -U3 --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/www/build60.js b62-app/www/build60.js
+--- a/www/build60.js	2026-11-07 02:47:38.000000000 +0000
++++ b/www/build60.js	2026-11-07 15:15:46.782330629 +0000
+@@ -12,7 +12,16 @@
+   const COUNTRY = [[/afghan/i, 'Afghanistan'], [/\bthai/i, 'Thailand'], [/colombi/i, 'Colombia'], [/mexic/i, 'Mexico'], [/jamaic/i, 'Jamaica'], [/nepal/i, 'Nepal'], [/pakistan/i, 'Pakistan'], [/hindu ?kush/i, 'Afghanistan / Pakistan'], [/malawi/i, 'Malawi'], [/durban|south africa/i, 'South Africa'], [/lebanes/i, 'Lebanon'], [/morocc/i, 'Morocco'], [/puerto ?ric|borinquen|boric?u?a/i, 'Puerto Rico']];
+   const gen = (k) => { try { return B49.gen(k); } catch (e) { return ''; } };
+   const real = (k) => !!k && !B.isUnk(k) && !!B.rec(k);
+-  function isLand(k) { const r = B.rec(k); if (!r) return false; return !!(r.landrace || r.originRegion || r.originCountry || /land ?race/i.test(B.name(k))) && !B.par2(k); }
++  function shownOrigin(k) {
++    const r = B.rec(k) || {};
++    const over = window.B63 && typeof B63.originView === 'function' ? B63.originView(r) : null;
++    return {
++      originRegion: (over && over.originRegion) || r.originRegion || '',
++      originCountry: (over && over.originCountry) || r.originCountry || '',
++      landrace: over ? !!over.landrace : !!(r.landrace || r.originRegion || r.originCountry),
++    };
++  }
++  function isLand(k) { const r = B.rec(k); if (!r) return false; const o = shownOrigin(k); return !!(o.landrace || o.originRegion || o.originCountry) && !B.par2(k); }
+   function country(k) { const r = B.rec(k) || {}; if (r.originCountry) return { c: r.originCountry, inferred: false }; const n = B.name(k); const m = COUNTRY.find(([re]) => re.test(n)); return m ? { c: m[1], inferred: true } : { c: '', inferred: false }; }
+   const RL = (g) => (g === 1 ? 'Parents' : g === 2 ? 'Grandparents' : g === 3 ? 'Great-grandparents' : `${g - 2}× great-grandparents${g >= 6 ? ' · F6+ back' : ''}`);
+   /* line(root) -> rows[g] (g = 1 parents ...), each a list of cells */
+@@ -20,7 +29,8 @@
+     const rows = []; const seen = new Set([root]); let cur = [{ k: root, t: 'plant' }];
+     for (let g = 1; g <= MAX && cur.length; g++) {
+       const next = [];
+-      cur.forEach((x) => { if (x.t !== 'plant' || !real(x.k)) return;
++      cur.forEach((x) => { if (x.t !== 'plant') return;
++        if (!real(x.k)) { next.push({ t: 'none', of: x.k }); return; }
+         if (isLand(x.k)) { next.push({ t: 'origin', k: x.k }); return; }
+         const p = B.par2(x.k); if (!p || (!p[0] && !p[1])) { next.push({ t: 'none', of: x.k }); return; }
+         p.forEach((q, i) => { const side = i ? 'f' : 'm';
+@@ -36,15 +46,20 @@
+     if (x.t === 'none' || x.t === 'none1') return `<button type="button" class="b60-c slot" data-b58="add" data-b60t="none" data-up="${esc(x.of)}" data-of="${esc(x.of)}" data-side="${x.side || 'm'}"><b>Not recorded</b><small>${x.t === 'none' ? `Parents of ${esc(B.name(x.of))}` : `${SIDE[x.side]} of ${esc(B.name(x.of))}`}</small></button>`;
+     if (x.t === 'wild') return `<button type="button" class="b60-c slot wild" data-b58="add" data-b60t="wild" data-up="origin:${esc(x.of)}" data-of="${esc(x.of)}" data-side="m"><b>Wild ancestors</b><small>Not traceable · landrace</small></button>`;
+     if (x.t === 'unk') return `<button type="button" class="b60-c slot" data-b58="add" data-b60t="unk" data-up="${esc(x.of)}" data-of="${esc(x.of)}" data-side="${x.side}"><b>Unknown</b><small>${SIDE[x.side]} of ${esc(B.name(x.of))} · open pollination</small></button>`;
+-    if (x.t === 'origin') { const c = country(x.k); const r = B.rec(x.k) || {}; const ini = (c.c || 'LR').replace(/[^A-Za-z ]/g, '').slice(0, 2).toUpperCase();
+-      return `<button type="button" class="b60-c origin" data-b60="open" data-b60t="origin" data-node="origin:${esc(x.k)}" data-up="${esc(x.k)}" data-k="${esc(x.k)}" aria-label="Origin of ${esc(B.name(x.k))}, open profile"><span class="b57-ph mono" aria-hidden="true">${esc(ini)}</span><b>Landrace${c.c ? ` · ${esc(c.c)}` : ''}</b><small>${esc(r.originRegion || 'Region not recorded')}</small><em class="b57-tag bought">Origin</em></button>`; }
++    if (x.t === 'origin') { const c = country(x.k); const o = shownOrigin(x.k); const ini = (c.c || o.originCountry || 'LR').replace(/[^A-Za-z ]/g, '').slice(0, 2).toUpperCase();
++      return `<button type="button" class="b60-c origin" data-b60="open" data-b60t="origin" data-node="origin:${esc(x.k)}" data-up="${esc(x.k)}" data-k="${esc(x.k)}" aria-label="Origin of ${esc(B.name(x.k))}, open profile"><span class="b57-ph mono" aria-hidden="true">${esc(ini)}</span><b>Landrace${(o.originCountry || c.c) ? ` · ${esc(o.originCountry || c.c)}` : ''}</b><small>${esc(o.originRegion || 'Region not recorded')}</small><em class="b57-tag bought">Origin</em></button>`; }
+     const st = B.stat(x.k); const tag = st.t === 'bought' ? `<em class="b57-tag bought">${esc(window.B58 && B58.boughtBadge ? B58.boughtBadge(st.br) : 'Bought')}</em>` : st.t === 'culled' ? '<em class="b57-tag cull">Culled</em>' : st.t === 'removed' ? '<em class="b57-tag gone">Deleted plant</em>' : x.t === 'ref' ? '<em class="b57-tag ref">↺ also above</em>' : '';
+     return `<button type="button" class="b60-c" data-b57="sel" data-b60t="plant" data-node="${esc(x.k)}" data-up="${esc(x.of)}" data-k="${esc(x.k)}" data-of="${esc(x.of)}" data-side="${x.side}">${B.ph(x.k)}<b>${esc(B.name(x.k))}</b><small>${SIDE[x.side]}${gen(x.k) ? ' · ' + esc(gen(x.k)) : ''}</small>${tag}</button>`;
+   }
+   function rows(k, g, up) {
+     if (!g || g.self) return '';
+-    const L = line(k); const R = g.key === '?' ? [[{ t: 'unk', of: k, side: g.side === 'Father' ? 'f' : 'm' }]] : line(g.key); const n = Math.max(L.length, R.length); if (!n) return '';
+-    const meLine = g.side === 'Father' ? "Mother's line" : "Father's line"; const ptLine = g.side === 'Father' ? "Father's line" : "Mother's line";
++    const parents = String(k).startsWith('pr:') ? B.par2(k) : null;
++    const splitParents = !!(parents && (parents[0] || parents[1]));
++    const L = splitParents ? (parents[0] ? line(parents[0]) : []) : line(k);
++    const R = splitParents ? (parents[1] ? line(parents[1]) : []) : (g.key === '?' ? [[{ t: 'unk', of: k, side: g.side === 'Father' ? 'f' : 'm' }]] : line(g.key));
++    const n = Math.max(L.length, R.length); if (!n) return '';
++    const meLine = splitParents ? "Mother's line" : (g.side === 'Father' ? "Mother's line" : "Father's line");
++    const ptLine = splitParents ? "Father's line" : (g.side === 'Father' ? "Father's line" : "Mother's line");
+     const order = [...Array(n).keys()].map((i) => i + 1); if (!up) order.reverse();
+     const col = (rw, sd) => `<div class="b60-col ${sd}">${(rw || []).map(cell).join('') || '<span class="b60-gap" aria-hidden="true"></span>'}</div>`;
+     const body = order.map((gi) => `<div class="b60-gen" data-gen="${gi}"><div class="b57-lab">${esc(RL(gi))}</div><div class="b60-cols">${col(L[gi - 1], 'l')}${col(R[gi - 1], 'r')}</div></div>`).join('');
+diff -ruN -U3 --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/www/build63.css b62-app/www/build63.css
+--- a/www/build63.css	1970-01-01 00:00:00.000000000 +0000
++++ b/www/build63.css	2026-11-07 15:15:46.786330613 +0000
+@@ -0,0 +1,86 @@
++/* Build 63. Narrow layouts reflow. They do not add a horizontal scroll port. */
++#compliance-panel-inspection .table-wrap {
++  overflow: visible;
++  max-width: 100%;
++}
++#compliance-panel-inspection table.compliance-table {
++  min-width: 0;
++  width: 100%;
++  table-layout: fixed;
++}
++#compliance-panel-inspection .compliance-table th,
++#compliance-panel-inspection .compliance-table td {
++  overflow-wrap: normal;
++  word-break: normal;
++  hyphens: manual;
++  white-space: normal;
++  overflow: visible;
++  text-overflow: clip;
++  vertical-align: top;
++}
++@media (max-width: 720px) {
++  #compliance-panel-inspection table.compliance-table,
++  #compliance-panel-inspection .compliance-table tbody,
++  #compliance-panel-inspection .compliance-table tr,
++  #compliance-panel-inspection .compliance-table td {
++    display: block;
++    width: 100%;
++  }
++  #compliance-panel-inspection .compliance-table thead {
++    position: absolute;
++    width: 1px;
++    height: 1px;
++    overflow: hidden;
++    clip: rect(0, 0, 0, 0);
++  }
++  #compliance-panel-inspection .compliance-table td {
++    display: grid;
++    grid-template-columns: minmax(0, 7.5rem) minmax(0, 1fr);
++    gap: 0.35rem;
++  }
++  #compliance-panel-inspection .compliance-table td:nth-child(1)::before { content: "Plant code"; }
++  #compliance-panel-inspection .compliance-table td:nth-child(2)::before { content: "Patient alias"; }
++  #compliance-panel-inspection .compliance-table td:nth-child(3)::before { content: "Cert ID"; }
++  #compliance-panel-inspection .compliance-table td:nth-child(4)::before { content: "Cultivar"; }
++  #compliance-panel-inspection .compliance-table td:nth-child(5)::before { content: "Stage"; }
++  #compliance-panel-inspection .compliance-table td:nth-child(6)::before { content: "Area"; }
++  #compliance-panel-inspection .compliance-table td:nth-child(7)::before { content: "Tag status"; }
++  #compliance-panel-inspection .compliance-table td:nth-child(8)::before { content: "Last updated"; }
++}
++.b57 {
++  margin-left: 0;
++  margin-right: 0;
++  width: auto;
++  max-width: 100%;
++  box-sizing: border-box;
++}
++.b57-scroll, .b57-row.scroll, .b59-kids, .b60-col {
++  overflow: visible;
++  max-width: 100%;
++  touch-action: pan-y;
++  scroll-snap-type: none;
++}
++.b57-row, .b59-kids, .b60-col { flex-wrap: wrap; max-width: 100%; }
++.b57-n, .b60-col > .b60-c { flex: 1 1 8rem; width: auto; max-width: 100%; min-width: 0; }
++.b57-n b, .b57-n small {
++  white-space: normal;
++  overflow-wrap: break-word;
++  word-break: normal;
++  hyphens: manual;
++  max-width: 100%;
++}
++.b60-full { max-width: 100%; }
++.b60-c { flex: 1 1 100%; min-width: 0; max-width: 100%; }
++.b57 .b18-h1, .b57-subt, .b57-tools { max-width: 100%; overflow-wrap: break-word; word-break: normal; }
++@media (max-width: 720px) {
++  .b60-cols { gap: 8px; }
++  .b60-c { min-height: 72px; }
++  .b57-n { flex: 1 1 calc(50% - 8px); }
++}
++.w-side, nav.w-side, .mfx-list, .w-list { min-width: 0; max-width: 100%; overflow: visible; }
++.w-side .w-l, .w-side .w-foot, .w-side .w-n, .w-side .w-li-t, .w-side .w-li-t b, .mfx-list .w-li-t b {
++  min-width: 0;
++  overflow-wrap: break-word;
++  word-break: normal;
++  white-space: normal;
++}
+diff -ruN -U3 --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/www/build63.js b62-app/www/build63.js
+--- a/www/build63.js	1970-01-01 00:00:00.000000000 +0000
++++ b/www/build63.js	2026-11-07 15:15:46.782330629 +0000
+@@ -0,0 +1,164 @@
++/* Build 63. View projections only. Nothing here writes state, merges records, or deletes history.
++   Hidden ids start empty. A record is hidden only when its id is passed to configure.
++   Names, sample flags, and descendant links are not used. */
++(function () {
++  'use strict';
++  const hiddenIds = new Set();
++  let originById = {};
++  function configure(opts) {
++    hiddenIds.clear();
++    originById = {};
++    const ids = opts && Array.isArray(opts.hideIds) ? opts.hideIds : [];
++    ids.forEach((id) => { if (typeof id === 'string' && id) hiddenIds.add(id); });
++    const map = opts && opts.originById && typeof opts.originById === 'object' ? opts.originById : {};
++    Object.keys(map).forEach((id) => {
++      const row = map[id];
++      if (typeof id !== 'string' || !id || !row || typeof row !== 'object') return;
++      originById[id] = {
++        originRegion: typeof row.originRegion === 'string' ? row.originRegion : '',
++        originCountry: typeof row.originCountry === 'string' ? row.originCountry : '',
++        landrace: !!row.landrace || (typeof row.originRegion === 'string' && !!row.originRegion),
++      };
++    });
++    return { hideIds: [...hiddenIds], originIds: Object.keys(originById) };
++  }
++  function readLocalConfig() {
++    try {
++      if (typeof localStorage === 'undefined') return;
++      const raw = localStorage.getItem('boriken-b63-view');
++      if (!raw) return;
++      const opts = JSON.parse(raw);
++      if (!opts || typeof opts !== 'object' || Array.isArray(opts)) return;
++      configure({ hideIds: opts.hideIds, originById: opts.originById });
++    } catch (e) { /* absent or unreadable config leaves the view unchanged */ }
++  }
++  function originView(record) {
++    const extra = record && record.id ? originById[record.id] : null;
++    return {
++      originRegion: (extra && extra.originRegion) || (record && record.originRegion) || '',
++      originCountry: (extra && extra.originCountry) || (record && record.originCountry) || '',
++      landrace: !!(record && record.landrace) || !!(extra && extra.landrace),
++    };
++  }
++  function showMother(m) {
++    return !!(m && !m.archived && m.status !== 'Retired' && !explicitId(m));
++  }
++  function retiredMf(r) {
++    return !!(r && (r.status === 'Retired' || r.archived));
++  }
++  function explicitId(r) {
++    return !!(r && r.id && hiddenIds.has(r.id));
++  }
++  function explicitKey(k) {
++    if (!k || k === '?') return false;
++    const text = String(k);
++    if (hiddenIds.has(text)) return true;
++    const id = text.split(':').slice(1).join(':');
++    return !!(id && hiddenIds.has(id));
++  }
++  function projectActiveMothers(list) {
++    return (list || []).filter((r) => r && !retiredMf(r) && !explicitId(r));
++  }
++  function projectVisible(list) {
++    return (list || []).filter((r) => r && !explicitId(r));
++  }
++  function sameRecord(a, b) {
++    if (!a || !b) return false;
++    if (a === b) return true;
++    const as = String(a); const bs = String(b);
++    const ai = as.split(':').slice(1).join(':');
++    const bi = bs.split(':').slice(1).join(':');
++    return as.split(':')[0] === bs.split(':')[0] && ai && ai === bi;
++  }
++  function keepChild(parentKey, childKey) {
++    if (!childKey || childKey === parentKey || sameRecord(parentKey, childKey)) return false;
++    if (explicitKey(childKey)) return false;
++    return true;
++  }
++  function allowArchive(shownId, requestedId) {
++    if (!requestedId) return false;
++    if (shownId && shownId !== requestedId) return false;
++    return true;
++  }
++  function pendingMetadata() {
++    return [
++      'Sample record stable id, and any verified sample-only link ids. hideIds is empty, so nothing is hidden.',
++      'Duplicate parent record ids and the grow-plant ids for the missing crosses. No merge and no partner rewrite.',
++      'The one parent record id for the origin text. No name-matched write.',
++      'The retired mother id from the reported count. Every Retired mother or father leaves active lists. That count is not verified here.',
++      'The grow-plant id and the archive event. No date or status rewrite.',
++    ];
++  }
++  function projectMotherDom(doc) {
++    if (!doc || typeof doc.querySelectorAll !== 'function') return;
++    doc.querySelectorAll('#mfp-mc [data-id], #mfp-fc [data-id], #mfp-entry [data-id], .mfx-list [data-id]').forEach((el) => {
++      if (el.closest && el.closest('.b57, .b59-fam')) return;
++      const id = el.getAttribute('data-id');
++      const status = el.querySelector ? (el.querySelector('.m-s') || {}).textContent || '' : '';
++      if (hiddenIds.has(id) || /^Retired\b/.test(String(status).trim())) el.remove();
++    });
++    const setCount = (sel, tab, label) => {
++      const n = doc.querySelectorAll(sel).length;
++      doc.querySelectorAll('[data-mfp="tab"][data-t="' + tab + '"]').forEach((b) => { b.textContent = label + n; });
++    };
++    setCount('#mfp-mc .mfp-row', 'm', 'Mothers · ');
++    setCount('#mfp-fc .mfp-row', 'f', 'Fathers · ');
++  }
++  function install() {
++    if (window.B49 && typeof B49.children === 'function' && !B49.children.b63) {
++      const orig = B49.children;
++      const wrapped = function (key) { return orig.apply(this, arguments).filter((k) => keepChild(key, k)); };
++      wrapped.b63 = true;
++      B49.children = wrapped;
++    }
++    if (window.B57 && typeof B57.partners === 'function' && !B57.partners.b63) {
++      const orig = B57.partners;
++      const wrapped = function () {
++        return orig.apply(this, arguments).filter((g) => !g || !g.key || g.key === '?' || !explicitKey(g.key));
++      };
++      wrapped.b63 = true;
++      B57.partners = wrapped;
++    }
++    if (window.B57 && typeof B57.lineageList === 'function' && !B57.lineageList.b63) {
++      const orig = B57.lineageList;
++      const wrapped = function () { return orig.apply(this, arguments).filter((x) => x && !explicitId(x.r)); };
++      wrapped.b63 = true;
++      B57.lineageList = wrapped;
++    }
++    if (window.B41 && typeof B41.mfpOpen === 'function' && !B41.mfpOpen.b63) {
++      const orig = B41.mfpOpen;
++      const wrapped = function () {
++        const result = orig.apply(this, arguments);
++        projectMotherDom(typeof document !== 'undefined' ? document : null);
++        return result;
++      };
++      wrapped.b63 = true;
++      B41.mfpOpen = wrapped;
++    }
++    ['activeStrains', 'sortedActiveStrains'].forEach((name) => {
++      const orig = window[name];
++      if (typeof orig !== 'function' || orig.b63) return;
++      const wrapped = function () { return projectVisible(orig.apply(this, arguments)); };
++      wrapped.b63 = true;
++      window[name] = wrapped;
++    });
++    if (typeof window.archivePlant === 'function' && !window.archivePlant.b63) {
++      const orig = window.archivePlant;
++      const wrapped = function (id, opts) {
++        const shown = typeof detailPlantId === 'function' ? detailPlantId() : '';
++        const fromCard = !!(opts && opts.fromCard);
++        if (!fromCard && !allowArchive(shown, id)) return;
++        return orig.apply(this, arguments);
++      };
++      wrapped.b63 = true;
++      window.archivePlant = wrapped;
++    }
++  }
++  window.B63 = {
++    configure, readLocalConfig, originView, showMother, retiredMf, explicitId, explicitKey, projectActiveMothers, projectVisible,
++    sameRecord, keepChild, allowArchive, pendingMetadata, projectMotherDom, install,
++    hiddenIds: () => [...hiddenIds],
++  };
++  install();
++  readLocalConfig();
++})();
+diff -ruN -U3 --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/www/index.html b62-app/www/index.html
+--- a/www/index.html	2026-11-07 02:47:38.000000000 +0000
++++ b/www/index.html	2026-11-07 14:43:16.502706148 +0000
+@@ -60,6 +60,7 @@
+     <link rel="stylesheet" href="build58.css" />
+     <link rel="stylesheet" href="build59.css" />
+     <link rel="stylesheet" href="build60.css" />
++    <link rel="stylesheet" href="build63.css" />
+   </head>
+   <body>
+     <a class="skip-link" href="#main">Skip to tracker</a>
+@@ -1376,5 +1377,6 @@
+     <script src="build58.js" defer></script>
+     <script src="build59.js" defer></script>
+     <script src="build60.js" defer></script>
++    <script src="build63.js" defer></script>
+   </body>
+ </html>
+diff -ruN -U3 --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/www/service-worker.js b62-app/www/service-worker.js
+--- a/www/service-worker.js	2026-11-07 02:47:38.000000000 +0000
++++ b/www/service-worker.js	2026-11-07 14:43:16.502706148 +0000
+@@ -6,7 +6,7 @@
+   so users should still export JSON backups for long-term records.
+ */
+ 
+-const CACHE_NAME = 'boriken-genetics-logbook-app-v80';
++const CACHE_NAME = 'boriken-genetics-logbook-app-v81';
+ const APP_SHELL = [
+   './',
+   './index.html',
+@@ -68,6 +68,8 @@
+   './build59.css',
+   './build60.js',
+   './build60.css',
++  './build63.js',
++  './build63.css',
+   './build53.js',
+   './build53.css',
+   './assets/looks/pr01.jpg',
+diff -ruN -U3 --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/www/wide.js b62-app/www/wide.js
+--- a/www/wide.js	2026-11-07 02:47:38.000000000 +0000
++++ b/www/wide.js	2026-11-07 15:15:46.786330613 +0000
+@@ -24,7 +24,7 @@
+ ];
+ function wCurrentView() { if (typeof activeView !== 'undefined' && activeView === 'plant-detail' && typeof detailColl !== 'undefined' && (detailColl === 'breedingPlants' || detailColl === 'mf')) return 'breeding'; /* Build 42: Breeding stays highlighted */ return typeof activeView !== 'undefined' ? activeView : (document.querySelector('.view.active')?.id || '').replace(/-view$/, ''); }
+ function wNavCounts() {
+-  const plants = (state.plants || []).filter((p) => p.status === 'active').length;
++  const plants = (state.plants || []).filter((p) => p.status === 'active' && !(window.B63 && B63.explicitId && B63.explicitId(p))).length;
+   const today = typeof b19Today === 'function' ? b19Today() : new Date().toISOString().slice(0, 10);
+   const soon = toInputDateSafe(new Date(Date.now() + 14 * 864e5));
+   let planned = 0;

@@ -1,0 +1,1 @@
+Do not apply logbook-b61-plant-sheet-incr6.patch. It was not applied on the Mac, and its unconditional dialog.modal { display: flex } can show closed dialogs. Use logbook-b61-plant-sheet-incr6b.patch instead. See PLANT-SHEET-INCR6B-APPLY.txt.

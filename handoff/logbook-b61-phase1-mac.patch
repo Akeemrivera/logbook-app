@@ -1,0 +1,453 @@
+--- a/media-store.js	2026-11-06 23:53:42.507570523 +0000
++++ b/media-store.js	2026-11-06 23:53:42.507570523 +0000
+@@ -96,6 +96,12 @@
+     }
+   }
+ 
++  async function standaloneBlob(source) {
++    // Copy the bytes. A picker File can point at a temporary iOS file that disappears after the sheet closes.
++    const bytes = await source.arrayBuffer();
++    return new Blob([bytes], { type: (source && source.type) || 'application/octet-stream' });
++  }
++
+   async function putFile(id, file) {
+     if (!file) throw new Error('No photo file was selected.');
+     if (file.type && !file.type.startsWith('image/')) {
+@@ -104,15 +110,24 @@
+     assertSize(file.size || 0);
+     // New captures/imports only: shrink big photos (max 1600px long edge, JPEG 0.8).
+     // Photos already stored are never touched. Falls back to the original on any failure.
+-    const blob = await resizeImage(file);
++    const resized = await resizeImage(file);
++    const blob = await standaloneBlob(resized);
++    if (!blob.size) throw new Error('This photo had no image data, so it was not saved.');
++    assertSize(blob.size);
+     await putRecord({
+       id,
+       blob,
+       mime: blob.type || file.type || 'image/jpeg',
+       name: file.name || '',
+-      bytes: blob.size || file.size || 0,
++      bytes: blob.size,
+       createdAt: new Date().toISOString(),
+     });
++    // Do not tell the caller the save worked unless the bytes can be read back.
++    // A failed read does not delete this id or any other photo.
++    const stored = await getRecord(id);
++    if (!stored || !stored.blob || !stored.blob.size) {
++      throw new Error('The photo could not be read back after saving, so it was not added.');
++    }
+     return id;
+   }
+ 
+@@ -253,8 +268,17 @@
+     return { imported, failed: failures.length, errors: failures };
+   }
+ 
++  function plantRecords(state) {
++    // Mothers and fathers, including landrace stock, keep the same log photoId / headerPhotoId fields as grow plants.
++    return [].concat(
++      Array.isArray(state && state.plants) ? state.plants : [],
++      Array.isArray(state && state.breedingPlants) ? state.breedingPlants : [],
++      Array.isArray(state && state.motherFatherPlants) ? state.motherFatherPlants : [],
++    );
++  }
++
+   function forEachInlinePhoto(state, visit) {
+-    const plants = [].concat(Array.isArray(state && state.plants) ? state.plants : [], Array.isArray(state && state.breedingPlants) ? state.breedingPlants : []);
++    const plants = plantRecords(state);
+     plants.forEach((plant) => {
+       const logs = Array.isArray(plant && plant.logs) ? plant.logs : [];
+       logs.forEach((log) => {
+@@ -271,7 +295,7 @@
+ 
+   function collectIds(state) {
+     const ids = new Set();
+-    const plants = [].concat(Array.isArray(state && state.plants) ? state.plants : [], Array.isArray(state && state.breedingPlants) ? state.breedingPlants : []);
++    const plants = plantRecords(state);
+     plants.forEach((plant) => {
+       (plant.logs || []).forEach((log) => { if (log && log.photoId) ids.add(log.photoId); });
+       if (plant && typeof plant.headerPhotoId === 'string' && plant.headerPhotoId) ids.add(plant.headerPhotoId); // Build 38: chosen profile header photo
+--- a/styles.css	2026-11-06 23:53:42.507570523 +0000
++++ b/styles.css	2026-11-06 23:53:42.507570523 +0000
+@@ -2398,8 +2398,10 @@
+ .st-row.green { background: var(--bk-ok-bg); color: var(--bk-ok); } .st-row.green i { background: #6fa04a; }
+ .tag-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+ .tag-card { background: var(--color-surface); border-radius: 18px; padding: 0.65rem 0.8rem; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05); cursor: pointer; min-width: 0; }
+-.tag-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 6px; }
+-.tag-top .m-t { overflow-wrap: anywhere; }
++.tag-top { display: flex; flex-wrap: wrap; justify-content: flex-start; align-items: flex-start; gap: 4px 6px; }
++.tag-top .m-t { flex: 1 1 auto; min-width: auto; max-width: 100%; overflow-wrap: break-word; word-break: normal; hyphens: manual; }
++.tag-top .m-pill { flex: 0 0 auto; margin-left: auto; max-width: 100%; }
++.tag-top .b49-par { flex: 1 0 100%; max-width: 100%; overflow-wrap: break-word; word-break: normal; hyphens: manual; }
+ .tag-code { font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 0.75rem; color: var(--bk-sub); margin-top: 3px; }
+ .br-link { background: none; border: 0; color: var(--cu); font: inherit; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; padding: 0; }
+ .br-link.dark { color: var(--color-text); }
+--- a/service-worker.js	2026-11-06 23:53:42.507570523 +0000
++++ b/service-worker.js	2026-11-06 23:53:42.531570343 +0000
+@@ -6,7 +6,7 @@
+   so users should still export JSON backups for long-term records.
+ */
+ 
+-const CACHE_NAME = 'boriken-genetics-logbook-app-v78';
++const CACHE_NAME = 'boriken-genetics-logbook-app-v80';
+ const APP_SHELL = [
+   './',
+   './index.html',
+--- a/scripts/phase1-photos-tags.test.js	2026-11-06 07:58:44.288743085 +0000
++++ b/scripts/phase1-photos-tags.test.js	2026-11-06 23:53:42.507570523 +0000
+@@ -0,0 +1,354 @@
++/*
++  Phase 1 regression tests (Nov 6). Isolated synthetic storage only.
++  Does not load app.js or any build script, so startup migrations never run.
++  Does not read or write the user's logbook database.
++*/
++'use strict';
++
++const fs = require('fs');
++const http = require('http');
++const path = require('path');
++const { spawn } = require('child_process');
++
++const ROOT = path.join(__dirname, '..');
++const PASS = [];
++const FAIL = [];
++
++function pass(name) { PASS.push(name); console.log('PASS', name); }
++function fail(name, detail) { FAIL.push(name); console.error('FAIL', name, detail || ''); }
++
++function installFakeIndexedDB() {
++  const dbs = new Map();
++  const hooks = { blankNextGets: 0 };
++  function metaFor(name) {
++    if (!dbs.has(name)) dbs.set(name, { stores: new Map(), version: 0 });
++    return dbs.get(name);
++  }
++  function later(fn) { queueMicrotask(fn); }
++  function makeDb(meta) {
++    return {
++      objectStoreNames: { contains: (name) => meta.stores.has(name) },
++      createObjectStore(name) { if (!meta.stores.has(name)) meta.stores.set(name, new Map()); },
++      transaction(storeName) {
++        const store = meta.stores.get(storeName);
++        const tx = { oncomplete: null, onerror: null, onabort: null, error: null };
++        const writes = [];
++        const api = {
++          put(record) { writes.push(() => { store.set(record.id, record); }); },
++          get(id) {
++            const request = {};
++            later(() => {
++              if (hooks.blankNextGets > 0) {
++                hooks.blankNextGets -= 1;
++                request.result = { id, blob: new Blob([]) };
++              } else {
++                request.result = store.has(id) ? store.get(id) : undefined;
++              }
++              if (request.onsuccess) request.onsuccess();
++            });
++            return request;
++          },
++          delete(id) { writes.push(() => { store.delete(id); }); },
++          getAllKeys() {
++            const request = {};
++            later(() => { request.result = [...store.keys()]; if (request.onsuccess) request.onsuccess(); });
++            return request;
++          },
++        };
++        later(() => {
++          try { writes.forEach((fn) => fn()); if (tx.oncomplete) tx.oncomplete(); }
++          catch (error) { tx.error = error; if (tx.onerror) tx.onerror(); }
++        });
++        return {
++          get oncomplete() { return tx.oncomplete; },
++          set oncomplete(fn) { tx.oncomplete = fn; },
++          get onerror() { return tx.onerror; },
++          set onerror(fn) { tx.onerror = fn; },
++          get onabort() { return tx.onabort; },
++          set onabort(fn) { tx.onabort = fn; },
++          get error() { return tx.error; },
++          objectStore() { return api; },
++        };
++      },
++      close() {},
++    };
++  }
++  globalThis.indexedDB = {
++    open(name, version) {
++      const request = { result: null, onsuccess: null, onerror: null, onupgradeneeded: null };
++      later(() => {
++        const meta = metaFor(name);
++        request.result = makeDb(meta);
++        if ((version || 1) > meta.version) {
++          meta.version = version || 1;
++          if (request.onupgradeneeded) request.onupgradeneeded();
++        }
++        if (request.onsuccess) request.onsuccess();
++      });
++      return request;
++    },
++  };
++  return hooks;
++}
++
++function loadMedia() {
++  const file = path.join(ROOT, 'media-store.js');
++  delete require.cache[require.resolve(file)];
++  return require(file);
++}
++
++function imageFile(bytes, name) {
++  return new File([bytes], name, { type: 'image/png' });
++}
++
++async function photoTests() {
++  if (typeof URL.createObjectURL !== 'function') {
++    URL.createObjectURL = (blob) => `blob:phase1-${blob.size}-${Math.random().toString(16).slice(2)}`;
++  }
++  const hooks = installFakeIndexedDB();
++  let media = loadMedia();
++  const deleted = [];
++  const realDelete = media.deleteIds;
++  media.deleteIds = async (ids) => { deleted.push([...(ids || [])]); return realDelete(ids); };
++
++  const priorBytes = Buffer.from('prior-plant-photo-bytes');
++  const landraceBytes = Buffer.from('landrace-observation-bytes');
++  const priorId = 'plant-photo-prior';
++  const landraceId = 'mf-photo-new';
++  await media.putFile(priorId, imageFile(priorBytes, 'prior.png'));
++
++  const state = {
++    plants: [{ id: 'p1', logs: [{ id: 'l1', type: 'Observation', photo: '', photoId: priorId }], headerPhotoId: 'plant-header' }],
++    breedingPlants: [{ id: 'b1', logs: [{ photoId: 'breed-photo' }] }],
++    motherFatherPlants: [{ id: 'mf1', name: 'Landrace', logs: [{ id: 'ml1', type: 'Observation', notes: '', photo: '', photoId: '' }], headerPhotoId: 'mf-header' }],
++    cloneRuns: [{ photoIds: ['clone-photo'] }],
++    vlogEntries: [{ thumbnailId: 'vlog-thumb' }],
++  };
++  await media.putFile('plant-header', imageFile(Buffer.from('header'), 'h.png'));
++  await media.putFile('breed-photo', imageFile(Buffer.from('breed'), 'b.png'));
++  await media.putFile('clone-photo', imageFile(Buffer.from('clone'), 'c.png'));
++  await media.putFile('vlog-thumb', imageFile(Buffer.from('vlog'), 'v.png'));
++  await media.putFile('mf-header', imageFile(Buffer.from('mf-head'), 'mh.png'));
++
++  const ids = media.collectIds(state);
++  const expectIds = [priorId, 'plant-header', 'breed-photo', 'clone-photo', 'vlog-thumb', 'mf-header'];
++  const missing = expectIds.filter((id) => !ids.includes(id));
++  if (missing.length) fail('collectIds keeps plant, breeding, clone, vlog, and mother/father photos', missing.join(','));
++  else pass('collectIds keeps plant, breeding, clone, vlog, and mother/father photos');
++
++  let visited = 0;
++  const inline = 'data:image/png;base64,aGVsbG8=';
++  state.motherFatherPlants[0].logs.push({ photo: inline, photoId: '' });
++  media.forEachInlinePhoto(state, (obj) => { if (obj.photo === inline) visited += 1; });
++  if (visited !== 1) fail('inline mother/father photos are migrated by the same visitor', String(visited));
++  else pass('inline mother/father photos are migrated by the same visitor');
++  state.motherFatherPlants[0].logs.pop();
++
++  state.motherFatherPlants[0].logs.push({ id: 'unresolved', type: 'Observation', notes: '', photo: '', photoId: 'missing-mf-photo' });
++  const missingUrl = await media.objectUrl('missing-mf-photo');
++  const unresolved = state.motherFatherPlants[0].logs.find((log) => log.id === 'unresolved');
++  if (missingUrl) fail('missing photo has no display url', missingUrl);
++  else if (!unresolved || unresolved.photoId !== 'missing-mf-photo') fail('failed read erased the photo reference');
++  else if (deleted.length) fail('failed read deleted photo bytes', JSON.stringify(deleted));
++  else pass('failed read keeps the photo reference and deletes nothing');
++  if (!media.collectIds(state).includes('missing-mf-photo')) fail('a missing mother/father photo id is still collected so prune will not treat it as garbage');
++  else pass('a missing mother/father photo id is still collected so prune will not treat it as garbage');
++
++  const beforeLogs = JSON.stringify(state.plants[0].logs);
++  const beforePrior = Buffer.from(await (await media.getRecord(priorId)).blob.arrayBuffer());
++  hooks.blankNextGets = 1;
++  let toasted = false;
++  let added = false;
++  try {
++    await media.putFile(landraceId, imageFile(landraceBytes, 'landrace.png'));
++    state.motherFatherPlants[0].logs.push({ id: 'new', type: 'Observation', notes: '', photo: '', photoId: landraceId });
++    toasted = true;
++    added = true;
++  } catch (error) {
++    toasted = false;
++    if (!/not added|not saved|read back/i.test(String(error && error.message))) fail('failed save error is specific', String(error && error.message));
++  }
++  if (toasted || added) fail('failed save reported success');
++  else if (state.plants[0].logs.length !== 1 || JSON.stringify(state.plants[0].logs) !== beforeLogs) fail('failed save changed an existing plant log');
++  else if (!beforePrior.equals(Buffer.from(await (await media.getRecord(priorId)).blob.arrayBuffer()))) fail('failed save changed a prior photo');
++  else if (deleted.length) fail('failed save deleted photos', JSON.stringify(deleted));
++  else pass('failed save does not report success and leaves prior photos untouched');
++
++  try {
++    await media.putFile('not-image', new File(['hello'], 'note.txt', { type: 'text/plain' }));
++    fail('non-image save reported success');
++  } catch (error) {
++    if (await media.getRecord('not-image')) fail('non-image was stored');
++    else pass('non-image save fails and stores nothing');
++  }
++
++  try {
++    await media.putFile('too-big', { type: 'image/jpeg', size: 21 * 1024 * 1024, name: 'big.jpg', arrayBuffer: async () => new ArrayBuffer(0) });
++    fail('oversize save reported success');
++  } catch (error) {
++    if (!/limit/i.test(String(error && error.message))) fail('oversize error', String(error && error.message));
++    else pass('oversize save fails before it is stored');
++  }
++
++  await media.putFile(landraceId, imageFile(landraceBytes, 'landrace.png'));
++  state.motherFatherPlants[0].logs[0].photoId = landraceId;
++  const fresh = loadMedia();
++  fresh.deleteIds = async (ids) => { deleted.push([...(ids || [])]); return realDelete.call(fresh, ids); };
++  const url = await fresh.objectUrl(landraceId);
++  const round = Buffer.from(await (await fresh.getRecord(landraceId)).blob.arrayBuffer());
++  if (!url) fail('reloaded mother/father photo has no url');
++  else if (!round.equals(landraceBytes)) fail('reloaded mother/father photo bytes changed', round.toString());
++  else if (!media.collectIds(state).includes(landraceId) || !fresh.collectIds(state).includes(priorId)) fail('reload dropped a photo id');
++  else pass('saving and reloading a mother/father photo keeps the bytes and the prior photo');
++
++  const keep = new Set(fresh.collectIds(state));
++  const wouldDrop = [priorId, landraceId, 'plant-header', 'mf-header', 'breed-photo', 'clone-photo', 'vlog-thumb', 'missing-mf-photo'].filter((id) => !keep.has(id));
++  if (wouldDrop.length) fail('keep-set would drop a referenced photo', wouldDrop.join(','));
++  else if (deleted.length) fail('tests invoked photo deletion', JSON.stringify(deleted));
++  else pass('referenced photos stay in the keep-set and no photo was deleted');
++}
++
++function tagHtml() {
++  const links = [...fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8').matchAll(/<link[^>]*href="([^"]+\.css)"/g)].map((m) => m[1]);
++  const names = [
++    ['Cannalien', 'Northern lights #5 × Romulan'],
++    ['white widow', ''],
++    ['cannalien x afghan landrace', 'Cannalien × Rocco'],
++    ['Romscotti', 'Cannalien × Rocco'],
++  ];
++  const card = ([name, parents]) => `<div class="tag-card" data-open-plant="t">
++    <div class="tag-top">
++      <div class="m-t">${name} <span class="b49-gen g-F1">F1</span></div>
++      <span class="m-pill w">Not attached</span>
++      ${parents ? `<div class="m-s b49-par">${parents}</div>` : ''}
++    </div>
++    <div class="m-s">Indoor tent · Immature</div>
++    <div class="tag-code">BG-TEST-0001</div>
++  </div>`;
++  const grid = (width, zoom, label) => `<section data-layout="${label}" style="width:${width}px;zoom:${zoom}">
++    <div class="view active" id="compliance-view"><div id="compliance-dashboard"><div class="tag-grid">${names.map(card).join('')}</div></div></div>
++  </section>`;
++  return `<!doctype html><html data-theme="dark" data-text-size="large"><head><meta charset="utf-8">
++    ${links.map((href) => `<link rel="stylesheet" href="/${href}">`).join('')}
++  </head><body>
++    ${grid(390, 1, 'phone-390')}
++    ${grid(320, 1, 'phone-320')}
++    ${grid(390, 1.14, 'phone-390-large')}
++    <pre id="out"></pre>
++    <script>
++      function linesOf(node) {
++        const range = document.createRange();
++        range.selectNodeContents(node);
++        return [...range.getClientRects()].filter((r) => r.width > 0.5 && r.height > 0.5);
++      }
++      const rows = [];
++      document.querySelectorAll('[data-layout]').forEach((layout) => {
++        layout.querySelectorAll('.tag-card').forEach((card) => {
++          const nameNode = card.querySelector('.m-t').childNodes[0];
++          const parent = card.querySelector('.b49-par');
++          const pill = card.querySelector('.m-pill');
++          const nameLines = linesOf(nameNode);
++          const parentLines = parent ? linesOf(parent.firstChild) : [];
++          const pillLines = linesOf(pill.firstChild);
++          const narrow = (rects) => rects.filter((r) => r.width < r.height * 1.15).length;
++          rows.push({
++            layout: layout.dataset.layout,
++            name: nameNode.textContent.trim(),
++            nameLines: nameLines.length,
++            nameNarrow: narrow(nameLines),
++            parent: parent ? parent.textContent.trim() : '',
++            parentLines: parentLines.length,
++            parentNarrow: narrow(parentLines),
++            pillLines: pillLines.length,
++            badge: card.querySelector('.b49-gen').textContent
++          });
++        });
++      });
++      document.getElementById('out').textContent = JSON.stringify(rows);
++    </script>
++  </body></html>`;
++}
++
++function maxLines(name) {
++  if (name === 'Cannalien' || name === 'Romscotti' || name === 'white widow') return 3;
++  return 6;
++}
++
++function chrome(url) {
++  return new Promise((resolve, reject) => {
++    const bin = process.env.CHROME || 'google-chrome';
++    const child = spawn(bin, [
++      '--headless=new', '--disable-gpu', '--no-sandbox', '--hide-scrollbars',
++      `--user-data-dir=/tmp/chrome-phase1-${process.pid}`,
++      '--window-size=420,1400', '--dump-dom', url,
++    ], { stdio: ['ignore', 'pipe', 'pipe'] });
++    const timer = setTimeout(() => { child.kill('SIGKILL'); }, 40000);
++    let out = '';
++    let err = '';
++    child.stdout.on('data', (buf) => { out += buf; });
++    child.stderr.on('data', (buf) => { err += buf; });
++    child.on('error', (error) => { clearTimeout(timer); reject(error); });
++    child.on('close', (code) => {
++      clearTimeout(timer);
++      if (code !== 0 && !out.includes('id="out"')) reject(new Error(err || `chrome exit ${code}`));
++      else resolve(out);
++    });
++  });
++}
++
++async function tagTests() {
++  const html = tagHtml();
++  const server = http.createServer((req, res) => {
++    const url = req.url.split('?')[0];
++    if (url === '/fixture.html') {
++      res.setHeader('content-type', 'text/html; charset=utf-8');
++      res.end(html);
++      return;
++    }
++    const file = path.join(ROOT, decodeURIComponent(url.replace(/^\//, '')));
++    if (!file.startsWith(ROOT) || !fs.existsSync(file) || !fs.statSync(file).isFile()) {
++      res.statusCode = 404;
++      res.end('missing');
++      return;
++    }
++    res.end(fs.readFileSync(file));
++  });
++  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
++  const { port } = server.address();
++  try {
++    const dom = await chrome(`http://127.0.0.1:${port}/fixture.html`);
++    const match = dom.match(/<pre id="out">([\s\S]*?)<\/pre>/);
++    if (!match) { fail('compliance layout measurement', 'no result'); return; }
++    const rows = JSON.parse(match[1].replace(/&quot;/g, '"').replace(/&amp;/g, '&').replace(/&#39;/g, "'"));
++    if (rows.length !== 12) { fail('compliance layout measured every card', String(rows.length)); return; }
++    let bad = 0;
++    rows.forEach((row) => {
++      const nameCap = maxLines(row.name);
++      const parentCap = row.parent ? 6 : 0;
++      const problems = [];
++      if (row.nameLines < 1 || row.nameLines > nameCap) problems.push(`name lines ${row.nameLines}`);
++      if (row.nameNarrow) problems.push(`name narrow lines ${row.nameNarrow}`);
++      if (row.parentLines > parentCap) problems.push(`parent lines ${row.parentLines}`);
++      if (row.parentNarrow > 1) problems.push(`parent narrow lines ${row.parentNarrow}`);
++      if (row.pillLines !== 1) problems.push(`pill lines ${row.pillLines}`);
++      if (row.badge !== 'F1') problems.push('badge missing');
++      if (problems.length) {
++        bad += 1;
++        fail(`${row.layout} ${row.name}`, problems.join('; '));
++      }
++    });
++    if (!bad) pass('compliance tag names stay on words at 390, 320, and large text');
++  } finally {
++    server.close();
++  }
++}
++
++(async () => {
++  await photoTests();
++  await tagTests();
++  console.log(`phase1 ${PASS.length} passed, ${FAIL.length} failed`);
++  if (FAIL.length) process.exit(1);
++})().catch((error) => {
++  console.error('FAIL harness', error && error.stack || error);
++  process.exit(1);
++});

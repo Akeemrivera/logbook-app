@@ -1,0 +1,147 @@
+--- a/build59.css
++++ b/build59.css
+@@ -27,6 +27,27 @@
+ html.b59-locked, html.b59-locked body { overscroll-behavior: none; }
+ dialog.modal, .b58-card, .b49-full[open] { overscroll-behavior: contain; -webkit-overflow-scrolling: touch; overflow-y: auto; }
+ dialog.modal { max-height: calc(var(--b59-vvh, 100dvh) - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 16px); }
++/* Open sheets only. display on a closed dialog overrides the UA display:none
++   and would show every dialog.modal in the page. Cap the open box at the
++   viewport and scroll the card inside it. */
++dialog.modal[open] {
++  box-sizing: border-box;
++  height: fit-content;
++  max-height: min(
++    calc(var(--b59-vvh, 100%) - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 16px),
++    calc(100% - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 16px)
++  );
++  display: flex;
++  flex-direction: column;
++  overflow: hidden;
++}
++dialog.modal[open] > .modal-card {
++  box-sizing: border-box;
++  min-height: 0;
++  overflow-y: auto;
++  overscroll-behavior: contain;
++  -webkit-overflow-scrolling: touch;
++}
+ dialog.sheet { max-height: calc(var(--b59-vvh, 100dvh) - env(safe-area-inset-top) - 12px); }
+ .b58-card { max-height: calc(var(--b59-vvh, 100dvh) - env(safe-area-inset-top) - 12px); touch-action: pan-y; }
+ dialog.modal::backdrop { overscroll-behavior: contain; touch-action: none; }
+--- a/build59.js
++++ b/build59.js
+@@ -57,7 +57,7 @@
+   /* keyboard: the sheet's max height follows the visible viewport; a focused field scrolls into view */
+   const vv = window.visualViewport; const setVh = () => { const h = vv ? vv.height : window.innerHeight; document.documentElement.style.setProperty('--b59-vvh', `${Math.round(h)}px`); };
+   setVh(); if (vv) { vv.addEventListener('resize', setVh); vv.addEventListener('scroll', setVh); } window.addEventListener('resize', setVh);
+-  document.addEventListener('focusin', (e) => { const t = e.target; if (!locked || !t || !t.matches || !t.matches('input, select, textarea')) return; const s = top(); if (!s || !s.contains(t)) return; setTimeout(() => { try { t.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch (err) { /* */ } }, 320); });
++  document.addEventListener('focusin', (e) => { const t = e.target; if (!locked || !t || !t.matches || !t.matches('input, select, textarea, button')) return; const s = top(); if (!s || !s.contains(t)) return; setTimeout(() => { try { t.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch (err) { /* */ } }, 320); });
+   sync();
+ 
+   /* ---------- 6. tab bar: new Lineage icon drawn to the same 32-unit box as the other tab icons ---------- */
+--- /dev/null
++++ b/scripts/plant-sheet-scroll.test.js
+@@ -0,0 +1,103 @@
++'use strict';
++
++/*
++  STRUCTURAL checks read the source. They do not measure a window.
++  The Chromium section measures a fixture that uses this build59.css.
++  It is not a screenshot of the Mac QA app.
++*/
++
++const fs = require('fs');
++const os = require('os');
++const path = require('path');
++const { spawnSync } = require('child_process');
++
++const ROOT = process.env.LOGBOOK_ROOT || path.join(__dirname, '..');
++const FAIL = [];
++function check(kind, name, ok, detail) {
++  const label = kind + ' ' + name;
++  if (ok) console.log('PASS', label);
++  else {
++    FAIL.push(label);
++    console.error('FAIL', label, detail || '');
++  }
++}
++
++const html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
++const css = fs.readFileSync(path.join(ROOT, 'build59.css'), 'utf8');
++const js = fs.readFileSync(path.join(ROOT, 'build59.js'), 'utf8');
++const form = html.slice(html.indexOf('id="plant-modal"'), html.indexOf('id="sync-recovered-modal"'));
++const modalCount = (html.match(/<dialog\b[^>]*class="[^"]*\bmodal\b/g) || []).length;
++
++check('STRUCTURAL', 'Save plant is inside the plant dialog after Notes', form.indexOf('id="plant-notes"') < form.indexOf('>Save plant<') && form.includes('class="button-row modal-actions"'));
++check('STRUCTURAL', 'display:flex is limited to an open dialog', /dialog\.modal\[open\]\s*\{[^}]*display:\s*flex;/.test(css) && !/dialog\.modal\s*\{[^}]*display:\s*flex;/.test(css));
++check('STRUCTURAL', 'the open sheet box is capped at the viewport', /dialog\.modal\[open\]\s*\{[^}]*max-height:\s*min\(/.test(css) && css.includes('calc(100% - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 16px)'));
++check('STRUCTURAL', 'the open dialog box does not scroll itself', /dialog\.modal\[open\]\s*\{[^}]*overflow:\s*hidden;/.test(css));
++check('STRUCTURAL', 'the open card is the scroller', /dialog\.modal\[open\] > \.modal-card\s*\{[^}]*min-height:\s*0;[^}]*overflow-y:\s*auto;/.test(css));
++check('STRUCTURAL', 'the page lock is unchanged', js.includes("b.style.position = 'fixed'") && js.includes("classList.add('b59-locked')") && js.includes('window.scrollTo = function'));
++check('STRUCTURAL', 'focus brings a button into the sheet', js.includes("t.matches('input, select, textarea, button')"));
++check('STRUCTURAL', 'the flex rule would have covered every modal class', modalCount > 1, String(modalCount));
++
++function geometry() {
++  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sheet-geom-'));
++  const file = path.join(dir, 'sheet.html');
++  const page = `<!doctype html><html><head><meta charset="utf-8"><style>${css}</style>
++<style>body{margin:0}</style></head><body>
++<dialog class="modal" id="closed"><form class="modal-card"><p>Closed dialog</p><button type="submit">Save plant</button></form></dialog>
++<dialog class="modal" id="other"><form class="modal-card"><p>Other closed modal</p></form></dialog>
++<dialog class="modal" id="open"><form class="modal-card"><div style="height:1800px">tall fields</div><button id="save" type="submit">Save plant</button></form></dialog>
++<pre id="out"></pre>
++<script>
++const closed = document.getElementById('closed');
++const other = document.getElementById('other');
++const open = document.getElementById('open');
++open.showModal();
++const card = open.querySelector('.modal-card');
++card.scrollTop = card.scrollHeight;
++const btn = document.getElementById('save');
++const br = btn.getBoundingClientRect();
++const cr = card.getBoundingClientRect();
++const dr = open.getBoundingClientRect();
++document.getElementById('out').textContent = JSON.stringify({
++  closedDisplay: getComputedStyle(closed).display,
++  otherDisplay: getComputedStyle(other).display,
++  openDisplay: getComputedStyle(open).display,
++  dialogTop: Math.round(dr.top),
++  dialogBottom: Math.round(dr.bottom),
++  innerHeight: window.innerHeight,
++  cardClient: card.clientHeight,
++  cardScroll: card.scrollHeight,
++  btnTop: Math.round(br.top),
++  btnBottom: Math.round(br.bottom),
++  cardTop: Math.round(cr.top),
++  cardBottom: Math.round(cr.bottom)
++});
++</script></body></html>`;
++  fs.writeFileSync(file, page);
++  const chrome = process.env.CHROME || 'google-chrome';
++  const run = spawnSync(chrome, [
++    '--headless=new', '--no-sandbox', '--disable-gpu',
++    '--window-size=800,700', '--virtual-time-budget=3000',
++    '--dump-dom', 'file://' + file,
++  ], { encoding: 'utf8', timeout: 30000 });
++  const dom = (run.stdout || '') + (run.stderr || '');
++  const match = dom.match(/<pre id="out">([\s\S]*?)<\/pre>/);
++  if (!match) return { error: 'no measurement', status: run.status, tail: dom.slice(-400) };
++  return JSON.parse(match[1].replace(/&quot;/g, '"'));
++}
++
++const measured = geometry();
++if (measured.error) {
++  check('GEOMETRY', 'Chromium measured the stylesheet fixture', false, measured.tail || measured.error);
++} else {
++  check('GEOMETRY', 'a closed dialog.modal stays display:none', measured.closedDisplay === 'none' && measured.otherDisplay === 'none', JSON.stringify(measured));
++  check('GEOMETRY', 'an open dialog is visible and inside the window', measured.openDisplay === 'flex' && measured.dialogTop >= -1 && measured.dialogBottom <= measured.innerHeight + 1, JSON.stringify(measured));
++  check('GEOMETRY', 'the open card scrolls and Save plant can sit inside it', measured.cardScroll > measured.cardClient && measured.btnTop >= measured.cardTop - 1 && measured.btnBottom <= measured.cardBottom + 1, JSON.stringify(measured));
++  console.log('GEOMETRY numbers', JSON.stringify(measured));
++  console.log('GEOMETRY is a Chromium fixture using build59.css, not a Mac QA screenshot');
++}
++
++if (FAIL.length) {
++  console.error(FAIL.length + ' failed');
++  process.exit(1);
++}
++console.log('plant sheet scroll checks passed');

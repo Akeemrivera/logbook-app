@@ -1,0 +1,8 @@
+PASS an unset id list hides no sample flag and no descendant
+PASS only the configured id is hidden and its child stays
+PASS a retired mother leaves the active projection and stays in the record array
+PASS archive refuses a stale shown id and keeps the plant
+PASS build 62 flower guard and tag wrap and sheet lock are still present
+PASS inspection and tree reflow without a horizontal scroll port
+PASS no production id is hardcoded
+b63 remaining: all checks passed

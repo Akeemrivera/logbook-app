@@ -1,0 +1,82 @@
+BUILD 63 revision 5. LATER and UNBUILT. Not applied to the compiled revision 4 candidate logbook-b63r4-20261107-1102, and not applied to the frozen revision 2 snapshot. Nothing here was native-built, signed, uploaded, or device-tested. Record fixes are not activated. Browser and Node checks are not device proof.
+
+Revision 4 artifacts were not edited. Their hashes are still:
+- handoff/logbook-b63-r4.patch 422ab19e0275f6b945ce7e354c0c41bd8a8c33b3f0ab01f6caffa5c774d52b5d
+- handoff/logbook-b63-r4-since-rev2.patch 7322475b34e6905fa5fd1f72a375fcda8d612ca4ea6873c43b236e2e67524cac
+- handoff/BUILD63-R4-STATUS.txt 7b4ce39040201691f8edba4c4102add685d2f02ddae2f6afc7b80e5b210729e9
+- handoff/b63-r4-out.txt 611a16b4879205da9715c38cecea5cbf0c645ff61b3ff7adf9ecd684c2984fd0
+
+This revision is one incremental patch against that revision 4 tree.
+- handoff/logbook-b63-r5.patch SHA-256 788710f6e84225cb1b6f520641bb0f5851ee28cce8c9b04d0872419c66aaf255
+- handoff/b63-r5-out.txt SHA-256 74d686f72a41a6e25bcc0c2ddafe6bfe774e5b5ac42a67883a4ff189332a1957
+Dry-run of the patch onto a clean revision 4 tree exited 0.
+
+Candidate remains build 63. MARKETING_VERSION remains 1.0.
+
+Source and artifact mapping
+- capacitor.config.json and ios/App/App/capacitor.config.json both set server.iosScheme to https. The native wrapper therefore loads https://localhost. It does not load capacitor://.
+- app.js setupInstallableApp registers ./service-worker.js only when navigator.serviceWorker exists and location.protocol is http: or https:. https: does register. capacitor: and file: do not. A missing serviceWorker does not register. The comment that says the worker is unused inside the iOS wrapper is stale: the https scheme makes the gate true on device.
+- Revision 2 and revision 4 service-worker.js are the same file in source, www, and ios/App/App/public. SHA-256 e0f4d0ad85a743be36a5f37056a5f0575905f25ce3aefa884d00d720a957e051. Cache name boriken-genetics-logbook-app-v81.
+- Build 62 service-worker.js was cache v80, SHA-256 f6825ca93fda9bd109d69b85cb63aeb488c9935b8f0b7cf1207d0e35b0d3f60d. A build 62 install would see a new worker when revision 2 or revision 4 is installed, because the script bytes changed.
+- Revision 4 changed build57.js (now ec8ffb75ae9c4aedcb026ae57a418300b83ee973277d1ebe48c2b66a24d6c5b3) and build63.css (now d0ba0dd2683df87603248bce9317197e2afb98d770dc69ac405e6891203b03ed) without changing the worker script. The update check installs a new worker only when service-worker.js bytes change. Until that happens, the fetch handler is cache-first: caches.match returns the stored response and does not read the new bundle file. Activate deletes other cache names only after a new worker installs. WKWebView Cache Storage lives in the app container, so an update of the same bundle id keeps the old v81 cache.
+- That is why an unchanged v81 script can keep serving revision 2 build57.js and CSS after the revision 4 bundle is installed. It is not a guess about a second cache. The compiled revision 4 binary itself is unchanged by this patch.
+
+What revision 5 changes
+- Cache name is now boriken-genetics-logbook-app-v82. The script bytes change, so the existing update check installs a new worker. Install still calls skipWaiting. Activate still deletes every other cache name and claims clients.
+- Precache uses new Request(url, { cache: 'reload' }) instead of cache.addAll. A default fetch from the worker can be answered from HTTP cache with the previous body. reload asks for the current bundle bytes. The runtime fetch handler stays cache-first, so a filled v82 cache still answers when the network fetch throws.
+- The registration gate was not changed. The worker still registers on https, including the iOS wrapper.
+- Active mother and father pickers and the dashboard genetics count were still including Retired records. Mothers page, sidebar, and breeding section already used B63.showMother. The add-plant mother list, breeding candidate list, clone-run source list, calendar plant filter, grade subjects, and the dashboard "N mothers · N pollen donors" line now use that same predicate. The add-plant list still keeps the mother already stored on the plant being edited, so opening that plant does not drop the saved link. Record arrays are not replaced.
+- No hide id, origin text, merge, or archive rewrite was added. No production id was written.
+
+File hashes after this patch, source www and public copies match for the files that have three copies:
+- app.js 63b2c76c2b4940823d8f1d99b58d8043fed67ba3011faaeeba13645378861cd9
+  Revision 4 app.js was b8bb53d61dd32dbf29aa5f62a0fb53bd72a5181670382801d3d87f1a9968d682. Revision 3 and revision 4 did not change it.
+- service-worker.js 440894f63fa09a3a5434d950341d48fc548688325262541c56fc9a8eb40b2613
+- build18.js de8258cb2a8d7e83cb378e4b84ed567a527041a08b38b2fb5ef8cdb7c0ee197f
+- build32.js 2b132bdeaf680b1a995a4561f254547970474a39755e47b9d64508bac3f18269
+- build35.js 62023eb54a8af3465f93d1f0a86371902d1189147b920e041c19e524e28445da
+- build48.js d14a4bbe735439c5a052154129081ad2280e508a531fa54636d31e1323c6fdc9
+- build63.js 8a377890aa381bb21dd2d24271056955a5b5be833bf4c4782833d31a5908b1bb unchanged from revision 4
+- scripts/b63-r5.test.js 38592327ae9ccad9b44be4d47a63e6a98cc315a9f31cae6ef797b4ef3e9b1d03
+
+Automated tests, this environment only
+- node scripts/b63-r5.test.js exit 0. It runs the real worker against a seeded v81 cache whose build57.js body is the old text and whose HTTP cache returns a different stale body unless the request cache mode is reload. After install and activate, v81 is gone, v82 holds the reload body, and a fetch with the network throwing still returns that new body. The same run executes setupInstallableApp for https, http, capacitor, and file. It stores a photo through putFile, reads it back, and checks a failed readback throws without deleting that id or any other id. collectIds includes a mother headerPhotoId and log photoId. openPlantModal omits a Retired mother and a configured id, and still offers the Retired mother when she is the plant's saved mother. savePlantFromForm writes the note and the profile panel HTML contains it, and the old log note stays. archivePlant of a different id leaves the shown plant active. build59 sync locks the page, ignores window scroll, cancels a touch that is outside the open sheet, and unlocks on close. The breeding candidate list, dashboard count, calendar filter, clone-run source list, and grade subjects omit Retired ids.
+- node scripts/b63-integration.test.js exit 0. Layout at 320, 375, 390, 430, and 1024 had pagePast false and docWidth equal to the viewport. Tag word-break was normal. A closed dialog computed display none and an open dialog computed display flex. The heading text was Family tree.
+- node scripts/b63-r3.test.js exit 0. Equal columns at 390 were 187 and 187, card height 110, document 390. At 1024 the sidebar was 248 and the tree was 776 starting at x 248.
+- node scripts/b63-remaining.test.js exit 0. python3 scripts/verify-qa-config.py exit 0. QA bundle, empty QA entitlements, QA_ISOLATION, and the iCloud rejection checks were not edited.
+- The build worker's browser run reported ENOENT for /opt/google/chrome/chrome. That binary is present here and is what the integration script launches. Missing Chrome on that Mac is an environment gap, not a failed assertion. It is still not device proof. The unsigned revision 4 compile exit 0 is the worker's compile of revision 4, not a run of this patch.
+
+Itemized matrix
+
+1. Hide the sample everywhere by one explicit id.
+   Implemented as a projection that is off until hideIds is set. Automated-tested with synthetic ids for the mothers page, sidebar, breeding section, harvest search, active strains, sidebar plant count, lineage, and the partner row. The add-plant list now also omits a configured id unless that id is the saved mother on the plant being edited.
+   Blocked: the actual Rocco hide. No evidence-backed stable id is in the source, so hideIds stays empty. No name match and no descendant cascade. Not activated.
+
+2. Landrace duplicate id, partners, and linked crosses.
+   Implemented for links that already store motherId, fatherId, b49Mother, or b49Father. Same-name records with different ids stay distinct. A self-child is dropped. Automated-tested with synthetic ids.
+   Blocked: the actual Landrace merge and any cross that exists only as a typed name. No name-based merge and no partner rewrite. Not activated.
+
+3. Landrace origin text.
+   Implemented as a view overlay originById. It draws on that id's column and does not write the record. Automated-tested with a synthetic overlay.
+   Blocked: writing the real origin onto the reconciled record. No id and no place string were added. The existing build 60 name-matched migrate was not extended and not removed.
+
+4. Tree layout.
+   Implemented and automated-tested in headless Chrome here: no page overflow at 320, 375, 390, 430, 1024; equal halves; card min-height 110; slot min-height 60; iPad sidebar 248; tree uses the content width. Empty photo slots render a monogram, not a missing image file. Partner line remains "Bred with". Not device-tested.
+   Blocked, approved-design conflict, left unchanged: the page heading stays "Family tree" because the artboard has no page title and the written notes do not say to remove it. The Parents generation label stays because the artboard hides it and the written notes say one label per generation. Those two conflict, so neither was edited.
+
+5. Retired mothers and fathers out of active lists and counts, kept in trees and history.
+   Implemented for the mothers page, sidebar, breeding section, dashboard genetics count, add-plant choices, breeding candidates, clone-run source, calendar plant filter, and grade subjects. Retired records stay in the arrays and in the tree collection. Automated-tested. A journal history view was not stripped, because that is history.
+
+6. Vanished grow plant.
+   Blocked: the actual Cannalien event. No date or status rewrite. The generic safeguard is the archive guard: a shown id that differs from the requested id is refused, and the harvest card archives only the card id. Future flowerFlipDate still does not start the flower clock. Automated-tested. Not activated against a real record.
+
+7. Compliance inspection headings and narrow cells.
+   Implemented in the existing inspection reflow from revision 2. Automated-tested as a source and layout check in the remaining test. Not device-tested. This is separate from the tag whole-word wrap, which measured word-break normal.
+
+8. Service worker update after a shell change.
+   The defect was real for any install that already had v81, including the iOS wrapper, because the scheme is https and the revision 4 worker script matched revision 2. Fixed in this later patch only, by the v82 name and reload precache. Automated-tested with the seeded cache. Not applied to the compiled revision 4 candidate, so that candidate still has v81.
+
+Not done
+- No production data, production ids, or record writes.
+- No native build, signing, upload, or device run of revision 5.
+- Do not apply this patch to logbook-b63r4-20261107-1102. That tree stays the worker's compiled revision 4.

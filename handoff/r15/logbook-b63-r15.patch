@@ -1,0 +1,732 @@
+--- a/build63.css
++++ b/build63.css
+@@ -134,6 +134,16 @@
+ @media (max-width: 720px) {
+   .b57-n { flex: 1 1 calc(50% - 8px); }
+ }
++/* Four grandparents were wrapping three plus one stretched card at 1024.
++   Each card stays half the row, so four cards are two by two and a wrapped
++   card does not grow to the full width. */
++@media (min-width: 1024px) {
++  #breeding-view .b57-row .b57-n,
++  #breeding-view .b60-col > .b60-c {
++    flex: 1 1 calc(50% - 8px);
++    max-width: calc(50% - 8px);
++  }
++}
+ .w-side, nav.w-side, .mfx-list, .w-list { min-width: 0; max-width: 100%; overflow: visible; }
+ .w-side .w-l, .w-side .w-foot, .w-side .w-n, .w-side .w-li-t, .w-side .w-li-t b, .mfx-list .w-li-t b {
+   min-width: 0;
+--- a/www/build63.css
++++ b/www/build63.css
+@@ -134,6 +134,16 @@
+ @media (max-width: 720px) {
+   .b57-n { flex: 1 1 calc(50% - 8px); }
+ }
++/* Four grandparents were wrapping three plus one stretched card at 1024.
++   Each card stays half the row, so four cards are two by two and a wrapped
++   card does not grow to the full width. */
++@media (min-width: 1024px) {
++  #breeding-view .b57-row .b57-n,
++  #breeding-view .b60-col > .b60-c {
++    flex: 1 1 calc(50% - 8px);
++    max-width: calc(50% - 8px);
++  }
++}
+ .w-side, nav.w-side, .mfx-list, .w-list { min-width: 0; max-width: 100%; overflow: visible; }
+ .w-side .w-l, .w-side .w-foot, .w-side .w-n, .w-side .w-li-t, .w-side .w-li-t b, .mfx-list .w-li-t b {
+   min-width: 0;
+--- a/ios/App/App/public/build63.css
++++ b/ios/App/App/public/build63.css
+@@ -134,6 +134,16 @@
+ @media (max-width: 720px) {
+   .b57-n { flex: 1 1 calc(50% - 8px); }
+ }
++/* Four grandparents were wrapping three plus one stretched card at 1024.
++   Each card stays half the row, so four cards are two by two and a wrapped
++   card does not grow to the full width. */
++@media (min-width: 1024px) {
++  #breeding-view .b57-row .b57-n,
++  #breeding-view .b60-col > .b60-c {
++    flex: 1 1 calc(50% - 8px);
++    max-width: calc(50% - 8px);
++  }
++}
+ .w-side, nav.w-side, .mfx-list, .w-list { min-width: 0; max-width: 100%; overflow: visible; }
+ .w-side .w-l, .w-side .w-foot, .w-side .w-n, .w-side .w-li-t, .w-side .w-li-t b, .mfx-list .w-li-t b {
+   min-width: 0;
+--- a/build63.js
++++ b/build63.js
+@@ -158,26 +158,21 @@
+     });
+     return { applied, skipped, undos, undoLog: log };
+   }
+-  function loadPackagedRepair() {
++  function readRepairText(text) {
+     try {
+-      if (typeof XMLHttpRequest === 'undefined') return null;
+-      const xhr = new XMLHttpRequest();
+-      xhr.open('GET', 'b63-repair.json', false);
+-      xhr.send(null);
+-      if (!((xhr.status === 200 || xhr.status === 0) && xhr.responseText)) return null;
+-      const config = JSON.parse(xhr.responseText);
++      const config = JSON.parse(text);
+       if (!config || typeof config !== 'object' || Array.isArray(config)) return null;
+       return config;
+     } catch (e) { return null; }
+   }
+-  function runStoredRepairs() {
++  function runStoredRepairs(config) {
+     try {
+       if (typeof state === 'undefined' || !state) return { applied: [], skipped: [], undos: [] };
+-      const config = loadPackagedRepair();
+-      if (!config) return { applied: [], skipped: [], undos: [] };
++      const parsed = config === undefined ? loadPackagedRepair() : config;
++      if (!parsed) return { applied: [], skipped: [], undos: [] };
+       let undoLog = [];
+       try { const prev = JSON.parse(localStorage.getItem(REPAIR_UNDO_KEY) || '[]'); if (Array.isArray(prev)) undoLog = prev; } catch (e) { undoLog = []; }
+-      const out = applyParentRepairs(state, config, undoLog);
++      const out = applyParentRepairs(state, parsed, undoLog);
+       if (out.applied.length || out.undos.length) {
+         try { localStorage.setItem(REPAIR_UNDO_KEY, JSON.stringify(out.undoLog)); } catch (e) { /* the record change still proceeds */ }
+         if (typeof saveState === 'function') saveState();
+@@ -185,6 +180,40 @@
+       return out;
+     } catch (e) { return { applied: [], skipped: [{ reason: 'unreadable' }], undos: [] }; }
+   }
++  function loadPackagedRepair() {
++    try {
++      if (typeof XMLHttpRequest === 'undefined') return null;
++      const xhr = new XMLHttpRequest();
++      xhr.open('GET', 'b63-repair.json', false);
++      xhr.send(null);
++      if (!((xhr.status === 200 || xhr.status === 0) && xhr.responseText)) return null;
++      return readRepairText(xhr.responseText);
++    } catch (e) { return null; }
++  }
++  function repairTextFromCache() {
++    const asText = (res) => (res ? res.text() : Promise.resolve(''));
++    if (typeof caches === 'undefined' || !caches.match) return Promise.resolve('');
++    return caches.match('./b63-repair.json').then(asText).catch(() => '')
++      .then((text) => text || caches.match('b63-repair.json').then(asText).catch(() => ''));
++  }
++  function startRepair() {
++    const syncConfig = loadPackagedRepair();
++    if (syncConfig) {
++      const out = runStoredRepairs(syncConfig);
++      window.__b63RepairReady = true;
++      return Promise.resolve(out);
++    }
++    const finish = (text) => {
++      const out = runStoredRepairs(readRepairText(text || '') || { repairs: [], undos: [] });
++      window.__b63RepairReady = true;
++      return out;
++    };
++    return repairTextFromCache().then((text) => {
++      if (text) return finish(text);
++      if (typeof fetch !== 'function') return finish('');
++      return fetch('b63-repair.json', { cache: 'no-store' }).then((res) => (res && res.ok ? res.text() : '')).catch(() => '').then(finish);
++    }).catch(() => finish(''));
++  }
+   function install() {
+     if (window.B49 && typeof B49.children === 'function' && !B49.children.b63) {
+       const orig = B49.children;
+@@ -238,10 +267,17 @@
+   window.B63 = {
+     configure, readLocalConfig, originView, showMother, retiredMf, explicitId, explicitKey, projectActiveMothers, projectVisible,
+     sameRecord, keepChild, allowArchive, pendingMetadata, projectMotherDom, install,
+-    applyParentRepairs, runStoredRepairs,
++    applyParentRepairs, runStoredRepairs, startRepair,
+     hiddenIds: () => [...hiddenIds],
+   };
+   install();
+   readLocalConfig();
+-  runStoredRepairs();
++  const repairPromise = startRepair();
++  if (typeof document !== 'undefined' && document.addEventListener) {
++    document.addEventListener('DOMContentLoaded', function (event) {
++      if (window.__b63RepairReady) return;
++      event.stopImmediatePropagation();
++      repairPromise.then(() => document.dispatchEvent(new Event('DOMContentLoaded')));
++    }, true);
++  }
+ })();
+--- a/www/build63.js
++++ b/www/build63.js
+@@ -158,26 +158,21 @@
+     });
+     return { applied, skipped, undos, undoLog: log };
+   }
+-  function loadPackagedRepair() {
++  function readRepairText(text) {
+     try {
+-      if (typeof XMLHttpRequest === 'undefined') return null;
+-      const xhr = new XMLHttpRequest();
+-      xhr.open('GET', 'b63-repair.json', false);
+-      xhr.send(null);
+-      if (!((xhr.status === 200 || xhr.status === 0) && xhr.responseText)) return null;
+-      const config = JSON.parse(xhr.responseText);
++      const config = JSON.parse(text);
+       if (!config || typeof config !== 'object' || Array.isArray(config)) return null;
+       return config;
+     } catch (e) { return null; }
+   }
+-  function runStoredRepairs() {
++  function runStoredRepairs(config) {
+     try {
+       if (typeof state === 'undefined' || !state) return { applied: [], skipped: [], undos: [] };
+-      const config = loadPackagedRepair();
+-      if (!config) return { applied: [], skipped: [], undos: [] };
++      const parsed = config === undefined ? loadPackagedRepair() : config;
++      if (!parsed) return { applied: [], skipped: [], undos: [] };
+       let undoLog = [];
+       try { const prev = JSON.parse(localStorage.getItem(REPAIR_UNDO_KEY) || '[]'); if (Array.isArray(prev)) undoLog = prev; } catch (e) { undoLog = []; }
+-      const out = applyParentRepairs(state, config, undoLog);
++      const out = applyParentRepairs(state, parsed, undoLog);
+       if (out.applied.length || out.undos.length) {
+         try { localStorage.setItem(REPAIR_UNDO_KEY, JSON.stringify(out.undoLog)); } catch (e) { /* the record change still proceeds */ }
+         if (typeof saveState === 'function') saveState();
+@@ -185,6 +180,40 @@
+       return out;
+     } catch (e) { return { applied: [], skipped: [{ reason: 'unreadable' }], undos: [] }; }
+   }
++  function loadPackagedRepair() {
++    try {
++      if (typeof XMLHttpRequest === 'undefined') return null;
++      const xhr = new XMLHttpRequest();
++      xhr.open('GET', 'b63-repair.json', false);
++      xhr.send(null);
++      if (!((xhr.status === 200 || xhr.status === 0) && xhr.responseText)) return null;
++      return readRepairText(xhr.responseText);
++    } catch (e) { return null; }
++  }
++  function repairTextFromCache() {
++    const asText = (res) => (res ? res.text() : Promise.resolve(''));
++    if (typeof caches === 'undefined' || !caches.match) return Promise.resolve('');
++    return caches.match('./b63-repair.json').then(asText).catch(() => '')
++      .then((text) => text || caches.match('b63-repair.json').then(asText).catch(() => ''));
++  }
++  function startRepair() {
++    const syncConfig = loadPackagedRepair();
++    if (syncConfig) {
++      const out = runStoredRepairs(syncConfig);
++      window.__b63RepairReady = true;
++      return Promise.resolve(out);
++    }
++    const finish = (text) => {
++      const out = runStoredRepairs(readRepairText(text || '') || { repairs: [], undos: [] });
++      window.__b63RepairReady = true;
++      return out;
++    };
++    return repairTextFromCache().then((text) => {
++      if (text) return finish(text);
++      if (typeof fetch !== 'function') return finish('');
++      return fetch('b63-repair.json', { cache: 'no-store' }).then((res) => (res && res.ok ? res.text() : '')).catch(() => '').then(finish);
++    }).catch(() => finish(''));
++  }
+   function install() {
+     if (window.B49 && typeof B49.children === 'function' && !B49.children.b63) {
+       const orig = B49.children;
+@@ -238,10 +267,17 @@
+   window.B63 = {
+     configure, readLocalConfig, originView, showMother, retiredMf, explicitId, explicitKey, projectActiveMothers, projectVisible,
+     sameRecord, keepChild, allowArchive, pendingMetadata, projectMotherDom, install,
+-    applyParentRepairs, runStoredRepairs,
++    applyParentRepairs, runStoredRepairs, startRepair,
+     hiddenIds: () => [...hiddenIds],
+   };
+   install();
+   readLocalConfig();
+-  runStoredRepairs();
++  const repairPromise = startRepair();
++  if (typeof document !== 'undefined' && document.addEventListener) {
++    document.addEventListener('DOMContentLoaded', function (event) {
++      if (window.__b63RepairReady) return;
++      event.stopImmediatePropagation();
++      repairPromise.then(() => document.dispatchEvent(new Event('DOMContentLoaded')));
++    }, true);
++  }
+ })();
+--- a/ios/App/App/public/build63.js
++++ b/ios/App/App/public/build63.js
+@@ -158,26 +158,21 @@
+     });
+     return { applied, skipped, undos, undoLog: log };
+   }
+-  function loadPackagedRepair() {
++  function readRepairText(text) {
+     try {
+-      if (typeof XMLHttpRequest === 'undefined') return null;
+-      const xhr = new XMLHttpRequest();
+-      xhr.open('GET', 'b63-repair.json', false);
+-      xhr.send(null);
+-      if (!((xhr.status === 200 || xhr.status === 0) && xhr.responseText)) return null;
+-      const config = JSON.parse(xhr.responseText);
++      const config = JSON.parse(text);
+       if (!config || typeof config !== 'object' || Array.isArray(config)) return null;
+       return config;
+     } catch (e) { return null; }
+   }
+-  function runStoredRepairs() {
++  function runStoredRepairs(config) {
+     try {
+       if (typeof state === 'undefined' || !state) return { applied: [], skipped: [], undos: [] };
+-      const config = loadPackagedRepair();
+-      if (!config) return { applied: [], skipped: [], undos: [] };
++      const parsed = config === undefined ? loadPackagedRepair() : config;
++      if (!parsed) return { applied: [], skipped: [], undos: [] };
+       let undoLog = [];
+       try { const prev = JSON.parse(localStorage.getItem(REPAIR_UNDO_KEY) || '[]'); if (Array.isArray(prev)) undoLog = prev; } catch (e) { undoLog = []; }
+-      const out = applyParentRepairs(state, config, undoLog);
++      const out = applyParentRepairs(state, parsed, undoLog);
+       if (out.applied.length || out.undos.length) {
+         try { localStorage.setItem(REPAIR_UNDO_KEY, JSON.stringify(out.undoLog)); } catch (e) { /* the record change still proceeds */ }
+         if (typeof saveState === 'function') saveState();
+@@ -185,6 +180,40 @@
+       return out;
+     } catch (e) { return { applied: [], skipped: [{ reason: 'unreadable' }], undos: [] }; }
+   }
++  function loadPackagedRepair() {
++    try {
++      if (typeof XMLHttpRequest === 'undefined') return null;
++      const xhr = new XMLHttpRequest();
++      xhr.open('GET', 'b63-repair.json', false);
++      xhr.send(null);
++      if (!((xhr.status === 200 || xhr.status === 0) && xhr.responseText)) return null;
++      return readRepairText(xhr.responseText);
++    } catch (e) { return null; }
++  }
++  function repairTextFromCache() {
++    const asText = (res) => (res ? res.text() : Promise.resolve(''));
++    if (typeof caches === 'undefined' || !caches.match) return Promise.resolve('');
++    return caches.match('./b63-repair.json').then(asText).catch(() => '')
++      .then((text) => text || caches.match('b63-repair.json').then(asText).catch(() => ''));
++  }
++  function startRepair() {
++    const syncConfig = loadPackagedRepair();
++    if (syncConfig) {
++      const out = runStoredRepairs(syncConfig);
++      window.__b63RepairReady = true;
++      return Promise.resolve(out);
++    }
++    const finish = (text) => {
++      const out = runStoredRepairs(readRepairText(text || '') || { repairs: [], undos: [] });
++      window.__b63RepairReady = true;
++      return out;
++    };
++    return repairTextFromCache().then((text) => {
++      if (text) return finish(text);
++      if (typeof fetch !== 'function') return finish('');
++      return fetch('b63-repair.json', { cache: 'no-store' }).then((res) => (res && res.ok ? res.text() : '')).catch(() => '').then(finish);
++    }).catch(() => finish(''));
++  }
+   function install() {
+     if (window.B49 && typeof B49.children === 'function' && !B49.children.b63) {
+       const orig = B49.children;
+@@ -238,10 +267,17 @@
+   window.B63 = {
+     configure, readLocalConfig, originView, showMother, retiredMf, explicitId, explicitKey, projectActiveMothers, projectVisible,
+     sameRecord, keepChild, allowArchive, pendingMetadata, projectMotherDom, install,
+-    applyParentRepairs, runStoredRepairs,
++    applyParentRepairs, runStoredRepairs, startRepair,
+     hiddenIds: () => [...hiddenIds],
+   };
+   install();
+   readLocalConfig();
+-  runStoredRepairs();
++  const repairPromise = startRepair();
++  if (typeof document !== 'undefined' && document.addEventListener) {
++    document.addEventListener('DOMContentLoaded', function (event) {
++      if (window.__b63RepairReady) return;
++      event.stopImmediatePropagation();
++      repairPromise.then(() => document.dispatchEvent(new Event('DOMContentLoaded')));
++    }, true);
++  }
+ })();
+--- a/app.js
++++ b/app.js
+@@ -1596,6 +1596,17 @@
+ }
+ 
+ function getToday() {
++  try {
++    if (typeof localStorage !== 'undefined' && localStorage.getItem('boriken-b63-snapshot') === '1') {
++      const raw = localStorage.getItem('boriken-b63-snapshot-date') || '';
++      const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(raw);
++      if (match) {
++        const day = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
++        day.setHours(0, 0, 0, 0);
++        return day;
++      }
++    }
++  } catch (e) { /* a normal launch keeps the system date */ }
+   const today = new Date();
+   today.setHours(0, 0, 0, 0);
+   return today;
+--- a/www/app.js
++++ b/www/app.js
+@@ -1596,6 +1596,17 @@
+ }
+ 
+ function getToday() {
++  try {
++    if (typeof localStorage !== 'undefined' && localStorage.getItem('boriken-b63-snapshot') === '1') {
++      const raw = localStorage.getItem('boriken-b63-snapshot-date') || '';
++      const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(raw);
++      if (match) {
++        const day = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
++        day.setHours(0, 0, 0, 0);
++        return day;
++      }
++    }
++  } catch (e) { /* a normal launch keeps the system date */ }
+   const today = new Date();
+   today.setHours(0, 0, 0, 0);
+   return today;
+--- a/ios/App/App/public/app.js
++++ b/ios/App/App/public/app.js
+@@ -1596,6 +1596,17 @@
+ }
+ 
+ function getToday() {
++  try {
++    if (typeof localStorage !== 'undefined' && localStorage.getItem('boriken-b63-snapshot') === '1') {
++      const raw = localStorage.getItem('boriken-b63-snapshot-date') || '';
++      const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(raw);
++      if (match) {
++        const day = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
++        day.setHours(0, 0, 0, 0);
++        return day;
++      }
++    }
++  } catch (e) { /* a normal launch keeps the system date */ }
+   const today = new Date();
+   today.setHours(0, 0, 0, 0);
+   return today;
+--- a/build4.js
++++ b/build4.js
+@@ -1016,7 +1016,7 @@
+   const plants = state.plants.filter((p) => (p.status || 'active') === 'active');
+   const rank = { none: 0, unattached: 1, current: 2 };
+   const cards = [...plants].sort((a, b) => rank[tagState(a)] - rank[tagState(b)]).slice(0, 6);
+-  const todayLabel = new Date().toLocaleDateString(undefined, { month: 'short', day: 'numeric' }).toUpperCase();
++  const todayLabel = getToday().toLocaleDateString(undefined, { month: 'short', day: 'numeric' }).toUpperCase();
+   box.innerHTML = `
+     <p class="m-sub no-print">Patient aliases only</p>
+     <div class="m-h2"><span>Status</span><em>${todayLabel}</em></div>
+--- a/www/build4.js
++++ b/www/build4.js
+@@ -1016,7 +1016,7 @@
+   const plants = state.plants.filter((p) => (p.status || 'active') === 'active');
+   const rank = { none: 0, unattached: 1, current: 2 };
+   const cards = [...plants].sort((a, b) => rank[tagState(a)] - rank[tagState(b)]).slice(0, 6);
+-  const todayLabel = new Date().toLocaleDateString(undefined, { month: 'short', day: 'numeric' }).toUpperCase();
++  const todayLabel = getToday().toLocaleDateString(undefined, { month: 'short', day: 'numeric' }).toUpperCase();
+   box.innerHTML = `
+     <p class="m-sub no-print">Patient aliases only</p>
+     <div class="m-h2"><span>Status</span><em>${todayLabel}</em></div>
+--- a/ios/App/App/public/build4.js
++++ b/ios/App/App/public/build4.js
+@@ -1016,7 +1016,7 @@
+   const plants = state.plants.filter((p) => (p.status || 'active') === 'active');
+   const rank = { none: 0, unattached: 1, current: 2 };
+   const cards = [...plants].sort((a, b) => rank[tagState(a)] - rank[tagState(b)]).slice(0, 6);
+-  const todayLabel = new Date().toLocaleDateString(undefined, { month: 'short', day: 'numeric' }).toUpperCase();
++  const todayLabel = getToday().toLocaleDateString(undefined, { month: 'short', day: 'numeric' }).toUpperCase();
+   box.innerHTML = `
+     <p class="m-sub no-print">Patient aliases only</p>
+     <div class="m-h2"><span>Status</span><em>${todayLabel}</em></div>
+--- a/build49.js
++++ b/build49.js
+@@ -259,12 +259,18 @@
+       document.querySelectorAll('[data-open-plant]:not([data-b49g]), #breeding-mobile [data-mf="open"][data-id]:not([data-b49g])').forEach((row) => {
+         row.dataset.b49g = '1';
+         const key = row.dataset.openPlant ? `${row.dataset.coll === 'breedingPlants' ? 'bp' : 'pl'}:${row.dataset.openPlant}` : `mf:${row.dataset.id}`;
+-        const p = par(key); if (!p && !manualGen(key)) return;
++        const stored = rec(key);
++        let p = par(key);
++        if (!p && stored && (stored.b49Mother || stored.b49Father)) {
++          const side = (v) => (v && v !== '-' ? v : '');
++          if (stored.b49Mother || stored.b49Father) p = [side(stored.b49Mother), side(stored.b49Father)];
++        }
++        if (!p && !manualGen(key)) return;
+         const t = row.querySelector('.m-t');
+-        const title = t || row.querySelector('h3');
++        const title = t || row.querySelector('h3, b');
+         if (!title) return;
+         if (t) t.insertAdjacentHTML('beforeend', ` ${badge(key)}`);
+-        const grow = (t && t.parentElement) || row.querySelector('.w-pc-id') || title.parentElement;
++        const grow = (t && t.parentElement) || row.querySelector('.w-pc-id, .w-li-t') || title.parentElement;
+         if (p && grow && !grow.querySelector('.b49-par')) { const shown = (k) => nameOf(k) || 'not recorded'; grow.insertAdjacentHTML('beforeend', `<div class="m-s b49-par">${esc(shown(p[0]))} × ${esc(shown(p[1]))}</div>`); }
+       });
+       const pd = document.querySelector('#plant-detail-view.active .pd-sheet');
+--- a/www/build49.js
++++ b/www/build49.js
+@@ -259,12 +259,18 @@
+       document.querySelectorAll('[data-open-plant]:not([data-b49g]), #breeding-mobile [data-mf="open"][data-id]:not([data-b49g])').forEach((row) => {
+         row.dataset.b49g = '1';
+         const key = row.dataset.openPlant ? `${row.dataset.coll === 'breedingPlants' ? 'bp' : 'pl'}:${row.dataset.openPlant}` : `mf:${row.dataset.id}`;
+-        const p = par(key); if (!p && !manualGen(key)) return;
++        const stored = rec(key);
++        let p = par(key);
++        if (!p && stored && (stored.b49Mother || stored.b49Father)) {
++          const side = (v) => (v && v !== '-' ? v : '');
++          if (stored.b49Mother || stored.b49Father) p = [side(stored.b49Mother), side(stored.b49Father)];
++        }
++        if (!p && !manualGen(key)) return;
+         const t = row.querySelector('.m-t');
+-        const title = t || row.querySelector('h3');
++        const title = t || row.querySelector('h3, b');
+         if (!title) return;
+         if (t) t.insertAdjacentHTML('beforeend', ` ${badge(key)}`);
+-        const grow = (t && t.parentElement) || row.querySelector('.w-pc-id') || title.parentElement;
++        const grow = (t && t.parentElement) || row.querySelector('.w-pc-id, .w-li-t') || title.parentElement;
+         if (p && grow && !grow.querySelector('.b49-par')) { const shown = (k) => nameOf(k) || 'not recorded'; grow.insertAdjacentHTML('beforeend', `<div class="m-s b49-par">${esc(shown(p[0]))} × ${esc(shown(p[1]))}</div>`); }
+       });
+       const pd = document.querySelector('#plant-detail-view.active .pd-sheet');
+--- a/ios/App/App/public/build49.js
++++ b/ios/App/App/public/build49.js
+@@ -259,12 +259,18 @@
+       document.querySelectorAll('[data-open-plant]:not([data-b49g]), #breeding-mobile [data-mf="open"][data-id]:not([data-b49g])').forEach((row) => {
+         row.dataset.b49g = '1';
+         const key = row.dataset.openPlant ? `${row.dataset.coll === 'breedingPlants' ? 'bp' : 'pl'}:${row.dataset.openPlant}` : `mf:${row.dataset.id}`;
+-        const p = par(key); if (!p && !manualGen(key)) return;
++        const stored = rec(key);
++        let p = par(key);
++        if (!p && stored && (stored.b49Mother || stored.b49Father)) {
++          const side = (v) => (v && v !== '-' ? v : '');
++          if (stored.b49Mother || stored.b49Father) p = [side(stored.b49Mother), side(stored.b49Father)];
++        }
++        if (!p && !manualGen(key)) return;
+         const t = row.querySelector('.m-t');
+-        const title = t || row.querySelector('h3');
++        const title = t || row.querySelector('h3, b');
+         if (!title) return;
+         if (t) t.insertAdjacentHTML('beforeend', ` ${badge(key)}`);
+-        const grow = (t && t.parentElement) || row.querySelector('.w-pc-id') || title.parentElement;
++        const grow = (t && t.parentElement) || row.querySelector('.w-pc-id, .w-li-t') || title.parentElement;
+         if (p && grow && !grow.querySelector('.b49-par')) { const shown = (k) => nameOf(k) || 'not recorded'; grow.insertAdjacentHTML('beforeend', `<div class="m-s b49-par">${esc(shown(p[0]))} × ${esc(shown(p[1]))}</div>`); }
+       });
+       const pd = document.querySelector('#plant-detail-view.active .pd-sheet');
+--- a/service-worker.js
++++ b/service-worker.js
+@@ -6,11 +6,11 @@
+   so users should still export JSON backups for long-term records.
+ */
+ 
+-// v87: parent labels and the tree page changed. An older cache keeps the previous
+-// shell until this file changes. Activate deletes every other cache.
++// v88: the packaged repair also loads when a service worker controls the page.
++// An older cache keeps the previous shell until this file changes. Activate deletes every other cache.
+ // iosScheme is https, so this worker registers inside the iOS wrapper (https://localhost).
+ // Precache requests use cache:'reload' so a cached localhost response cannot refill the new cache.
+-const CACHE_NAME = 'boriken-genetics-logbook-app-v87';
++const CACHE_NAME = 'boriken-genetics-logbook-app-v88';
+ const APP_SHELL = [
+   './',
+   './index.html',
+--- a/www/service-worker.js
++++ b/www/service-worker.js
+@@ -6,11 +6,11 @@
+   so users should still export JSON backups for long-term records.
+ */
+ 
+-// v87: parent labels and the tree page changed. An older cache keeps the previous
+-// shell until this file changes. Activate deletes every other cache.
++// v88: the packaged repair also loads when a service worker controls the page.
++// An older cache keeps the previous shell until this file changes. Activate deletes every other cache.
+ // iosScheme is https, so this worker registers inside the iOS wrapper (https://localhost).
+ // Precache requests use cache:'reload' so a cached localhost response cannot refill the new cache.
+-const CACHE_NAME = 'boriken-genetics-logbook-app-v87';
++const CACHE_NAME = 'boriken-genetics-logbook-app-v88';
+ const APP_SHELL = [
+   './',
+   './index.html',
+--- a/ios/App/App/public/service-worker.js
++++ b/ios/App/App/public/service-worker.js
+@@ -6,11 +6,11 @@
+   so users should still export JSON backups for long-term records.
+ */
+ 
+-// v87: parent labels and the tree page changed. An older cache keeps the previous
+-// shell until this file changes. Activate deletes every other cache.
++// v88: the packaged repair also loads when a service worker controls the page.
++// An older cache keeps the previous shell until this file changes. Activate deletes every other cache.
+ // iosScheme is https, so this worker registers inside the iOS wrapper (https://localhost).
+ // Precache requests use cache:'reload' so a cached localhost response cannot refill the new cache.
+-const CACHE_NAME = 'boriken-genetics-logbook-app-v87';
++const CACHE_NAME = 'boriken-genetics-logbook-app-v88';
+ const APP_SHELL = [
+   './',
+   './index.html',
+--- a/scripts/b63-real-mockup.js
++++ b/scripts/b63-real-mockup.js
+@@ -192,7 +192,7 @@
+     '--headless=new', '--disable-gpu', '--no-sandbox', '--disable-dev-shm-usage',
+     '--user-data-dir=' + dir, '--remote-debugging-port=' + debugPort, 'about:blank',
+   ], { stdio: 'ignore' });
+-  const init = 'localStorage.setItem(\'boriken-b63-snapshot\', \'1\'); localStorage.setItem(\'boriken-genetics-logbook-v1\', ' + JSON.stringify(JSON.stringify(opts.state)) + ');';
++  const init = 'localStorage.setItem(\'boriken-b63-snapshot\', \'1\'); localStorage.setItem(\'boriken-b63-snapshot-date\', ' + JSON.stringify(opts.snapshotDate) + '); localStorage.setItem(\'boriken-genetics-logbook-v1\', ' + JSON.stringify(JSON.stringify(opts.state)) + ');';
+     let page = null;
+     for (let i = 0; i < 50 && !page; i++) {
+       try {
+@@ -233,7 +233,7 @@
+       await send('Page.navigate', { url: 'http://127.0.0.1:' + port + '/index.html?screen=' + opts.screen });
+       let ready = null;
+       for (let i = 0; i < 40 && !(ready && ready.ok); i++) {
+-        ready = await evaluate('({ readyState: document.readyState, ok: document.readyState !== "loading" && typeof switchView === "function" && typeof B49 !== "undefined" && typeof B57 !== "undefined" && !!document.getElementById("breeding-view") && !!document.getElementById("compliance-view") && !!document.getElementById("home-view") })');
++        ready = await evaluate('({ readyState: document.readyState, repair: window.__b63RepairReady === true, ok: document.readyState !== "loading" && window.__b63RepairReady === true && typeof switchView === "function" && typeof B49 !== "undefined" && typeof B57 !== "undefined" && !!document.getElementById("breeding-view") && !!document.getElementById("compliance-view") && !!document.getElementById("home-view") })');
+         if (!ready || !ready.ok) await sleep(50);
+       }
+       if (!ready || !ready.ok) fail('the app did not finish loading ' + JSON.stringify(ready) + ' ' + logs.slice(-6).join(' | '));
+@@ -300,14 +300,20 @@
+         const expectedOthers = (opts.state.plants || []).filter((r) => r.id !== opts.record.row.id).map((r) => r.id + ':' + String(r.b49Father || ''));
+         if (JSON.stringify(seen.others) !== JSON.stringify(expectedOthers)) fail('after launch changed another plant');
+       }
+-      const blankFather = opts.screen === 'plants' ? (opts.state.plants || []).find((plant) => (!plant.b49Father || plant.b49Father === '-') && plant.b49Mother && plant.b49Mother !== '-') : null;
+-      if (blankFather) {
+-        let labeled = false;
+-        for (let i = 0; i < 30 && !labeled; i++) {
+-          labeled = await evaluate('(() => { const rows = [...document.querySelectorAll(' + JSON.stringify('#home-view [data-open-plant="' + blankFather.id + '"]') + ')].filter((el) => el.getClientRects().length); return rows.length > 0 && rows.every((el) => /not recorded/i.test(el.innerText || el.textContent || "")); })()');
+-          if (!labeled) await sleep(50);
++      if (opts.screen === 'compliance') {
++        const clock = await evaluate('(() => { const raw = ' + JSON.stringify(opts.snapshotDate) + '; const m = /^(\\d{4})-(\\d{2})-(\\d{2})$/.exec(raw); const day = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])); const expected = day.toLocaleDateString(undefined, { month: "short", day: "numeric" }).toUpperCase(); const text = document.body.innerText || ""; return { expected, ok: text.indexOf(expected) >= 0 }; })()');
++        if (!clock || !clock.ok) fail('compliance header is not the snapshot date ' + JSON.stringify(clock));
++      }
++      const target = opts.screen === 'plants' && opts.record && opts.record.list === 'plants' ? opts.record.row : null;
++      const targetFather = target ? String(target.b49Father || '') : '';
++      const liveBlank = !!(target && (!targetFather || targetFather === '-' || (opts.phase === 'after' && seen.father === '-')));
++      if (liveBlank) {
++        let labeled = null;
++        for (let i = 0; i < 30 && !(labeled && labeled.ok); i++) {
++          labeled = await evaluate('(() => { const id = ' + JSON.stringify(target.id) + '; const rows = [...document.querySelectorAll("#home-view [data-open-plant=\\"" + id + "\\"]")].filter((el) => el.getClientRects().length).map((el) => ({ tag: el.tagName, cls: el.className, text: (el.innerText || "").replace(/\\s+/g, " ").slice(0, 220) })); const ok = rows.length > 0 && rows.every((row) => /not recorded/i.test(row.text) && !/×\\s*$/.test(row.text)); return { ok, rows }; })()');
++          if (!labeled || !labeled.ok) await sleep(50);
+         }
+-        if (!labeled) fail('the plant list left the empty father blank');
++        if (!labeled || !labeled.ok) fail('plant ' + target.id + ' left the empty father blank ' + JSON.stringify(labeled && labeled.rows) + ' ' + logs.slice(-4).join(' | '));
+       }
+       const caption = 'REAL-RECORD · ' + opts.snapshotDate + ' snapshot · ' + w + 'x' + h + ' · ' + opts.screen + (opts.phase ? ' · ' + opts.phase : '') + ' · BROWSER MOCKUP · NOT CURRENT DEVICE PROOF';
+       await evaluate(`(() => { let bar = document.getElementById('real-record-caption'); if (!bar) { bar = document.createElement('div'); bar.id = 'real-record-caption'; document.body.prepend(bar); } bar.textContent = ${JSON.stringify(caption)}; bar.setAttribute('style','position:sticky;top:0;z-index:10000;background:#111;color:#fff;font:600 12px/1.3 sans-serif;padding:8px 12px'); return true; })()`);
+@@ -324,6 +330,12 @@
+           pageScroll: de.scrollWidth, pageClient: de.clientWidth,
+           treeScroll: tree ? tree.scrollWidth : 0, treeClient: tree ? tree.clientWidth : 0,
+           backup: (document.body.innerText || '').indexOf('You have not backed up') >= 0,
++          wideCards: [...document.querySelectorAll('#breeding-view .b60-col, #breeding-view .b57-row')].map((el) => {
++            const cards = [...el.querySelectorAll(':scope > .b60-c, :scope > .b57-n')];
++            const parent = el.getBoundingClientRect().width || 1;
++            const widths = cards.map((card) => Math.round(card.getBoundingClientRect().width));
++            return { count: cards.length, widths, stretched: widths.some((width) => width > parent * 0.7) };
++          }).filter((group) => group.count >= 4),
+           cards: [...document.querySelectorAll('#breeding-view .b60-c, #breeding-view .b57-n')].map((el) => ({ k: el.getAttribute('data-k') || '', text: el.innerText || '', strike: !!(el.querySelector('b') && getComputedStyle(el.querySelector('b')).textDecorationLine.indexOf('line-through') >= 0) })),
+           rows: [...document.querySelectorAll('[data-open-plant]')].map((el) => ({ id: el.getAttribute('data-open-plant') || '', text: el.innerText || '' })),
+         };
+@@ -336,6 +348,11 @@
+         if (!layout.side || layout.side.left < -1 || layout.side.right > layout.innerWidth + 1 || layout.side.width < 240 || layout.side.top < -1) fail('sidebar is outside the viewport');
+         if (layout.pageScroll > layout.pageClient + 2) fail('the page is wider than the viewport');
+         if (opts.screen === 'tree' && layout.treeClient && layout.treeScroll > layout.treeClient + 2) fail('the tree is wider than its pane');
++        if (opts.screen === 'tree' && layout.wideCards) {
++          layout.wideCards.forEach((group) => {
++            if (group.count >= 4 && group.stretched) fail('a grandparent card stretched to the full row at ' + w + 'x' + h + ' ' + JSON.stringify(group));
++          });
++        }
+       } else if (!layout.tab || Math.abs(layout.tab.bottom - h) > 12 || layout.tab.top < h * 0.7) {
+         fail('the phone bar is not at the bottom of the viewport');
+       }
+@@ -344,9 +361,8 @@
+           const text = (layout.rows || []).filter((item) => item.id === plant.id).map((item) => item.text).join('\n');
+           if (!text) return;
+           if (!plant.startDate && (/\bDay 1\b/.test(text) || text.includes('Seedling'))) fail(plant.id + ' invented Day 1 or Seedling');
+-          if (plant.flowerStartDate && !text.includes('Flower')) fail(plant.id + ' did not keep the flower stage: ' + text.slice(0, 180));
+-          else if (!plant.flowerStartDate && plant.vegStartDate && !text.includes('Veg')) fail(plant.id + ' did not keep the veg stage: ' + text.slice(0, 180));
+-          if ((!plant.b49Father || plant.b49Father === '-') && plant.b49Mother && plant.b49Mother !== '-' && !/not recorded/i.test(text)) fail(plant.id + ' left the father blank');
++          if (plant.id === (opts.record && opts.record.row.id) && plant.flowerStartDate && !text.includes('Flower')) fail(plant.id + ' did not keep the flower stage: ' + text.slice(0, 180));
++          else if (plant.id === (opts.record && opts.record.row.id) && !plant.flowerStartDate && plant.vegStartDate && !text.includes('Veg')) fail(plant.id + ' did not keep the veg stage: ' + text.slice(0, 180));
+         });
+       }
+       const labelCounts = { nameonly: 0, archived: 0, retired: 0, culled: 0, deleted: 0 };
+--- a/scripts/b63-real-mockup.test.js
++++ b/scripts/b63-real-mockup.test.js
+@@ -136,6 +136,16 @@
+     if (!out.stdout.includes('PASS screen ' + screen)) throw new Error(out.stdout);
+   });
+ });
++check('a second before and after pass stays clear', () => {
++  const before = shot(['--screen', 'tree', '--record-id', 'p-target', '--phase', 'before'], true);
++  if (before.status !== 0) throw new Error(before.stderr + before.stdout);
++  fs.writeFileSync(repairFile, JSON.stringify(repair));
++  const after = shot(['--screen', 'tree', '--record-id', 'p-target', '--repair-config', repairFile, '--phase', 'after'], true);
++  if (after.status !== 0) throw new Error(after.stderr + after.stdout);
++  if (!after.stdout.includes('father=-') || after.stdout.includes('did not clear')) throw new Error(after.stdout);
++  const plants = shot(['--screen', 'plants', '--record-id', 'p-blank'], true);
++  if (plants.status !== 0) throw new Error(plants.stderr + plants.stdout);
++});
+ check('a missing record fails instead of drawing another page', () => {
+   const out = shot(['--screen', 'tree', '--record-id', 'missing-id']);
+   if (out.status === 0) throw new Error(out.stdout);
+--- a/scripts/b63-r5.test.js
++++ b/scripts/b63-r5.test.js
+@@ -34,7 +34,8 @@
+   if (new Set(hashes).size !== 1) throw new Error(hashes.join(' '));
+   if (hashes[0] === REV4_SW_SHA) throw new Error('script bytes still match revision 4, so an update check would not install a worker');
+   const text = read('service-worker.js').toString('utf8');
+-  if (!text.includes("boriken-genetics-logbook-app-v87")) throw new Error('cache name');
++  if (!text.includes("boriken-genetics-logbook-app-v88")) throw new Error('cache name');
++  if (text.includes("boriken-genetics-logbook-app-v87")) throw new Error('v87 cache name still present');
+   if (text.includes("boriken-genetics-logbook-app-v86")) throw new Error('v86 cache name still present');
+   if (text.includes("boriken-genetics-logbook-app-v85")) throw new Error('v85 cache name still present');
+   if (text.includes("boriken-genetics-logbook-app-v84")) throw new Error('v84 cache name still present');
+@@ -163,6 +164,8 @@
+   await v85.put('https://localhost/build49.js', new Response('V85-STALE-BUILD49', { status: 200 }));
+   const v86 = await scope.caches.open('boriken-genetics-logbook-app-v86');
+   await v86.put('https://localhost/build57.js', new Response('V86-STALE-BUILD57', { status: 200 }));
++  const v87 = await scope.caches.open('boriken-genetics-logbook-app-v87');
++  await v87.put('https://localhost/build63.js', new Response('V87-STALE-BUILD63', { status: 200 }));
+ 
+   const held = await scope.caches.match('https://localhost/build57.js');
+   if (!held || await held.text() !== 'REV2-STALE') throw new Error('seed failed');
+@@ -184,7 +187,8 @@
+   if (names.includes('boriken-genetics-logbook-app-v84')) throw new Error('v84 cache kept ' + names.join(','));
+   if (names.includes('boriken-genetics-logbook-app-v85')) throw new Error('v85 cache kept ' + names.join(','));
+   if (names.includes('boriken-genetics-logbook-app-v86')) throw new Error('v86 cache kept ' + names.join(','));
+-  if (!names.includes('boriken-genetics-logbook-app-v87')) throw new Error('new cache missing ' + names.join(','));
++  if (names.includes('boriken-genetics-logbook-app-v87')) throw new Error('v87 cache kept ' + names.join(','));
++  if (!names.includes('boriken-genetics-logbook-app-v88')) throw new Error('new cache missing ' + names.join(','));
+ 
+   const precached = await scope.caches.match('https://localhost/build57.js');
+   const precachedBody = await precached.text();
+--- a/scripts/b63-photo-missing.test.js
++++ b/scripts/b63-photo-missing.test.js
+@@ -184,7 +184,7 @@
+   });
+   const sw = fs.readFileSync(path.join(ROOT, 'service-worker.js'), 'utf8');
+   check('revision 5 cache name does not change this export path', () => {
+-    if (!sw.includes("boriken-genetics-logbook-app-v87")) throw new Error('worker');
++    if (!sw.includes("boriken-genetics-logbook-app-v88")) throw new Error('worker');
+     const fn = fs.readFileSync(path.join(ROOT, 'app.js'), 'utf8');
+     const start = fn.indexOf('async function buildFullBackupPayload');
+     const body = fn.slice(start, fn.indexOf('function snapshotCounts'));
+--- a/scripts/b63-sw-browser.test.js
++++ b/scripts/b63-sw-browser.test.js
+@@ -144,10 +144,10 @@
+       const out = await send('Runtime.evaluate', { expression: READ, awaitPromise: true, returnByValue: true });
+       updated = out.result && out.result.value;
+       const fresh = updated && updated.build13 && updated.build13.sum === EXPECT['build13.js'] && updated.build58.sum === EXPECT['build58.js'] && updated.build63 && updated.build63.sum === EXPECT['build63.js'];
+-      if (fresh && updated.keys.includes('boriken-genetics-logbook-app-v87') && !updated.keys.includes(cacheName)) break;
++      if (fresh && updated.keys.includes('boriken-genetics-logbook-app-v88') && !updated.keys.includes(cacheName)) break;
+       await sleep(250);
+     }
+-    if (!updated || updated.build13.sum !== EXPECT['build13.js'] || updated.build58.sum !== EXPECT['build58.js'] || !updated.build63 || updated.build63.sum !== EXPECT['build63.js'] || updated.keys.includes(cacheName) || !updated.keys.includes('boriken-genetics-logbook-app-v87')) {
++    if (!updated || updated.build13.sum !== EXPECT['build13.js'] || updated.build58.sum !== EXPECT['build58.js'] || !updated.build63 || updated.build63.sum !== EXPECT['build63.js'] || updated.keys.includes(cacheName) || !updated.keys.includes('boriken-genetics-logbook-app-v88')) {
+       throw new Error(cacheName + ' did not install the current worker ' + JSON.stringify(updated) + ' ' + logs.join(' | '));
+     }
+     console.log('PASS real Chrome replaced ' + cacheName + ' and served the current build13.js, build58.js, and build63.js');
+@@ -173,7 +173,8 @@
+     await chromeCase('boriken-genetics-logbook-app-v84', 9345);
+     await chromeCase('boriken-genetics-logbook-app-v85', 9346);
+     await chromeCase('boriken-genetics-logbook-app-v86', 9347);
+-    console.log('b63 sw browser: v81 through v86 update paths passed');
++    await chromeCase('boriken-genetics-logbook-app-v87', 9348);
++    console.log('b63 sw browser: v81 through v87 update paths passed');
+   } finally {
+     server.close();
+   }

@@ -1,0 +1,55 @@
+Local parent-reference repair. Do not commit this file after you fill in the real id.
+Do not put a backup, a photo, a patient record, or the real id in the repo or in chat.
+
+The shipped app does not contain the plant id. After the revision 11 candidate is built,
+on that private machine only, set one localStorage value in the app origin
+(the installed app's WebView storage, or Safari's storage for that origin):
+
+key: boriken-b63-repair
+
+value, as one JSON object:
+
+{
+  "repairs": [
+    {
+      "recordId": "<the exact plant id held privately>",
+      "collection": "motherFatherPlants",
+      "field": "b49Father",
+      "expect": "dx:Rocco"
+    }
+  ]
+}
+
+Use collection "plants" or "breedingPlants" instead if that is the list that holds the id.
+The field must be b49Father. expect must be the current stored father string, exactly.
+If the stored father is no longer that string, the app changes nothing.
+
+On the next launch the app sets that one field to the existing unknown marker "-"
+and marks only the father side as a hand edit. The mother, the name, the other
+fields, other plants, and other dx: links stay. The father is shown as not recorded.
+No new father is invented. A second launch does not write again.
+
+Undo, only while that field is still "-", by replacing the config with:
+
+{
+  "undos": [
+    { "recordId": "<the same private id>", "collection": "motherFatherPlants", "field": "b49Father" }
+  ]
+}
+
+The previous value is kept only in that device's localStorage under boriken-b63-repair-undo.
+If the father was changed again after the repair, undo does nothing.
+
+Remove the boriken-b63-repair value after the launch you intended. Leave boriken-b63-view alone.
+This does not merge records and does not restore any other plant.
+
+Real-record browser mockups, separate from this repair, use scripts/b63-real-mockup.js
+on the private machine. Pass the sanitized plant-only file and the snapshot date
+the parent already has. Example shape, with no real values:
+
+node scripts/b63-real-mockup.js --fixture /private/plant-only.json --snapshot-date YYYY-MM-DD --out /private/mockups
+
+The file may contain only plants, breedingPlants, motherFatherPlants, breedingProjects,
+and cloneRuns, and only relationship fields. If the file is missing, or it contains
+notes, photos, patients, or any other section, the script stops and does not draw
+a substitute. Do not commit the fixture or the pictures.

@@ -1,0 +1,61 @@
+Packaged parent-reference repair. Do not commit a filled b63-repair.json.
+Do not put a backup, a photo, a patient record, or the real id in the repo or in chat.
+
+The public file b63-repair.json is empty. A normal launch reads that file before the repair runs.
+An empty file changes nothing. There is no WebView console step.
+
+On the private machine, write a file that is not in the repo, for example private/b63-repair.json:
+
+{
+  "repairs": [
+    {
+      "recordId": "<the exact plant id held privately>",
+      "collection": "plants",
+      "field": "b49Father",
+      "expect": "dx:Rocco"
+    }
+  ],
+  "undos": []
+}
+
+Then, before the native build:
+
+B63_REPAIR_REQUIRED=1 node scripts/b63-package-repair.js --file private/b63-repair.json
+
+That copies the file into the source tree, www, and ios/App/App/public. If the file is missing, the script exits 1 and does not package an empty repair. It does not print the id and it does not write localStorage.
+
+The next normal launch clears that one plants record's b49Father only when the stored value is still dx:Rocco. The field becomes the unknown marker. The saved mother stays. Other plants, crosses, and other dx: links stay. A mismatch or a second launch does nothing.
+
+Undo, only while that field is still the unknown marker, by packaging:
+
+{
+  "repairs": [],
+  "undos": [
+    { "recordId": "<the same private id>", "collection": "plants", "field": "b49Father" }
+  ]
+}
+
+Real-record browser pictures use the same packaged path inside an isolated browser. They are not written to the repo.
+
+node scripts/b63-real-mockup.js --list-screens
+
+node scripts/b63-real-mockup.js \
+  --fixture /private/plant-only.json \
+  --snapshot-date 2026-11-06 \
+  --screen tree \
+  --record-id <private-plant-id> \
+  --phase before \
+  --viewport 390x844 \
+  --out /private/mockups
+
+node scripts/b63-real-mockup.js \
+  --fixture /private/plant-only.json \
+  --snapshot-date 2026-11-06 \
+  --screen tree \
+  --record-id <private-plant-id> \
+  --repair-config /private/b63-repair.json \
+  --phase after \
+  --viewport 390x844 \
+  --out /private/mockups
+
+Screens are tree, plants, mf, compliance, and inspection. tree requires a record id that is in the fixture. Omit --viewport to also write 1024x768 and 1024x1366. The date must be the snapshot date you already have. A missing fixture, a missing record, or a page that does not show that record stops the script.

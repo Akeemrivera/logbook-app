@@ -1,0 +1,128 @@
+--- a/scripts/rig-guard-running.js
++++ b/scripts/rig-guard-running.js
+@@ -151,17 +151,29 @@
+   return found;
+ }
+ 
+-function run(cmd, args) {
+-  const result = spawnSync(cmd, args, { encoding: 'utf8', timeout: 20000, maxBuffer: 32 * 1024 * 1024 });
++function defaultSpawn(cmd, args) {
++  return spawnSync(cmd, args, { encoding: 'utf8', timeout: 20000, maxBuffer: 32 * 1024 * 1024 });
++}
++
++function run(cmd, args, spawnFn) {
++  const result = (spawnFn || defaultSpawn)(cmd, args);
++  const stdout = (result && result.stdout) || '';
+   if (!result || result.error || result.status !== 0) {
+-    return { ok: false, complete: false, apps: [], error: (result && result.error && result.error.message) || cmd + ' failed' };
++    return { ok: false, complete: false, apps: [], stdout, error: (result && result.error && result.error.message) || cmd + ' failed' };
+   }
+-  return { ok: true, stdout: result.stdout || '' };
++  return { ok: true, stdout };
++}
++
++function lookupFromRun(kind, ran) {
++  if (ran.ok) return kind === 'lsappinfo' ? parseLsappinfo(ran.stdout) : parseSystemEvents(ran.stdout);
++  const parsed = kind === 'lsappinfo' ? parseLsappinfo(ran.stdout) : parseSystemEvents(ran.stdout);
++  // A failed command can still carry a bundle id. Keep those rows and leave the lookup incomplete.
++  if (parsed.apps && parsed.apps.length) return { ok: false, complete: false, apps: parsed.apps, error: ran.error };
++  return { ok: false, complete: false, apps: [], error: ran.error };
+ }
+ 
+-function collectLive() {
+-  const listed = run('lsappinfo', ['list']);
+-  const lsappinfo = listed.ok ? parseLsappinfo(listed.stdout) : { ok: false, complete: false, apps: [], error: listed.error };
++function collectLive(spawnFn) {
++  const listed = lookupFromRun('lsappinfo', run('lsappinfo', ['list'], spawnFn));
+   const script = [
+     'tell application "System Events"',
+     'set out to ""',
+@@ -183,12 +195,15 @@
+     'return out',
+     'end tell',
+   ].join('\n');
+-  const events = run('osascript', ['-e', script]);
+-  const systemEvents = events.ok ? parseSystemEvents(events.stdout) : { ok: false, complete: false, apps: [], error: events.error };
++  const systemEvents = lookupFromRun('system-events', run('osascript', ['-e', script], spawnFn));
+   (systemEvents.apps || []).forEach((app) => {
+     app.bundleIds = bundleIdsAlong(app.path);
+   });
+-  return { lsappinfo, systemEvents };
++  return { lsappinfo: listed, systemEvents };
++}
++
++function exitCode(result) {
++  return result && result.ok ? 0 : 4;
+ }
+ 
+ function main() {
+@@ -208,6 +223,8 @@
+   parseLsappinfo,
+   parseSystemEvents,
+   bundleIdsAlong,
++  collectLive,
++  exitCode,
+   suspect,
+   isProd,
+   isQa,
+--- a/scripts/rig-guard-running.test.js
++++ b/scripts/rig-guard-running.test.js
+@@ -3,7 +3,6 @@
+ const fs = require('fs');
+ const os = require('os');
+ const path = require('path');
+-const { spawnSync } = require('child_process');
+ const guard = require('./rig-guard-running.js');
+ 
+ const FAIL = [];
+@@ -98,8 +97,48 @@
+ check('the guard no longer treats a display-name path search as proof the app is closed', !script.includes('pgrep'));
+ check('the guard asks the running-app check and does not quit or launch an app', script.includes('scripts/rig-guard-running.js') && !/killall|osascript/.test(script));
+ 
+-const live = spawnSync(process.execPath, [path.join(__dirname, 'rig-guard-running.js')], { encoding: 'utf8' });
+-check('live check fails closed where running-app tools are missing or unusable', live.status === 4);
++function spawnResult(spec) {
++  return () => spec;
++}
++function scriptedSpawn(byCmd) {
++  const calls = [];
++  const spawn = (cmd) => {
++    calls.push(cmd);
++    const spec = byCmd[cmd];
++    if (!spec) return { error: Object.assign(new Error('spawn ' + cmd + ' ENOENT'), { code: 'ENOENT' }), status: null, stdout: '' };
++    return spec;
++  };
++  spawn.calls = calls;
++  return spawn;
++}
++const finderRow = 'com.apple.Finder\t/System/Applications/Finder.app\tFinder';
++const missing = scriptedSpawn({});
++const missingObs = guard.collectLive(missing);
++check('a missing lsappinfo and osascript fail closed', missing.calls.join(',') === 'lsappinfo,osascript' && guard.exitCode(guard.decide(missingObs)) === 4 && missingObs.lsappinfo.ok === false && missingObs.systemEvents.ok === false, guard.decide(missingObs).reason);
++check('that missing-tool result names both lookups', guard.decide(missingObs).reason === 'running-app identity uncertain: lsappinfo, system-events', guard.decide(missingObs).reason);
++
++const unusable = scriptedSpawn({
++  lsappinfo: { status: 0, stdout: 'not a bundle list\n' },
++  osascript: { status: 1, error: new Error('osascript failed'), stdout: '' },
++});
++const unusableObs = guard.collectLive(unusable);
++check('unusable lookup text fails closed without asking the real tools', guard.decide(unusableObs).reason === 'running-app identity uncertain: lsappinfo, system-events', guard.decide(unusableObs).reason);
++
++const prodStdout = '91) "App" ASN:0x0-0x20:\n    bundleID="' + guard.PROD + '"\n    executable path="/private/var/folders/x/d/Wrapper/App.app/App"\n';
++const prodDespiteFailure = scriptedSpawn({
++  lsappinfo: { status: 1, error: new Error('lsappinfo failed'), stdout: prodStdout },
++  osascript: { error: Object.assign(new Error('spawn osascript ENOENT'), { code: 'ENOENT' }), status: null, stdout: '' },
++});
++check('a production bundle id in a failed lsappinfo result still blocks', guard.decide(guard.collectLive(prodDespiteFailure)).reason === 'production Logbook is running');
++
++const clearTools = scriptedSpawn({
++  lsappinfo: { status: 0, stdout: '1) "Finder" ASN:0x0-0x1:\n    bundleID="com.apple.Finder"\n    bundle path="/System/Applications/Finder.app"\n' },
++  osascript: { status: 0, stdout: finderRow + '\n' },
++});
++check('synthetic clear lookups report no production Logbook and exit 0', guard.decide(guard.collectLive(clearTools)).reason === 'no production Logbook identified' && guard.exitCode(guard.decide(guard.collectLive(clearTools))) === 0);
++
++const suite = fs.readFileSync(__filename, 'utf8').split('\n').filter((line) => !line.includes('suite does not spawn'));
++check('suite does not spawn the real checker or the Mac lookup tools', !suite.some((line) => line.includes('spawnSync')));
+ 
+ if (FAIL.length) {
+   console.error(FAIL.length + ' failed');

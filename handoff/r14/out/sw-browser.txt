@@ -1,0 +1,19 @@
+PASS real Chrome served stale build13.js, build58.js, and build63.js from boriken-genetics-logbook-app-v81
+PASS real Chrome replaced boriken-genetics-logbook-app-v81 and served the current build13.js, build58.js, and build63.js
+PASS real Chrome served the current build13.js, build58.js, and build63.js offline after boriken-genetics-logbook-app-v81
+PASS real Chrome served stale build13.js, build58.js, and build63.js from boriken-genetics-logbook-app-v82
+PASS real Chrome replaced boriken-genetics-logbook-app-v82 and served the current build13.js, build58.js, and build63.js
+PASS real Chrome served the current build13.js, build58.js, and build63.js offline after boriken-genetics-logbook-app-v82
+PASS real Chrome served stale build13.js, build58.js, and build63.js from boriken-genetics-logbook-app-v83
+PASS real Chrome replaced boriken-genetics-logbook-app-v83 and served the current build13.js, build58.js, and build63.js
+PASS real Chrome served the current build13.js, build58.js, and build63.js offline after boriken-genetics-logbook-app-v83
+PASS real Chrome served stale build13.js, build58.js, and build63.js from boriken-genetics-logbook-app-v84
+PASS real Chrome replaced boriken-genetics-logbook-app-v84 and served the current build13.js, build58.js, and build63.js
+PASS real Chrome served the current build13.js, build58.js, and build63.js offline after boriken-genetics-logbook-app-v84
+PASS real Chrome served stale build13.js, build58.js, and build63.js from boriken-genetics-logbook-app-v85
+PASS real Chrome replaced boriken-genetics-logbook-app-v85 and served the current build13.js, build58.js, and build63.js
+PASS real Chrome served the current build13.js, build58.js, and build63.js offline after boriken-genetics-logbook-app-v85
+PASS real Chrome served stale build13.js, build58.js, and build63.js from boriken-genetics-logbook-app-v86
+PASS real Chrome replaced boriken-genetics-logbook-app-v86 and served the current build13.js, build58.js, and build63.js
+PASS real Chrome served the current build13.js, build58.js, and build63.js offline after boriken-genetics-logbook-app-v86
+b63 sw browser: v81 through v86 update paths passed
