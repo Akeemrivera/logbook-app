@@ -1,0 +1,24 @@
+Apply on the phase 1 tree (logbook-b61-phase1-mac.patch already applied). Do not edit by hand.
+
+  patch -p1 --dry-run < logbook-b61-qa-prep.patch
+  patch -p1 < logbook-b61-qa-prep.patch
+  node scripts/phase1-prep-delta.test.js
+  python3 scripts/verify-qa-config.py
+
+Root app.js becomes the shipped b61 bytes (the only previous difference was APP_BUILD 60 vs 61).
+www/app.js and ios/App/App/public/app.js were already those bytes.
+
+Web prep, still no launch:
+  zsh scripts/prep-www.sh
+
+QA compile, separate container, no launch:
+  zsh scripts/qa-build.sh
+
+That script refuses any configuration other than QA, runs prep first, and stops if prep fails.
+It does not call npx cap sync. Derived data is build/qa-derived.
+After it prints a path:
+  zsh rig-guard.sh <that App.app> mac
+
+Open the app only if rig-guard prints ok and the production Logbook is not running.
+Do not build or open scheme App, configuration Debug, or configuration Release for this proof.
+Those use bundle id com.borikengenetics.logbookapp and iCloud container iCloud.com.borikengenetics.logbookapp.
