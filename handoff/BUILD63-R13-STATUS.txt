@@ -1,0 +1,47 @@
+BUILD 63 revision 13. Not compiled. No device is claimed fixed. No upload.
+
+Patch SHA-256 a1a6851e20e88582bc4eb1b47f9f5e1fd7f5859cfd93fe530f5ea2a559f28b35
+Cache name boriken-genetics-logbook-app-v86
+Strict layout stdout is unchanged: 42d012134fa8f1d5798020daa4c341a5c2ceee07cfb7a533287e110766c3baec
+
+Changed app files, source www and public copies match:
+  app.js SHA-256 86b28ca5b9332a2e6bb8bb36689776f87a761caef0eb0ec2a96574d33da9e549
+  mobile.js SHA-256 c5ee9340e5e3d1ff84527c986e09449c4ee5df700868fcabc0e833c1ce52269c
+  wide.js SHA-256 2ca4f4d90ec99cd6817d103a76fc5fc21c8d36de54fc61a9782124b40aba5663
+  build4.js SHA-256 df5a03cf79da43294571b9a8c92552a527184b9d05c0020ffaa12bc624027fe9
+  build18.js SHA-256 a6df0286dc557c72adbf3c5da48108001a3c4bfd9d97ae5faacfaff3f401e696
+  build49.js SHA-256 7ea5d2bc749177c2745ba18ab8ca8d9cd5d401b07b3c3b2355b2cc7903539b15
+  build57.js SHA-256 41f50213da811e6ea004177db554a0c5dd29ec4cc6363d0ec6933b1f12f24435
+  build60.js SHA-256 0bf01f178d857ad07069807ac5b817f1c61a656d4dfcd27c11721ee90a1b476c
+  build63.css SHA-256 146985dfc80f9142cf7cfcc095aeaff6a6e76109ebe255bb3e8cb1581bc9ff5b
+  service-worker.js SHA-256 424bad9cb583fe4e1401aaf9dbb792d6905730a7dbb1db0b34bc7877692816cc
+Unchanged repair file build63.js SHA-256 09ca494827b6ec78c80ea65b84d94b2bee7271eea51e1b9b1922803db89ab860
+
+Changed tests and renderer:
+  scripts/b63-real-mockup.js SHA-256 5403259ed35f6d9c4456ece94e938b9638776c3fdbf903eda58657340db0119e
+  scripts/b63-real-mockup.test.js SHA-256 39d5ed8a06c3c952b7fc588b08c0f2a7f65e019005f8349d0e51c4342a231230
+  scripts/b63-r5.test.js SHA-256 288483b0c8ef5d9ffe58ca62911d296a6ad4f6ded75c84e9d74cc0f8aed80268
+  scripts/b63-photo-missing.test.js SHA-256 ea2148d0af852e2eca09f55fb84a6594e25002f889f9bba7603d783d00dce46e
+  scripts/b63-sw-browser.test.js SHA-256 4941e32e4bb965cbc415a99c6136ae08db16c58769aa5c3907095f9a0d3ecd30
+
+Preexisting tests that still pass: father repair, no-sample, integration, remaining, photo, r5 cache, eight r3 layout runs, service-worker browser upgrades from v81 v82 v83 v84 and v85, full-app window check.
+New coverage: unknown parent text, name-only versus recorded deletion, archived versus culled versus retired, dated versus undated plants, backup snapshot disclosure, viewport 390x844 1024x768 1024x1366, sidebar, phone bar, 1.28 zoom, no missing assets.
+
+Outputs, each exit 0:
+  father.txt SHA-256 005f7ee68a70abd07c58b201e7f8b0afa9e17f6a41a17fef33c0297fc3a88020 exit 0
+  real-mockup.txt SHA-256 756ac69f6732b4ad3c76e09afe69ea9c16ca0c3d51c1b43ab562c17936a9c769 exit 0
+  no-sample.txt SHA-256 46686e551aea5424feed836cb467da6c607c26eb1f1a960f4b52014c750b9f7b exit 0
+  integration.txt SHA-256 2d828e559a15418b43507b0ca8469ff462315de36d534adc7a18566e17110bae exit 0
+  remaining.txt SHA-256 d3b5294f09637a05880e2bf007791487a3a129618c5222f3bfe2a761151aebef exit 0
+  photo.txt SHA-256 991db12ba0540e9274a0cc3911512de7844f24573b2250c791a50ae3de8a59aa exit 0
+  r5.txt SHA-256 74d686f72a41a6e25bcc0c2ddafe6bfe774e5b5ac42a67883a4ff189332a1957 exit 0
+  sw-browser.txt SHA-256 23e3cd1bca3ac350b21ad2e7ab9e2f45c77b3e3ab06b115da474662f3fca101a exit 0
+  fullapp.txt SHA-256 c0d99c94f1d1d13ed033e12917f11bcf1653109a41dae8e3f9897debb307fabc exit 0
+  r3-1.txt SHA-256 42d012134fa8f1d5798020daa4c341a5c2ceee07cfb7a533287e110766c3baec exit 0
+  r3-2.txt SHA-256 42d012134fa8f1d5798020daa4c341a5c2ceee07cfb7a533287e110766c3baec exit 0
+  r3-3.txt SHA-256 42d012134fa8f1d5798020daa4c341a5c2ceee07cfb7a533287e110766c3baec exit 0
+  r3-4.txt SHA-256 42d012134fa8f1d5798020daa4c341a5c2ceee07cfb7a533287e110766c3baec exit 0
+  r3-5.txt SHA-256 42d012134fa8f1d5798020daa4c341a5c2ceee07cfb7a533287e110766c3baec exit 0
+  r3-6.txt SHA-256 42d012134fa8f1d5798020daa4c341a5c2ceee07cfb7a533287e110766c3baec exit 0
+  r3-7.txt SHA-256 42d012134fa8f1d5798020daa4c341a5c2ceee07cfb7a533287e110766c3baec exit 0
+  r3-8.txt SHA-256 42d012134fa8f1d5798020daa4c341a5c2ceee07cfb7a533287e110766c3baec exit 0

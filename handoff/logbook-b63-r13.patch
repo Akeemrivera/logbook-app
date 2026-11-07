@@ -1,0 +1,1126 @@
+--- a/app.js
++++ b/app.js
+@@ -1755,7 +1755,8 @@
+   const totalDays = plantAgeDays ?? 0;
+   const harvestDate = getProjectedHarvest(plant);
+   const daysToHarvest = Math.ceil((harvestDate - getToday()) / MS_PER_DAY);
+-  let stage = 'Seedling';
++  const storedStage = String(plant.growthStage || '').trim();
++  let stage = plant.startDate ? 'Seedling' : (storedStage || 'Stage not recorded');
+   if (plant.status === 'archived') stage = 'Archived';
+   else if (plant.status === 'finished') stage = 'Finished';
+   else if (plant.status === 'curing') stage = 'Curing';
+@@ -1798,6 +1799,14 @@
+   };
+ }
+ 
++function plantDayLabel(plant, stats) {
++  if (!plant || !stats) return 'Date not recorded';
++  if (stats.flowerStarted) return `Flower day ${stats.flowerDays + 1}`;
++  if (stats.daysInVeg !== null) return `Veg day ${stats.daysInVeg + 1}`;
++  if (!plant.startDate || stats.plantAgeDays === null) return 'Date not recorded';
++  return `Day ${stats.plantAgeDays + 1}`;
++}
++
+ function getStageClass(stage) {
+   return `stage-${stage.toLowerCase().replace(/\s+/g, '-')}`;
+ }
+--- a/www/app.js
++++ b/www/app.js
+@@ -1755,7 +1755,8 @@
+   const totalDays = plantAgeDays ?? 0;
+   const harvestDate = getProjectedHarvest(plant);
+   const daysToHarvest = Math.ceil((harvestDate - getToday()) / MS_PER_DAY);
+-  let stage = 'Seedling';
++  const storedStage = String(plant.growthStage || '').trim();
++  let stage = plant.startDate ? 'Seedling' : (storedStage || 'Stage not recorded');
+   if (plant.status === 'archived') stage = 'Archived';
+   else if (plant.status === 'finished') stage = 'Finished';
+   else if (plant.status === 'curing') stage = 'Curing';
+@@ -1798,6 +1799,14 @@
+   };
+ }
+ 
++function plantDayLabel(plant, stats) {
++  if (!plant || !stats) return 'Date not recorded';
++  if (stats.flowerStarted) return `Flower day ${stats.flowerDays + 1}`;
++  if (stats.daysInVeg !== null) return `Veg day ${stats.daysInVeg + 1}`;
++  if (!plant.startDate || stats.plantAgeDays === null) return 'Date not recorded';
++  return `Day ${stats.plantAgeDays + 1}`;
++}
++
+ function getStageClass(stage) {
+   return `stage-${stage.toLowerCase().replace(/\s+/g, '-')}`;
+ }
+--- a/ios/App/App/public/app.js
++++ b/ios/App/App/public/app.js
+@@ -1755,7 +1755,8 @@
+   const totalDays = plantAgeDays ?? 0;
+   const harvestDate = getProjectedHarvest(plant);
+   const daysToHarvest = Math.ceil((harvestDate - getToday()) / MS_PER_DAY);
+-  let stage = 'Seedling';
++  const storedStage = String(plant.growthStage || '').trim();
++  let stage = plant.startDate ? 'Seedling' : (storedStage || 'Stage not recorded');
+   if (plant.status === 'archived') stage = 'Archived';
+   else if (plant.status === 'finished') stage = 'Finished';
+   else if (plant.status === 'curing') stage = 'Curing';
+@@ -1798,6 +1799,14 @@
+   };
+ }
+ 
++function plantDayLabel(plant, stats) {
++  if (!plant || !stats) return 'Date not recorded';
++  if (stats.flowerStarted) return `Flower day ${stats.flowerDays + 1}`;
++  if (stats.daysInVeg !== null) return `Veg day ${stats.daysInVeg + 1}`;
++  if (!plant.startDate || stats.plantAgeDays === null) return 'Date not recorded';
++  return `Day ${stats.plantAgeDays + 1}`;
++}
++
+ function getStageClass(stage) {
+   return `stage-${stage.toLowerCase().replace(/\s+/g, '-')}`;
+ }
+--- a/mobile.js
++++ b/mobile.js
+@@ -9,7 +9,7 @@
+ const LOCK_KEY = 'boriken-app-lock-v1';
+ const LOCK_PROMPTED_KEY = 'boriken-app-lock-prompted-v1';
+ const LOCK_GRACE_MS = 30000;
+-const STAGE_GROUPS = ['Seedling', 'Veg', 'Flower', 'Harvest'];
++const STAGE_GROUPS = ['Seedling', 'Veg', 'Flower', 'Harvest', 'Stage not recorded'];
+ /* Build 13: no water reminder (plants are auto-watered). Top dress is the only care reminder; interval is in weeks. */
+ const TOP_DRESS_DEFAULT_WEEKS = 4;
+ const MAIN_TABS = { home: 'home', breeding: 'breeding', harvest: 'harvest', 'plant-detail': 'home', journal: 'journal', more: 'more' };
+@@ -285,9 +285,9 @@
+     <div class="m-h2"><span>${g.stage}</span><em>${g.plants.length}</em></div>
+     <div class="m-card">${g.plants.map((p) => {
+       const st = getPlantStats(p);
+-      const dayLabel = g.stage === 'Harvest' ? (p.harvestDate ? `Harvested ${formatShort(p.harvestDate)}` : 'Harvested') : g.stage === 'Flower' ? (st.flowerDays !== null ? `Flower day ${st.flowerDays + 1}` : '') : g.stage === 'Veg' ? (st.daysInVeg !== null ? `Veg day ${st.daysInVeg + 1}` : '') : `Day ${st.totalDays + 1}`;
++      const dayLabel = g.stage === 'Harvest' ? (p.harvestDate ? `Harvested ${formatShort(p.harvestDate)}` : 'Harvested') : plantDayLabel(p, st);
+       const tag = st.ready ? '<div class="m-tag ready">Ready to harvest</div>' : st.flipPlanned ? `<div class="m-tag${st.flipDue ? ' due' : ''}">Planned flip ${escapeHtml(formatShort(st.plannedFlipDate))} · reminder only</div>` : '';
+-      const pill = g.stage === 'Harvest' ? (p.dryWeight ? escapeHtml(p.dryWeight) : 'Dry pending') : (st.progress === null ? (g.stage === 'Veg' ? (st.daysInVeg !== null ? `Day ${st.daysInVeg + 1}` : '—') : g.stage === 'Seedling' ? `Day ${st.totalDays + 1}` : '—') : st.ready ? 'Ready' : `${st.progress}%`);
++      const pill = g.stage === 'Harvest' ? (p.dryWeight ? escapeHtml(p.dryWeight) : 'Dry pending') : (st.progress === null ? (g.stage === 'Veg' || g.stage === 'Seedling' || g.stage === 'Flower' ? plantDayLabel(p, st) : '—') : st.ready ? 'Ready' : `${st.progress}%`);
+       return `<div class="m-row" data-open-plant="${p.id}" role="button" tabindex="0">
+         ${plantThumbHtml(p)}
+         <div class="m-grow"><div class="m-t">${escapeHtml(p.name)}</div><div class="m-s">${escapeHtml([dayLabel, p.location, typeof b18RowExtra === 'function' ? b18RowExtra(p) : ''].filter(Boolean).join(' · '))}</div>${tag}</div>
+@@ -315,7 +315,7 @@
+   const photo = latestPhotoLog(plant);
+   const src = photo && photoSrc(photo);
+   const heightLog = [...(plant.logs || [])].filter((l) => l.height).sort((a, b) => b.date.localeCompare(a.date))[0];
+-  const dayLabel = st.flowerStarted ? `Flower day ${st.flowerDays + 1}` : st.daysInVeg !== null ? `Veg day ${st.daysInVeg + 1}` : `Day ${st.totalDays + 1}`;
++  const dayLabel = plantDayLabel(plant, st);
+   const order = ['Seedling', 'Veg', 'Flower', 'Harvest'];
+   const cur = Math.max(0, order.indexOf(st.stage));
+   const postHarvest = !['Seedling', 'Veg', 'Flower'].includes(st.stage);
+--- a/www/mobile.js
++++ b/www/mobile.js
+@@ -9,7 +9,7 @@
+ const LOCK_KEY = 'boriken-app-lock-v1';
+ const LOCK_PROMPTED_KEY = 'boriken-app-lock-prompted-v1';
+ const LOCK_GRACE_MS = 30000;
+-const STAGE_GROUPS = ['Seedling', 'Veg', 'Flower', 'Harvest'];
++const STAGE_GROUPS = ['Seedling', 'Veg', 'Flower', 'Harvest', 'Stage not recorded'];
+ /* Build 13: no water reminder (plants are auto-watered). Top dress is the only care reminder; interval is in weeks. */
+ const TOP_DRESS_DEFAULT_WEEKS = 4;
+ const MAIN_TABS = { home: 'home', breeding: 'breeding', harvest: 'harvest', 'plant-detail': 'home', journal: 'journal', more: 'more' };
+@@ -285,9 +285,9 @@
+     <div class="m-h2"><span>${g.stage}</span><em>${g.plants.length}</em></div>
+     <div class="m-card">${g.plants.map((p) => {
+       const st = getPlantStats(p);
+-      const dayLabel = g.stage === 'Harvest' ? (p.harvestDate ? `Harvested ${formatShort(p.harvestDate)}` : 'Harvested') : g.stage === 'Flower' ? (st.flowerDays !== null ? `Flower day ${st.flowerDays + 1}` : '') : g.stage === 'Veg' ? (st.daysInVeg !== null ? `Veg day ${st.daysInVeg + 1}` : '') : `Day ${st.totalDays + 1}`;
++      const dayLabel = g.stage === 'Harvest' ? (p.harvestDate ? `Harvested ${formatShort(p.harvestDate)}` : 'Harvested') : plantDayLabel(p, st);
+       const tag = st.ready ? '<div class="m-tag ready">Ready to harvest</div>' : st.flipPlanned ? `<div class="m-tag${st.flipDue ? ' due' : ''}">Planned flip ${escapeHtml(formatShort(st.plannedFlipDate))} · reminder only</div>` : '';
+-      const pill = g.stage === 'Harvest' ? (p.dryWeight ? escapeHtml(p.dryWeight) : 'Dry pending') : (st.progress === null ? (g.stage === 'Veg' ? (st.daysInVeg !== null ? `Day ${st.daysInVeg + 1}` : '—') : g.stage === 'Seedling' ? `Day ${st.totalDays + 1}` : '—') : st.ready ? 'Ready' : `${st.progress}%`);
++      const pill = g.stage === 'Harvest' ? (p.dryWeight ? escapeHtml(p.dryWeight) : 'Dry pending') : (st.progress === null ? (g.stage === 'Veg' || g.stage === 'Seedling' || g.stage === 'Flower' ? plantDayLabel(p, st) : '—') : st.ready ? 'Ready' : `${st.progress}%`);
+       return `<div class="m-row" data-open-plant="${p.id}" role="button" tabindex="0">
+         ${plantThumbHtml(p)}
+         <div class="m-grow"><div class="m-t">${escapeHtml(p.name)}</div><div class="m-s">${escapeHtml([dayLabel, p.location, typeof b18RowExtra === 'function' ? b18RowExtra(p) : ''].filter(Boolean).join(' · '))}</div>${tag}</div>
+@@ -315,7 +315,7 @@
+   const photo = latestPhotoLog(plant);
+   const src = photo && photoSrc(photo);
+   const heightLog = [...(plant.logs || [])].filter((l) => l.height).sort((a, b) => b.date.localeCompare(a.date))[0];
+-  const dayLabel = st.flowerStarted ? `Flower day ${st.flowerDays + 1}` : st.daysInVeg !== null ? `Veg day ${st.daysInVeg + 1}` : `Day ${st.totalDays + 1}`;
++  const dayLabel = plantDayLabel(plant, st);
+   const order = ['Seedling', 'Veg', 'Flower', 'Harvest'];
+   const cur = Math.max(0, order.indexOf(st.stage));
+   const postHarvest = !['Seedling', 'Veg', 'Flower'].includes(st.stage);
+--- a/ios/App/App/public/mobile.js
++++ b/ios/App/App/public/mobile.js
+@@ -9,7 +9,7 @@
+ const LOCK_KEY = 'boriken-app-lock-v1';
+ const LOCK_PROMPTED_KEY = 'boriken-app-lock-prompted-v1';
+ const LOCK_GRACE_MS = 30000;
+-const STAGE_GROUPS = ['Seedling', 'Veg', 'Flower', 'Harvest'];
++const STAGE_GROUPS = ['Seedling', 'Veg', 'Flower', 'Harvest', 'Stage not recorded'];
+ /* Build 13: no water reminder (plants are auto-watered). Top dress is the only care reminder; interval is in weeks. */
+ const TOP_DRESS_DEFAULT_WEEKS = 4;
+ const MAIN_TABS = { home: 'home', breeding: 'breeding', harvest: 'harvest', 'plant-detail': 'home', journal: 'journal', more: 'more' };
+@@ -285,9 +285,9 @@
+     <div class="m-h2"><span>${g.stage}</span><em>${g.plants.length}</em></div>
+     <div class="m-card">${g.plants.map((p) => {
+       const st = getPlantStats(p);
+-      const dayLabel = g.stage === 'Harvest' ? (p.harvestDate ? `Harvested ${formatShort(p.harvestDate)}` : 'Harvested') : g.stage === 'Flower' ? (st.flowerDays !== null ? `Flower day ${st.flowerDays + 1}` : '') : g.stage === 'Veg' ? (st.daysInVeg !== null ? `Veg day ${st.daysInVeg + 1}` : '') : `Day ${st.totalDays + 1}`;
++      const dayLabel = g.stage === 'Harvest' ? (p.harvestDate ? `Harvested ${formatShort(p.harvestDate)}` : 'Harvested') : plantDayLabel(p, st);
+       const tag = st.ready ? '<div class="m-tag ready">Ready to harvest</div>' : st.flipPlanned ? `<div class="m-tag${st.flipDue ? ' due' : ''}">Planned flip ${escapeHtml(formatShort(st.plannedFlipDate))} · reminder only</div>` : '';
+-      const pill = g.stage === 'Harvest' ? (p.dryWeight ? escapeHtml(p.dryWeight) : 'Dry pending') : (st.progress === null ? (g.stage === 'Veg' ? (st.daysInVeg !== null ? `Day ${st.daysInVeg + 1}` : '—') : g.stage === 'Seedling' ? `Day ${st.totalDays + 1}` : '—') : st.ready ? 'Ready' : `${st.progress}%`);
++      const pill = g.stage === 'Harvest' ? (p.dryWeight ? escapeHtml(p.dryWeight) : 'Dry pending') : (st.progress === null ? (g.stage === 'Veg' || g.stage === 'Seedling' || g.stage === 'Flower' ? plantDayLabel(p, st) : '—') : st.ready ? 'Ready' : `${st.progress}%`);
+       return `<div class="m-row" data-open-plant="${p.id}" role="button" tabindex="0">
+         ${plantThumbHtml(p)}
+         <div class="m-grow"><div class="m-t">${escapeHtml(p.name)}</div><div class="m-s">${escapeHtml([dayLabel, p.location, typeof b18RowExtra === 'function' ? b18RowExtra(p) : ''].filter(Boolean).join(' · '))}</div>${tag}</div>
+@@ -315,7 +315,7 @@
+   const photo = latestPhotoLog(plant);
+   const src = photo && photoSrc(photo);
+   const heightLog = [...(plant.logs || [])].filter((l) => l.height).sort((a, b) => b.date.localeCompare(a.date))[0];
+-  const dayLabel = st.flowerStarted ? `Flower day ${st.flowerDays + 1}` : st.daysInVeg !== null ? `Veg day ${st.daysInVeg + 1}` : `Day ${st.totalDays + 1}`;
++  const dayLabel = plantDayLabel(plant, st);
+   const order = ['Seedling', 'Veg', 'Flower', 'Harvest'];
+   const cur = Math.max(0, order.indexOf(st.stage));
+   const postHarvest = !['Seedling', 'Veg', 'Flower'].includes(st.stage);
+--- a/wide.js
++++ b/wide.js
+@@ -74,7 +74,7 @@
+ function wPlantCard(p, nextBy) {
+   const st = getPlantStats(p);
+   const stage = p.status === 'harvest' ? 'Harvest' : st.stage;
+-  const day = stage === 'Flower' ? (st.flowerDays !== null ? `Flower day ${st.flowerDays + 1}` : 'Flower') : stage === 'Veg' ? (st.daysInVeg !== null ? `Veg day ${st.daysInVeg + 1}` : 'Veg') : stage === 'Harvest' ? (p.harvestDate ? `Harvested ${formatShort(p.harvestDate)}` : 'Harvested') : `Day ${st.totalDays + 1}`;
++  const day = stage === 'Harvest' ? (p.harvestDate ? `Harvested ${formatShort(p.harvestDate)}` : 'Harvested') : plantDayLabel(p, st);
+   const sub = [day, p.location].filter(Boolean).join(' · ');
+   const running = p.plantsRunning || p.count || 1;
+   const harvest = stage === 'Harvest' ? (p.dryWeight || 'Dry pending') : st.ready ? 'Ready now' : st.harvestDate ? `~${st.harvestDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}` : 'Not set';
+--- a/www/wide.js
++++ b/www/wide.js
+@@ -74,7 +74,7 @@
+ function wPlantCard(p, nextBy) {
+   const st = getPlantStats(p);
+   const stage = p.status === 'harvest' ? 'Harvest' : st.stage;
+-  const day = stage === 'Flower' ? (st.flowerDays !== null ? `Flower day ${st.flowerDays + 1}` : 'Flower') : stage === 'Veg' ? (st.daysInVeg !== null ? `Veg day ${st.daysInVeg + 1}` : 'Veg') : stage === 'Harvest' ? (p.harvestDate ? `Harvested ${formatShort(p.harvestDate)}` : 'Harvested') : `Day ${st.totalDays + 1}`;
++  const day = stage === 'Harvest' ? (p.harvestDate ? `Harvested ${formatShort(p.harvestDate)}` : 'Harvested') : plantDayLabel(p, st);
+   const sub = [day, p.location].filter(Boolean).join(' · ');
+   const running = p.plantsRunning || p.count || 1;
+   const harvest = stage === 'Harvest' ? (p.dryWeight || 'Dry pending') : st.ready ? 'Ready now' : st.harvestDate ? `~${st.harvestDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}` : 'Not set';
+--- a/ios/App/App/public/wide.js
++++ b/ios/App/App/public/wide.js
+@@ -74,7 +74,7 @@
+ function wPlantCard(p, nextBy) {
+   const st = getPlantStats(p);
+   const stage = p.status === 'harvest' ? 'Harvest' : st.stage;
+-  const day = stage === 'Flower' ? (st.flowerDays !== null ? `Flower day ${st.flowerDays + 1}` : 'Flower') : stage === 'Veg' ? (st.daysInVeg !== null ? `Veg day ${st.daysInVeg + 1}` : 'Veg') : stage === 'Harvest' ? (p.harvestDate ? `Harvested ${formatShort(p.harvestDate)}` : 'Harvested') : `Day ${st.totalDays + 1}`;
++  const day = stage === 'Harvest' ? (p.harvestDate ? `Harvested ${formatShort(p.harvestDate)}` : 'Harvested') : plantDayLabel(p, st);
+   const sub = [day, p.location].filter(Boolean).join(' · ');
+   const running = p.plantsRunning || p.count || 1;
+   const harvest = stage === 'Harvest' ? (p.dryWeight || 'Dry pending') : st.ready ? 'Ready now' : st.harvestDate ? `~${st.harvestDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}` : 'Not set';
+--- a/build4.js
++++ b/build4.js
+@@ -568,9 +568,20 @@
+   return bytes >= 1048576 ? `${(bytes / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`;
+ }
+ 
++function snapshotBackupUnavailable() {
++  try { return localStorage.getItem('boriken-b63-snapshot') === '1'; } catch (e) { return false; }
++}
++
+ function renderBackupHero() {
+   const box = $('#backup-hero');
+   if (!box) return;
++  if (snapshotBackupUnavailable()) {
++    box.innerHTML = `<span class="bh-label">Last backup</span>
++    <b class="bh-date">Not in this snapshot</b>
++    <span class="bh-sub">Backup status is not in this plant snapshot.</span>
++    <span class="bh-pill">Unavailable</span>`;
++    return;
++  }
+   const d = lastExportDate();
+   const age = d ? ageDaysOf(d) : null;
+   const ok = d && age < BACKUP_STALE_DAYS;
+@@ -583,6 +594,12 @@
+ function renderBackupBanner() {
+   const b = $('#backup-banner');
+   if (!b) return;
++  if (snapshotBackupUnavailable()) {
++    const show = ['home', 'more', 'breeding', 'harvest', 'journal'].includes(activeView);
++    b.hidden = !show;
++    if (show) b.innerHTML = '<span>Backup status is not in this snapshot.</span>';
++    return;
++  }
+   const d = lastExportDate();
+   const age = d ? ageDaysOf(d) : Infinity;
+   const show = reminderOn() && !isStateEmpty() && age >= BACKUP_STALE_DAYS && ls.get(NAG_DISMISS_KEY) !== todayKey()
+@@ -694,7 +711,7 @@
+     <div class="m-h2"><span>Breeding plants · own list</span><button type="button" class="br-link" data-br="new-plant">${plants.length ? `${plants.length} plant${plants.length === 1 ? '' : 's'} · ` : ''}+ Add</button></div>
+     <div class="m-card">${plants.length ? plants.map((p) => {
+       const st = getPlantStats(p);
+-      const day = st.flowerStarted ? `Flower day ${st.flowerDays}` : st.daysInVeg !== null ? `Day ${st.totalDays}` : `Day ${st.totalDays}`;
++      const day = plantDayLabel(p, st);
+       return `<div class="m-row" data-open-plant="${escapeHtml(p.id)}" data-coll="breedingPlants" role="button" tabindex="0">
+         ${plantThumbHtml(p)}
+         <div class="m-grow"><div class="m-t">${escapeHtml(p.name)}</div><div class="m-s">${escapeHtml([p.crossLabel, day, typeof b18RowExtra === 'function' ? b18RowExtra(p) : ''].filter(Boolean).join(' · '))}</div></div>${pill(st.stage)}</div>`;
+--- a/www/build4.js
++++ b/www/build4.js
+@@ -568,9 +568,20 @@
+   return bytes >= 1048576 ? `${(bytes / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`;
+ }
+ 
++function snapshotBackupUnavailable() {
++  try { return localStorage.getItem('boriken-b63-snapshot') === '1'; } catch (e) { return false; }
++}
++
+ function renderBackupHero() {
+   const box = $('#backup-hero');
+   if (!box) return;
++  if (snapshotBackupUnavailable()) {
++    box.innerHTML = `<span class="bh-label">Last backup</span>
++    <b class="bh-date">Not in this snapshot</b>
++    <span class="bh-sub">Backup status is not in this plant snapshot.</span>
++    <span class="bh-pill">Unavailable</span>`;
++    return;
++  }
+   const d = lastExportDate();
+   const age = d ? ageDaysOf(d) : null;
+   const ok = d && age < BACKUP_STALE_DAYS;
+@@ -583,6 +594,12 @@
+ function renderBackupBanner() {
+   const b = $('#backup-banner');
+   if (!b) return;
++  if (snapshotBackupUnavailable()) {
++    const show = ['home', 'more', 'breeding', 'harvest', 'journal'].includes(activeView);
++    b.hidden = !show;
++    if (show) b.innerHTML = '<span>Backup status is not in this snapshot.</span>';
++    return;
++  }
+   const d = lastExportDate();
+   const age = d ? ageDaysOf(d) : Infinity;
+   const show = reminderOn() && !isStateEmpty() && age >= BACKUP_STALE_DAYS && ls.get(NAG_DISMISS_KEY) !== todayKey()
+@@ -694,7 +711,7 @@
+     <div class="m-h2"><span>Breeding plants · own list</span><button type="button" class="br-link" data-br="new-plant">${plants.length ? `${plants.length} plant${plants.length === 1 ? '' : 's'} · ` : ''}+ Add</button></div>
+     <div class="m-card">${plants.length ? plants.map((p) => {
+       const st = getPlantStats(p);
+-      const day = st.flowerStarted ? `Flower day ${st.flowerDays}` : st.daysInVeg !== null ? `Day ${st.totalDays}` : `Day ${st.totalDays}`;
++      const day = plantDayLabel(p, st);
+       return `<div class="m-row" data-open-plant="${escapeHtml(p.id)}" data-coll="breedingPlants" role="button" tabindex="0">
+         ${plantThumbHtml(p)}
+         <div class="m-grow"><div class="m-t">${escapeHtml(p.name)}</div><div class="m-s">${escapeHtml([p.crossLabel, day, typeof b18RowExtra === 'function' ? b18RowExtra(p) : ''].filter(Boolean).join(' · '))}</div></div>${pill(st.stage)}</div>`;
+--- a/ios/App/App/public/build4.js
++++ b/ios/App/App/public/build4.js
+@@ -568,9 +568,20 @@
+   return bytes >= 1048576 ? `${(bytes / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`;
+ }
+ 
++function snapshotBackupUnavailable() {
++  try { return localStorage.getItem('boriken-b63-snapshot') === '1'; } catch (e) { return false; }
++}
++
+ function renderBackupHero() {
+   const box = $('#backup-hero');
+   if (!box) return;
++  if (snapshotBackupUnavailable()) {
++    box.innerHTML = `<span class="bh-label">Last backup</span>
++    <b class="bh-date">Not in this snapshot</b>
++    <span class="bh-sub">Backup status is not in this plant snapshot.</span>
++    <span class="bh-pill">Unavailable</span>`;
++    return;
++  }
+   const d = lastExportDate();
+   const age = d ? ageDaysOf(d) : null;
+   const ok = d && age < BACKUP_STALE_DAYS;
+@@ -583,6 +594,12 @@
+ function renderBackupBanner() {
+   const b = $('#backup-banner');
+   if (!b) return;
++  if (snapshotBackupUnavailable()) {
++    const show = ['home', 'more', 'breeding', 'harvest', 'journal'].includes(activeView);
++    b.hidden = !show;
++    if (show) b.innerHTML = '<span>Backup status is not in this snapshot.</span>';
++    return;
++  }
+   const d = lastExportDate();
+   const age = d ? ageDaysOf(d) : Infinity;
+   const show = reminderOn() && !isStateEmpty() && age >= BACKUP_STALE_DAYS && ls.get(NAG_DISMISS_KEY) !== todayKey()
+@@ -694,7 +711,7 @@
+     <div class="m-h2"><span>Breeding plants · own list</span><button type="button" class="br-link" data-br="new-plant">${plants.length ? `${plants.length} plant${plants.length === 1 ? '' : 's'} · ` : ''}+ Add</button></div>
+     <div class="m-card">${plants.length ? plants.map((p) => {
+       const st = getPlantStats(p);
+-      const day = st.flowerStarted ? `Flower day ${st.flowerDays}` : st.daysInVeg !== null ? `Day ${st.totalDays}` : `Day ${st.totalDays}`;
++      const day = plantDayLabel(p, st);
+       return `<div class="m-row" data-open-plant="${escapeHtml(p.id)}" data-coll="breedingPlants" role="button" tabindex="0">
+         ${plantThumbHtml(p)}
+         <div class="m-grow"><div class="m-t">${escapeHtml(p.name)}</div><div class="m-s">${escapeHtml([p.crossLabel, day, typeof b18RowExtra === 'function' ? b18RowExtra(p) : ''].filter(Boolean).join(' · '))}</div></div>${pill(st.stage)}</div>`;
+--- a/build18.js
++++ b/build18.js
+@@ -876,7 +876,7 @@
+   const out = [];
+   (state.breedingPlants || []).forEach((p) => {
+     const st = getPlantStats(p);
+-    const day = st.flowerStarted ? `Flower day ${st.flowerDays + 1}` : st.daysInVeg !== null ? `Veg day ${st.daysInVeg + 1}` : `Day ${st.totalDays + 1}`;
++    const day = plantDayLabel(p, st);
+     out.push({ key: `bp:${p.id}`, name: p.name, sub: [p.crossLabel, day].filter(Boolean).join(' · ') });
+   });
+   (state.motherFatherPlants || []).filter((m) => m.role === (kind === 'male' ? 'father' : 'mother') && (window.B63 && typeof B63.showMother === 'function' ? B63.showMother(m) : (!m.archived && m.status !== 'Retired'))).forEach((m) => out.push({ key: `mf:${m.id}`, name: m.name, sub: [kind === 'male' ? 'Father' : 'Mother', m.status].join(' · ') }));
+--- a/www/build18.js
++++ b/www/build18.js
+@@ -876,7 +876,7 @@
+   const out = [];
+   (state.breedingPlants || []).forEach((p) => {
+     const st = getPlantStats(p);
+-    const day = st.flowerStarted ? `Flower day ${st.flowerDays + 1}` : st.daysInVeg !== null ? `Veg day ${st.daysInVeg + 1}` : `Day ${st.totalDays + 1}`;
++    const day = plantDayLabel(p, st);
+     out.push({ key: `bp:${p.id}`, name: p.name, sub: [p.crossLabel, day].filter(Boolean).join(' · ') });
+   });
+   (state.motherFatherPlants || []).filter((m) => m.role === (kind === 'male' ? 'father' : 'mother') && (window.B63 && typeof B63.showMother === 'function' ? B63.showMother(m) : (!m.archived && m.status !== 'Retired'))).forEach((m) => out.push({ key: `mf:${m.id}`, name: m.name, sub: [kind === 'male' ? 'Father' : 'Mother', m.status].join(' · ') }));
+--- a/ios/App/App/public/build18.js
++++ b/ios/App/App/public/build18.js
+@@ -876,7 +876,7 @@
+   const out = [];
+   (state.breedingPlants || []).forEach((p) => {
+     const st = getPlantStats(p);
+-    const day = st.flowerStarted ? `Flower day ${st.flowerDays + 1}` : st.daysInVeg !== null ? `Veg day ${st.daysInVeg + 1}` : `Day ${st.totalDays + 1}`;
++    const day = plantDayLabel(p, st);
+     out.push({ key: `bp:${p.id}`, name: p.name, sub: [p.crossLabel, day].filter(Boolean).join(' · ') });
+   });
+   (state.motherFatherPlants || []).filter((m) => m.role === (kind === 'male' ? 'father' : 'mother') && (window.B63 && typeof B63.showMother === 'function' ? B63.showMother(m) : (!m.archived && m.status !== 'Retired'))).forEach((m) => out.push({ key: `mf:${m.id}`, name: m.name, sub: [kind === 'male' ? 'Father' : 'Mother', m.status].join(' · ') }));
+--- a/build49.js
++++ b/build49.js
+@@ -80,7 +80,7 @@
+   function why(key) {
+     if (manualGen(key)) { const a = genAuto(key); return `Set by hand to ${manualGen(key)}${!par(key) ? ' (no parents recorded)' : a !== manualGen(key) ? ` (worked out from parents: ${a})` : ''}`; }
+     const g = gen(key); const p = par(key); if (!p) return 'Starting line (no parents recorded)';
+-    const [m, f] = p; const mn = nameOf(m), fn = nameOf(f);
++    const [m, f] = p; const shown = (k) => nameOf(k) || 'not recorded'; const mn = shown(m), fn = shown(f);
+     if (g === 'S1') return `${mn} pollinated by itself, so S1`;
+     if (g.startsWith('BX')) { const kid = isAnc(f, m) ? m : f; const anc = kid === m ? f : m; return `${nameOf(kid)} (${gen(kid)}) crossed back to its ${par(kid) && par(kid).some((k) => same(k, anc)) ? 'parent' : 'ancestor'} ${nameOf(anc)}, so ${g}`; }
+     if (g === 'F1') return `Two different lines: ${mn} × ${fn}, so F1`;
+@@ -262,7 +262,7 @@
+         const p = par(key); if (!p && !manualGen(key)) return;
+         const t = row.querySelector('.m-t'); if (!t) return;
+         t.insertAdjacentHTML('beforeend', ` ${badge(key)}`);
+-        const grow = t.parentElement; if (p && grow && !grow.querySelector('.b49-par')) grow.insertAdjacentHTML('beforeend', `<div class="m-s b49-par">${esc(nameOf(p[0]))} × ${esc(nameOf(p[1]))}</div>`);
++        const grow = t.parentElement; if (p && grow && !grow.querySelector('.b49-par')) { const shown = (k) => nameOf(k) || 'not recorded'; grow.insertAdjacentHTML('beforeend', `<div class="m-s b49-par">${esc(shown(p[0]))} × ${esc(shown(p[1]))}</div>`); }
+       });
+       const pd = document.querySelector('#plant-detail-view.active .pd-sheet');
+       if (pd && !pd.querySelector('.b49-gcard')) { const key = `${detailColl === 'breedingPlants' ? 'bp' : 'pl'}:${detailPlantId()}`; const h = genCard(key); if (h) (pd.querySelector('.pd-quick') || pd.firstElementChild).insertAdjacentHTML('afterend', h); }
+--- a/www/build49.js
++++ b/www/build49.js
+@@ -80,7 +80,7 @@
+   function why(key) {
+     if (manualGen(key)) { const a = genAuto(key); return `Set by hand to ${manualGen(key)}${!par(key) ? ' (no parents recorded)' : a !== manualGen(key) ? ` (worked out from parents: ${a})` : ''}`; }
+     const g = gen(key); const p = par(key); if (!p) return 'Starting line (no parents recorded)';
+-    const [m, f] = p; const mn = nameOf(m), fn = nameOf(f);
++    const [m, f] = p; const shown = (k) => nameOf(k) || 'not recorded'; const mn = shown(m), fn = shown(f);
+     if (g === 'S1') return `${mn} pollinated by itself, so S1`;
+     if (g.startsWith('BX')) { const kid = isAnc(f, m) ? m : f; const anc = kid === m ? f : m; return `${nameOf(kid)} (${gen(kid)}) crossed back to its ${par(kid) && par(kid).some((k) => same(k, anc)) ? 'parent' : 'ancestor'} ${nameOf(anc)}, so ${g}`; }
+     if (g === 'F1') return `Two different lines: ${mn} × ${fn}, so F1`;
+@@ -262,7 +262,7 @@
+         const p = par(key); if (!p && !manualGen(key)) return;
+         const t = row.querySelector('.m-t'); if (!t) return;
+         t.insertAdjacentHTML('beforeend', ` ${badge(key)}`);
+-        const grow = t.parentElement; if (p && grow && !grow.querySelector('.b49-par')) grow.insertAdjacentHTML('beforeend', `<div class="m-s b49-par">${esc(nameOf(p[0]))} × ${esc(nameOf(p[1]))}</div>`);
++        const grow = t.parentElement; if (p && grow && !grow.querySelector('.b49-par')) { const shown = (k) => nameOf(k) || 'not recorded'; grow.insertAdjacentHTML('beforeend', `<div class="m-s b49-par">${esc(shown(p[0]))} × ${esc(shown(p[1]))}</div>`); }
+       });
+       const pd = document.querySelector('#plant-detail-view.active .pd-sheet');
+       if (pd && !pd.querySelector('.b49-gcard')) { const key = `${detailColl === 'breedingPlants' ? 'bp' : 'pl'}:${detailPlantId()}`; const h = genCard(key); if (h) (pd.querySelector('.pd-quick') || pd.firstElementChild).insertAdjacentHTML('afterend', h); }
+--- a/ios/App/App/public/build49.js
++++ b/ios/App/App/public/build49.js
+@@ -80,7 +80,7 @@
+   function why(key) {
+     if (manualGen(key)) { const a = genAuto(key); return `Set by hand to ${manualGen(key)}${!par(key) ? ' (no parents recorded)' : a !== manualGen(key) ? ` (worked out from parents: ${a})` : ''}`; }
+     const g = gen(key); const p = par(key); if (!p) return 'Starting line (no parents recorded)';
+-    const [m, f] = p; const mn = nameOf(m), fn = nameOf(f);
++    const [m, f] = p; const shown = (k) => nameOf(k) || 'not recorded'; const mn = shown(m), fn = shown(f);
+     if (g === 'S1') return `${mn} pollinated by itself, so S1`;
+     if (g.startsWith('BX')) { const kid = isAnc(f, m) ? m : f; const anc = kid === m ? f : m; return `${nameOf(kid)} (${gen(kid)}) crossed back to its ${par(kid) && par(kid).some((k) => same(k, anc)) ? 'parent' : 'ancestor'} ${nameOf(anc)}, so ${g}`; }
+     if (g === 'F1') return `Two different lines: ${mn} × ${fn}, so F1`;
+@@ -262,7 +262,7 @@
+         const p = par(key); if (!p && !manualGen(key)) return;
+         const t = row.querySelector('.m-t'); if (!t) return;
+         t.insertAdjacentHTML('beforeend', ` ${badge(key)}`);
+-        const grow = t.parentElement; if (p && grow && !grow.querySelector('.b49-par')) grow.insertAdjacentHTML('beforeend', `<div class="m-s b49-par">${esc(nameOf(p[0]))} × ${esc(nameOf(p[1]))}</div>`);
++        const grow = t.parentElement; if (p && grow && !grow.querySelector('.b49-par')) { const shown = (k) => nameOf(k) || 'not recorded'; grow.insertAdjacentHTML('beforeend', `<div class="m-s b49-par">${esc(shown(p[0]))} × ${esc(shown(p[1]))}</div>`); }
+       });
+       const pd = document.querySelector('#plant-detail-view.active .pd-sheet');
+       if (pd && !pd.querySelector('.b49-gcard')) { const key = `${detailColl === 'breedingPlants' ? 'bp' : 'pl'}:${detailPlantId()}`; const h = genCard(key); if (h) (pd.querySelector('.pd-quick') || pd.firstElementChild).insertAdjacentHTML('afterend', h); }
+--- a/build57.js
++++ b/build57.js
+@@ -55,15 +55,20 @@
+     return p;
+   }
+   const isUnk = (k) => !k || (String(k).startsWith('tx:') && (UNK.test(String(k).slice(3).trim()) || !String(k).slice(3).trim()));
++  function recordedDeletion(k) {
++    return [state.plants, state.breedingPlants, state.motherFatherPlants, state.breedingProjects].some((a) => (a || []).some((r) => r && r.b58DeletedAt && (r.b49Mother === k || r.b49Father === k)));
++  }
+   function stat(k) {
+     if (isUnk(k)) return { t: 'unknown', l: 'Unknown · open pollination / mixed pollen' };
+-    /* b58: "Deleted plant" only for a recorded deletion (dx:). A typed name with no plant behind it is bought genetics. */
+-    if (String(k).startsWith('dx:')) return { t: 'removed', l: 'Deleted plant (name kept)' };
++    /* A dx: name is a recorded deletion only when the same write stored b58DeletedAt. A name with no deletion record stays unlinked. */
++    if (String(k).startsWith('dx:')) return recordedDeletion(k) ? { t: 'removed', l: 'Deleted plant (name kept)' } : { t: 'nameonly', l: 'Name only · not linked' };
+     const r = rec(k); if (String(k).startsWith('tx:')) return { t: 'bought', l: 'Bought genetics · From another breeder', br: '' };
+     if (!r) return { t: 'removed', l: 'Deleted plant' };
+     if (r.deleted) return { t: 'removed', l: 'Deleted plant (name kept)' };
+     if (r.boughtGenetics) return { t: 'bought', l: `Bought genetics · ${r.breeder ? r.breeder : 'From another breeder'}`, br: r.breeder || '' };
+-    if (r.archived || /archiv|cull/i.test(String(r.status || '')) || (r.grade && r.grade.verdict === 'cull')) return { t: 'culled', l: 'Culled · lineage kept' };
++    if (/^retired$/i.test(String(r.status || ''))) return { t: 'retired', l: 'Retired' };
++    if (/cull/i.test(String(r.status || '')) || (r.grade && r.grade.verdict === 'cull')) return { t: 'culled', l: 'Culled · lineage kept' };
++    if (r.archived || /^archived$/i.test(String(r.status || ''))) return { t: 'archived', l: 'Archived' };
+     if (!par2(k)) { const src = String(r.breeder || r.source || r.seedSource || '').replace(/^Promoted from.*/i, '').trim(); /* b58: mother/father 'Source / notes' is free text; only call it bought when it says so (bought, breeder, seed bank, seeds, genetics) */
+       if (src && !/^(seed|clone)$/i.test(src) && (r.breeder || /\b(bought|purchased?|breeder|seed ?bank|seeds|genetics)\b/i.test(src))) { const br = String(r.breeder || '').trim() || src.replace(/^bought\s*(?:·|-|from)?\s*/i, '').trim(); return { t: 'bought', l: `Bought genetics · ${br || 'From another breeder'}`, br }; } }
+     return { t: '', l: '' };
+@@ -121,7 +126,7 @@
+     if (x.none) return pnode(x, cls);
+     if (x.self) return `<div class="b57-n ${cls} self"><span class="b57-ph mono" aria-hidden="true">S1</span><b>Self</b><small>${esc(x.role)}</small></div>`;
+     if (!x.k || isUnk(x.k)) return x.via ? `<button type="button" class="b57-n ${cls} unk" data-st="unknown" data-b58="add"${ofA(x)}><span class="b57-ph mono" aria-hidden="true">?</span><b>Unknown</b><small>${esc(x.role ? x.role + ' · ' : '')}open pollination / mixed pollen · tap to change</small></button>` : `<div class="b57-n ${cls} unk" data-st="unknown"><span class="b57-ph mono" aria-hidden="true">?</span><b>Unknown</b><small>${esc(x.role ? x.role + ' · ' : '')}open pollination / mixed pollen</small></div>`;
+-    const st = stat(x.k); const tag = x.ref ? '<em class="b57-tag ref">↺ also above</em>' : st.t === 'culled' ? '<em class="b57-tag cull">Culled</em>' : st.t === 'removed' ? '<em class="b57-tag gone">Deleted plant</em>' : st.t === 'bought' ? `<em class="b57-tag bought" data-b58="info" data-k="${esc(x.k)}" role="button" tabindex="0" aria-label="Bought genetics${st.br ? ' from ' + esc(st.br) : ''}. Tap for details">${esc(window.B58 && B58.boughtBadge ? B58.boughtBadge(st.br) : 'Bought')}</em>` : '';
++    const st = stat(x.k); const tag = x.ref ? '<em class="b57-tag ref">↺ also above</em>' : st.t === 'culled' ? '<em class="b57-tag cull">Culled</em>' : st.t === 'archived' ? '<em class="b57-tag arch">Archived</em>' : st.t === 'retired' ? '<em class="b57-tag ret">Retired</em>' : st.t === 'removed' ? '<em class="b57-tag gone">Deleted plant</em>' : st.t === 'nameonly' ? '<em class="b57-tag nameonly">Name only</em>' : st.t === 'bought' ? `<em class="b57-tag bought" data-b58="info" data-k="${esc(x.k)}" role="button" tabindex="0" aria-label="Bought genetics${st.br ? ' from ' + esc(st.br) : ''}. Tap for details">${esc(window.B58 && B58.boughtBadge ? B58.boughtBadge(st.br) : 'Bought')}</em>` : '';
+     return `<button type="button" class="b57-n ${cls}${x.ref ? ' ref' : ''}${st.t ? ' st-' + st.t : ''}" data-b57="sel" data-k="${esc(x.k)}"${ofA(x)}${x.sib ? ' data-sib="1"' : ''} data-st="${st.t}">${ph(x.k)}<b>${esc(name(x.k))}</b><small>${sub(x.k, x.role)}${st.l && !x.ref ? ' · ' + esc(st.l) : ''}</small>${tag}</button>`;
+   }
+   const candNode = (c) => c.k ? `<button type="button" class="b57-n cand keeper" data-b57="sel" data-k="${esc(c.k)}" data-cand="${c.i}">${ph(c.k)}<b>${esc(c.t)}</b><small>${esc(c.s)}</small><em class="b57-tag keep">★ Keeper</em></button>` : `<div class="b57-n cand${c.cull ? ' st-culled' : ''}" data-cand="${c.i}"><span class="b57-ph mono" aria-hidden="true">#${c.i}</span><b>${esc(c.t)}</b><small>${esc(c.s)}</small>${c.cull ? '<em class="b57-tag cull">Cull</em>' : ''}</div>`;
+@@ -185,7 +190,7 @@
+   function ring(items, cx, cy, r0, r1, a0, a1, cls) {
+     if (!items.length) return ''; const step = (a1 - a0) / items.length; let s = '';
+     items.forEach((x, i) => { const b0 = a0 + i * step, b1 = b0 + step, m = (b0 + b1) / 2, rm = (r0 + r1) / 2; const [tx, ty] = P_(cx, cy, rm, m); const arc = Math.min(step * rm * 0.92, 120);
+-      const nm = x.cand ? x.t : x.self ? 'Self (S1)' : x.none ? (x.via ? '+ Not recorded' : 'Not recorded') : x.k ? nm2(x.k) : (x.t || 'Not recorded'); const sb = x.cand ? x.s : x.k ? (x.ref ? 'also above' : (stat(x.k).t === 'culled' ? 'Culled' : stat(x.k).t === 'removed' ? 'Deleted plant' : stat(x.k).t === 'bought' ? (window.B58 && B58.boughtBadge ? B58.boughtBadge(stat(x.k).br) : 'Bought') : (x.role || gen(x.k)))) : (x.s || x.role || '');
++      const nm = x.cand ? x.t : x.self ? 'Self (S1)' : x.none ? (x.via ? '+ Not recorded' : 'Not recorded') : x.k ? nm2(x.k) : (x.t || 'Not recorded'); const sb = x.cand ? x.s : x.k ? (x.ref ? 'also above' : (stat(x.k).t === 'culled' ? 'Culled' : stat(x.k).t === 'archived' ? 'Archived' : stat(x.k).t === 'retired' ? 'Retired' : stat(x.k).t === 'removed' ? 'Deleted plant' : stat(x.k).t === 'nameonly' ? 'Name only' : stat(x.k).t === 'bought' ? (window.B58 && B58.boughtBadge ? B58.boughtBadge(stat(x.k).br) : 'Bought') : (x.role || gen(x.k)))) : (x.s || x.role || '');
+       const one = step * rm < 34; const tap = x.k && !isUnk(x.k); const add = !tap && x.via && x.side;
+       s += `<g class="b57-seg ${cls}${tap ? '' : add ? ' none add' : ' none'}${x.keeper ? ' keeper' : ''}${x.me ? ' is-me' : ''}"${tap ? ` data-b57="sel" data-k="${esc(x.k)}" role="button" tabindex="0" aria-label="${esc(nm)}"` : add ? ` data-b58="add" role="button" tabindex="0" aria-label="${esc(nm)} · tap to add"` : ''}${ofA(x)}${add ? ' data-add="1"' : ''}${x.cand ? ` data-cand="${x.i}"` : ''}><path d="${seg(cx, cy, r0, r1, b0, b1)}"/>${lbl(nm, tx, ty + (one ? 4 : -2), arc)}${one ? '' : `<text x="${tx.toFixed(1)}" y="${(ty + 10).toFixed(1)}" text-anchor="middle" class="t2">${esc(fit(sb, arc))}</text>`}</g>`; });
+     return s;
+--- a/www/build57.js
++++ b/www/build57.js
+@@ -55,15 +55,20 @@
+     return p;
+   }
+   const isUnk = (k) => !k || (String(k).startsWith('tx:') && (UNK.test(String(k).slice(3).trim()) || !String(k).slice(3).trim()));
++  function recordedDeletion(k) {
++    return [state.plants, state.breedingPlants, state.motherFatherPlants, state.breedingProjects].some((a) => (a || []).some((r) => r && r.b58DeletedAt && (r.b49Mother === k || r.b49Father === k)));
++  }
+   function stat(k) {
+     if (isUnk(k)) return { t: 'unknown', l: 'Unknown · open pollination / mixed pollen' };
+-    /* b58: "Deleted plant" only for a recorded deletion (dx:). A typed name with no plant behind it is bought genetics. */
+-    if (String(k).startsWith('dx:')) return { t: 'removed', l: 'Deleted plant (name kept)' };
++    /* A dx: name is a recorded deletion only when the same write stored b58DeletedAt. A name with no deletion record stays unlinked. */
++    if (String(k).startsWith('dx:')) return recordedDeletion(k) ? { t: 'removed', l: 'Deleted plant (name kept)' } : { t: 'nameonly', l: 'Name only · not linked' };
+     const r = rec(k); if (String(k).startsWith('tx:')) return { t: 'bought', l: 'Bought genetics · From another breeder', br: '' };
+     if (!r) return { t: 'removed', l: 'Deleted plant' };
+     if (r.deleted) return { t: 'removed', l: 'Deleted plant (name kept)' };
+     if (r.boughtGenetics) return { t: 'bought', l: `Bought genetics · ${r.breeder ? r.breeder : 'From another breeder'}`, br: r.breeder || '' };
+-    if (r.archived || /archiv|cull/i.test(String(r.status || '')) || (r.grade && r.grade.verdict === 'cull')) return { t: 'culled', l: 'Culled · lineage kept' };
++    if (/^retired$/i.test(String(r.status || ''))) return { t: 'retired', l: 'Retired' };
++    if (/cull/i.test(String(r.status || '')) || (r.grade && r.grade.verdict === 'cull')) return { t: 'culled', l: 'Culled · lineage kept' };
++    if (r.archived || /^archived$/i.test(String(r.status || ''))) return { t: 'archived', l: 'Archived' };
+     if (!par2(k)) { const src = String(r.breeder || r.source || r.seedSource || '').replace(/^Promoted from.*/i, '').trim(); /* b58: mother/father 'Source / notes' is free text; only call it bought when it says so (bought, breeder, seed bank, seeds, genetics) */
+       if (src && !/^(seed|clone)$/i.test(src) && (r.breeder || /\b(bought|purchased?|breeder|seed ?bank|seeds|genetics)\b/i.test(src))) { const br = String(r.breeder || '').trim() || src.replace(/^bought\s*(?:·|-|from)?\s*/i, '').trim(); return { t: 'bought', l: `Bought genetics · ${br || 'From another breeder'}`, br }; } }
+     return { t: '', l: '' };
+@@ -121,7 +126,7 @@
+     if (x.none) return pnode(x, cls);
+     if (x.self) return `<div class="b57-n ${cls} self"><span class="b57-ph mono" aria-hidden="true">S1</span><b>Self</b><small>${esc(x.role)}</small></div>`;
+     if (!x.k || isUnk(x.k)) return x.via ? `<button type="button" class="b57-n ${cls} unk" data-st="unknown" data-b58="add"${ofA(x)}><span class="b57-ph mono" aria-hidden="true">?</span><b>Unknown</b><small>${esc(x.role ? x.role + ' · ' : '')}open pollination / mixed pollen · tap to change</small></button>` : `<div class="b57-n ${cls} unk" data-st="unknown"><span class="b57-ph mono" aria-hidden="true">?</span><b>Unknown</b><small>${esc(x.role ? x.role + ' · ' : '')}open pollination / mixed pollen</small></div>`;
+-    const st = stat(x.k); const tag = x.ref ? '<em class="b57-tag ref">↺ also above</em>' : st.t === 'culled' ? '<em class="b57-tag cull">Culled</em>' : st.t === 'removed' ? '<em class="b57-tag gone">Deleted plant</em>' : st.t === 'bought' ? `<em class="b57-tag bought" data-b58="info" data-k="${esc(x.k)}" role="button" tabindex="0" aria-label="Bought genetics${st.br ? ' from ' + esc(st.br) : ''}. Tap for details">${esc(window.B58 && B58.boughtBadge ? B58.boughtBadge(st.br) : 'Bought')}</em>` : '';
++    const st = stat(x.k); const tag = x.ref ? '<em class="b57-tag ref">↺ also above</em>' : st.t === 'culled' ? '<em class="b57-tag cull">Culled</em>' : st.t === 'archived' ? '<em class="b57-tag arch">Archived</em>' : st.t === 'retired' ? '<em class="b57-tag ret">Retired</em>' : st.t === 'removed' ? '<em class="b57-tag gone">Deleted plant</em>' : st.t === 'nameonly' ? '<em class="b57-tag nameonly">Name only</em>' : st.t === 'bought' ? `<em class="b57-tag bought" data-b58="info" data-k="${esc(x.k)}" role="button" tabindex="0" aria-label="Bought genetics${st.br ? ' from ' + esc(st.br) : ''}. Tap for details">${esc(window.B58 && B58.boughtBadge ? B58.boughtBadge(st.br) : 'Bought')}</em>` : '';
+     return `<button type="button" class="b57-n ${cls}${x.ref ? ' ref' : ''}${st.t ? ' st-' + st.t : ''}" data-b57="sel" data-k="${esc(x.k)}"${ofA(x)}${x.sib ? ' data-sib="1"' : ''} data-st="${st.t}">${ph(x.k)}<b>${esc(name(x.k))}</b><small>${sub(x.k, x.role)}${st.l && !x.ref ? ' · ' + esc(st.l) : ''}</small>${tag}</button>`;
+   }
+   const candNode = (c) => c.k ? `<button type="button" class="b57-n cand keeper" data-b57="sel" data-k="${esc(c.k)}" data-cand="${c.i}">${ph(c.k)}<b>${esc(c.t)}</b><small>${esc(c.s)}</small><em class="b57-tag keep">★ Keeper</em></button>` : `<div class="b57-n cand${c.cull ? ' st-culled' : ''}" data-cand="${c.i}"><span class="b57-ph mono" aria-hidden="true">#${c.i}</span><b>${esc(c.t)}</b><small>${esc(c.s)}</small>${c.cull ? '<em class="b57-tag cull">Cull</em>' : ''}</div>`;
+@@ -185,7 +190,7 @@
+   function ring(items, cx, cy, r0, r1, a0, a1, cls) {
+     if (!items.length) return ''; const step = (a1 - a0) / items.length; let s = '';
+     items.forEach((x, i) => { const b0 = a0 + i * step, b1 = b0 + step, m = (b0 + b1) / 2, rm = (r0 + r1) / 2; const [tx, ty] = P_(cx, cy, rm, m); const arc = Math.min(step * rm * 0.92, 120);
+-      const nm = x.cand ? x.t : x.self ? 'Self (S1)' : x.none ? (x.via ? '+ Not recorded' : 'Not recorded') : x.k ? nm2(x.k) : (x.t || 'Not recorded'); const sb = x.cand ? x.s : x.k ? (x.ref ? 'also above' : (stat(x.k).t === 'culled' ? 'Culled' : stat(x.k).t === 'removed' ? 'Deleted plant' : stat(x.k).t === 'bought' ? (window.B58 && B58.boughtBadge ? B58.boughtBadge(stat(x.k).br) : 'Bought') : (x.role || gen(x.k)))) : (x.s || x.role || '');
++      const nm = x.cand ? x.t : x.self ? 'Self (S1)' : x.none ? (x.via ? '+ Not recorded' : 'Not recorded') : x.k ? nm2(x.k) : (x.t || 'Not recorded'); const sb = x.cand ? x.s : x.k ? (x.ref ? 'also above' : (stat(x.k).t === 'culled' ? 'Culled' : stat(x.k).t === 'archived' ? 'Archived' : stat(x.k).t === 'retired' ? 'Retired' : stat(x.k).t === 'removed' ? 'Deleted plant' : stat(x.k).t === 'nameonly' ? 'Name only' : stat(x.k).t === 'bought' ? (window.B58 && B58.boughtBadge ? B58.boughtBadge(stat(x.k).br) : 'Bought') : (x.role || gen(x.k)))) : (x.s || x.role || '');
+       const one = step * rm < 34; const tap = x.k && !isUnk(x.k); const add = !tap && x.via && x.side;
+       s += `<g class="b57-seg ${cls}${tap ? '' : add ? ' none add' : ' none'}${x.keeper ? ' keeper' : ''}${x.me ? ' is-me' : ''}"${tap ? ` data-b57="sel" data-k="${esc(x.k)}" role="button" tabindex="0" aria-label="${esc(nm)}"` : add ? ` data-b58="add" role="button" tabindex="0" aria-label="${esc(nm)} · tap to add"` : ''}${ofA(x)}${add ? ' data-add="1"' : ''}${x.cand ? ` data-cand="${x.i}"` : ''}><path d="${seg(cx, cy, r0, r1, b0, b1)}"/>${lbl(nm, tx, ty + (one ? 4 : -2), arc)}${one ? '' : `<text x="${tx.toFixed(1)}" y="${(ty + 10).toFixed(1)}" text-anchor="middle" class="t2">${esc(fit(sb, arc))}</text>`}</g>`; });
+     return s;
+--- a/ios/App/App/public/build57.js
++++ b/ios/App/App/public/build57.js
+@@ -55,15 +55,20 @@
+     return p;
+   }
+   const isUnk = (k) => !k || (String(k).startsWith('tx:') && (UNK.test(String(k).slice(3).trim()) || !String(k).slice(3).trim()));
++  function recordedDeletion(k) {
++    return [state.plants, state.breedingPlants, state.motherFatherPlants, state.breedingProjects].some((a) => (a || []).some((r) => r && r.b58DeletedAt && (r.b49Mother === k || r.b49Father === k)));
++  }
+   function stat(k) {
+     if (isUnk(k)) return { t: 'unknown', l: 'Unknown · open pollination / mixed pollen' };
+-    /* b58: "Deleted plant" only for a recorded deletion (dx:). A typed name with no plant behind it is bought genetics. */
+-    if (String(k).startsWith('dx:')) return { t: 'removed', l: 'Deleted plant (name kept)' };
++    /* A dx: name is a recorded deletion only when the same write stored b58DeletedAt. A name with no deletion record stays unlinked. */
++    if (String(k).startsWith('dx:')) return recordedDeletion(k) ? { t: 'removed', l: 'Deleted plant (name kept)' } : { t: 'nameonly', l: 'Name only · not linked' };
+     const r = rec(k); if (String(k).startsWith('tx:')) return { t: 'bought', l: 'Bought genetics · From another breeder', br: '' };
+     if (!r) return { t: 'removed', l: 'Deleted plant' };
+     if (r.deleted) return { t: 'removed', l: 'Deleted plant (name kept)' };
+     if (r.boughtGenetics) return { t: 'bought', l: `Bought genetics · ${r.breeder ? r.breeder : 'From another breeder'}`, br: r.breeder || '' };
+-    if (r.archived || /archiv|cull/i.test(String(r.status || '')) || (r.grade && r.grade.verdict === 'cull')) return { t: 'culled', l: 'Culled · lineage kept' };
++    if (/^retired$/i.test(String(r.status || ''))) return { t: 'retired', l: 'Retired' };
++    if (/cull/i.test(String(r.status || '')) || (r.grade && r.grade.verdict === 'cull')) return { t: 'culled', l: 'Culled · lineage kept' };
++    if (r.archived || /^archived$/i.test(String(r.status || ''))) return { t: 'archived', l: 'Archived' };
+     if (!par2(k)) { const src = String(r.breeder || r.source || r.seedSource || '').replace(/^Promoted from.*/i, '').trim(); /* b58: mother/father 'Source / notes' is free text; only call it bought when it says so (bought, breeder, seed bank, seeds, genetics) */
+       if (src && !/^(seed|clone)$/i.test(src) && (r.breeder || /\b(bought|purchased?|breeder|seed ?bank|seeds|genetics)\b/i.test(src))) { const br = String(r.breeder || '').trim() || src.replace(/^bought\s*(?:·|-|from)?\s*/i, '').trim(); return { t: 'bought', l: `Bought genetics · ${br || 'From another breeder'}`, br }; } }
+     return { t: '', l: '' };
+@@ -121,7 +126,7 @@
+     if (x.none) return pnode(x, cls);
+     if (x.self) return `<div class="b57-n ${cls} self"><span class="b57-ph mono" aria-hidden="true">S1</span><b>Self</b><small>${esc(x.role)}</small></div>`;
+     if (!x.k || isUnk(x.k)) return x.via ? `<button type="button" class="b57-n ${cls} unk" data-st="unknown" data-b58="add"${ofA(x)}><span class="b57-ph mono" aria-hidden="true">?</span><b>Unknown</b><small>${esc(x.role ? x.role + ' · ' : '')}open pollination / mixed pollen · tap to change</small></button>` : `<div class="b57-n ${cls} unk" data-st="unknown"><span class="b57-ph mono" aria-hidden="true">?</span><b>Unknown</b><small>${esc(x.role ? x.role + ' · ' : '')}open pollination / mixed pollen</small></div>`;
+-    const st = stat(x.k); const tag = x.ref ? '<em class="b57-tag ref">↺ also above</em>' : st.t === 'culled' ? '<em class="b57-tag cull">Culled</em>' : st.t === 'removed' ? '<em class="b57-tag gone">Deleted plant</em>' : st.t === 'bought' ? `<em class="b57-tag bought" data-b58="info" data-k="${esc(x.k)}" role="button" tabindex="0" aria-label="Bought genetics${st.br ? ' from ' + esc(st.br) : ''}. Tap for details">${esc(window.B58 && B58.boughtBadge ? B58.boughtBadge(st.br) : 'Bought')}</em>` : '';
++    const st = stat(x.k); const tag = x.ref ? '<em class="b57-tag ref">↺ also above</em>' : st.t === 'culled' ? '<em class="b57-tag cull">Culled</em>' : st.t === 'archived' ? '<em class="b57-tag arch">Archived</em>' : st.t === 'retired' ? '<em class="b57-tag ret">Retired</em>' : st.t === 'removed' ? '<em class="b57-tag gone">Deleted plant</em>' : st.t === 'nameonly' ? '<em class="b57-tag nameonly">Name only</em>' : st.t === 'bought' ? `<em class="b57-tag bought" data-b58="info" data-k="${esc(x.k)}" role="button" tabindex="0" aria-label="Bought genetics${st.br ? ' from ' + esc(st.br) : ''}. Tap for details">${esc(window.B58 && B58.boughtBadge ? B58.boughtBadge(st.br) : 'Bought')}</em>` : '';
+     return `<button type="button" class="b57-n ${cls}${x.ref ? ' ref' : ''}${st.t ? ' st-' + st.t : ''}" data-b57="sel" data-k="${esc(x.k)}"${ofA(x)}${x.sib ? ' data-sib="1"' : ''} data-st="${st.t}">${ph(x.k)}<b>${esc(name(x.k))}</b><small>${sub(x.k, x.role)}${st.l && !x.ref ? ' · ' + esc(st.l) : ''}</small>${tag}</button>`;
+   }
+   const candNode = (c) => c.k ? `<button type="button" class="b57-n cand keeper" data-b57="sel" data-k="${esc(c.k)}" data-cand="${c.i}">${ph(c.k)}<b>${esc(c.t)}</b><small>${esc(c.s)}</small><em class="b57-tag keep">★ Keeper</em></button>` : `<div class="b57-n cand${c.cull ? ' st-culled' : ''}" data-cand="${c.i}"><span class="b57-ph mono" aria-hidden="true">#${c.i}</span><b>${esc(c.t)}</b><small>${esc(c.s)}</small>${c.cull ? '<em class="b57-tag cull">Cull</em>' : ''}</div>`;
+@@ -185,7 +190,7 @@
+   function ring(items, cx, cy, r0, r1, a0, a1, cls) {
+     if (!items.length) return ''; const step = (a1 - a0) / items.length; let s = '';
+     items.forEach((x, i) => { const b0 = a0 + i * step, b1 = b0 + step, m = (b0 + b1) / 2, rm = (r0 + r1) / 2; const [tx, ty] = P_(cx, cy, rm, m); const arc = Math.min(step * rm * 0.92, 120);
+-      const nm = x.cand ? x.t : x.self ? 'Self (S1)' : x.none ? (x.via ? '+ Not recorded' : 'Not recorded') : x.k ? nm2(x.k) : (x.t || 'Not recorded'); const sb = x.cand ? x.s : x.k ? (x.ref ? 'also above' : (stat(x.k).t === 'culled' ? 'Culled' : stat(x.k).t === 'removed' ? 'Deleted plant' : stat(x.k).t === 'bought' ? (window.B58 && B58.boughtBadge ? B58.boughtBadge(stat(x.k).br) : 'Bought') : (x.role || gen(x.k)))) : (x.s || x.role || '');
++      const nm = x.cand ? x.t : x.self ? 'Self (S1)' : x.none ? (x.via ? '+ Not recorded' : 'Not recorded') : x.k ? nm2(x.k) : (x.t || 'Not recorded'); const sb = x.cand ? x.s : x.k ? (x.ref ? 'also above' : (stat(x.k).t === 'culled' ? 'Culled' : stat(x.k).t === 'archived' ? 'Archived' : stat(x.k).t === 'retired' ? 'Retired' : stat(x.k).t === 'removed' ? 'Deleted plant' : stat(x.k).t === 'nameonly' ? 'Name only' : stat(x.k).t === 'bought' ? (window.B58 && B58.boughtBadge ? B58.boughtBadge(stat(x.k).br) : 'Bought') : (x.role || gen(x.k)))) : (x.s || x.role || '');
+       const one = step * rm < 34; const tap = x.k && !isUnk(x.k); const add = !tap && x.via && x.side;
+       s += `<g class="b57-seg ${cls}${tap ? '' : add ? ' none add' : ' none'}${x.keeper ? ' keeper' : ''}${x.me ? ' is-me' : ''}"${tap ? ` data-b57="sel" data-k="${esc(x.k)}" role="button" tabindex="0" aria-label="${esc(nm)}"` : add ? ` data-b58="add" role="button" tabindex="0" aria-label="${esc(nm)} · tap to add"` : ''}${ofA(x)}${add ? ' data-add="1"' : ''}${x.cand ? ` data-cand="${x.i}"` : ''}><path d="${seg(cx, cy, r0, r1, b0, b1)}"/>${lbl(nm, tx, ty + (one ? 4 : -2), arc)}${one ? '' : `<text x="${tx.toFixed(1)}" y="${(ty + 10).toFixed(1)}" text-anchor="middle" class="t2">${esc(fit(sb, arc))}</text>`}</g>`; });
+     return s;
+--- a/build60.js
++++ b/build60.js
+@@ -48,8 +48,8 @@
+     if (x.t === 'unk') return `<button type="button" class="b60-c slot" data-b58="add" data-b60t="unk" data-up="${esc(x.of)}" data-of="${esc(x.of)}" data-side="${x.side}"><b>Unknown</b><small>${SIDE[x.side]} of ${esc(B.name(x.of))} · open pollination</small></button>`;
+     if (x.t === 'origin') { const c = country(x.k); const o = shownOrigin(x.k); const ini = (c.c || o.originCountry || 'LR').replace(/[^A-Za-z ]/g, '').slice(0, 2).toUpperCase();
+       return `<button type="button" class="b60-c origin" data-b60="open" data-b60t="origin" data-node="origin:${esc(x.k)}" data-up="${esc(x.k)}" data-k="${esc(x.k)}" aria-label="Origin of ${esc(B.name(x.k))}, open profile"><span class="b57-ph mono" aria-hidden="true">${esc(ini)}</span><b>Landrace${(o.originCountry || c.c) ? ` · ${esc(o.originCountry || c.c)}` : ''}</b><small>${esc(o.originRegion || 'Region not recorded')}</small><em class="b57-tag bought">Origin</em></button>`; }
+-    const st = B.stat(x.k); const tag = st.t === 'bought' ? `<em class="b57-tag bought">${esc(window.B58 && B58.boughtBadge ? B58.boughtBadge(st.br) : 'Bought')}</em>` : st.t === 'culled' ? '<em class="b57-tag cull">Culled</em>' : st.t === 'removed' ? '<em class="b57-tag gone">Deleted plant</em>' : x.t === 'ref' ? '<em class="b57-tag ref">↺ also above</em>' : '';
+-    return `<button type="button" class="b60-c" data-b57="sel" data-b60t="plant" data-node="${esc(x.k)}" data-up="${esc(x.of)}" data-k="${esc(x.k)}" data-of="${esc(x.of)}" data-side="${x.side}">${B.ph(x.k)}<b>${esc(B.name(x.k))}</b><small>${SIDE[x.side]}${gen(x.k) ? ' · ' + esc(gen(x.k)) : ''}</small>${tag}</button>`;
++    const st = B.stat(x.k); const tag = st.t === 'bought' ? `<em class="b57-tag bought">${esc(window.B58 && B58.boughtBadge ? B58.boughtBadge(st.br) : 'Bought')}</em>` : st.t === 'culled' ? '<em class="b57-tag cull">Culled</em>' : st.t === 'archived' ? '<em class="b57-tag arch">Archived</em>' : st.t === 'retired' ? '<em class="b57-tag ret">Retired</em>' : st.t === 'removed' ? '<em class="b57-tag gone">Deleted plant</em>' : st.t === 'nameonly' ? '<em class="b57-tag nameonly">Name only</em>' : x.t === 'ref' ? '<em class="b57-tag ref">↺ also above</em>' : '';
++    return `<button type="button" class="b60-c${st.t ? ' st-' + st.t : ''}" data-b57="sel" data-b60t="plant" data-node="${esc(x.k)}" data-up="${esc(x.of)}" data-k="${esc(x.k)}" data-of="${esc(x.of)}" data-side="${x.side}">${B.ph(x.k)}<b>${esc(B.name(x.k))}</b><small>${SIDE[x.side]}${gen(x.k) ? ' · ' + esc(gen(x.k)) : ''}${st.l ? ' · ' + esc(st.l) : ''}</small>${tag}</button>`;
+   }
+   function rows(k, g, up) {
+     if (!g || g.self) return '';
+@@ -93,7 +93,8 @@
+   function stub(k) { const del = String(k).startsWith('dx:'); const n = String(k).slice(3); document.querySelectorAll('.b60-stub').forEach((x) => x.remove());
+     const kids = (B49.children(k) || []).map((c) => B.name(c)).filter(Boolean); const br = breederOf(n);
+     const d = document.createElement('div'); d.className = 'b58-sheet b60-stub'; d.setAttribute('role', 'dialog'); d.setAttribute('aria-modal', 'true'); d.setAttribute('aria-label', `${n} profile`); d.dataset.k = k;
+-    d.innerHTML = `<div class="b58-back" data-b60="stub-close"></div><div class="b58-card"><div class="b58-h"><b>${esc(n)}</b><button type="button" class="b58-close" data-b60="stub-close" aria-label="Close">×</button></div><p class="m-s">${del ? 'Deleted plant · the name is kept on the tree' : 'Bought genetics · from another breeder'} · read-only (no plant record in the app)</p><dl class="b58-info"><dt>Name</dt><dd>${esc(n)}</dd><dt>Breeder</dt><dd>${esc(br || 'Not recorded')}</dd><dt>Lineage</dt><dd>Parents not recorded</dd>${kids.length ? `<dt>Parent of</dt><dd>${kids.map(esc).join('<br>')}</dd>` : ''}</dl><div class="b58-acts"><button type="button" class="b58-btn" data-b60="stub-close">Close</button></div></div>`;
++    const kind = del ? (B.stat(k).t === 'removed' ? 'Deleted plant · the name is kept on the tree' : 'Name only · not linked to a plant record') : 'Bought genetics · from another breeder';
++    d.innerHTML = `<div class="b58-back" data-b60="stub-close"></div><div class="b58-card"><div class="b58-h"><b>${esc(n)}</b><button type="button" class="b58-close" data-b60="stub-close" aria-label="Close">×</button></div><p class="m-s">${kind} · read-only (no plant record in the app)</p><dl class="b58-info"><dt>Name</dt><dd>${esc(n)}</dd><dt>Breeder</dt><dd>${esc(br || 'Not recorded')}</dd><dt>Lineage</dt><dd>Parents not recorded</dd>${kids.length ? `<dt>Parent of</dt><dd>${kids.map(esc).join('<br>')}</dd>` : ''}</dl><div class="b58-acts"><button type="button" class="b58-btn" data-b60="stub-close">Close</button></div></div>`;
+     document.body.appendChild(d); return true; }
+   document.addEventListener('click', (e) => { const b = e.target.closest('[data-b60="stub-close"]'); if (!b) return; e.preventDefault(); e.stopPropagation(); document.querySelectorAll('.b60-stub').forEach((x) => x.remove()); }, true);
+   /* ---------- connector lines (SVG overlay per tree): each card to the plant it is a parent of ---------- */
+--- a/www/build60.js
++++ b/www/build60.js
+@@ -48,8 +48,8 @@
+     if (x.t === 'unk') return `<button type="button" class="b60-c slot" data-b58="add" data-b60t="unk" data-up="${esc(x.of)}" data-of="${esc(x.of)}" data-side="${x.side}"><b>Unknown</b><small>${SIDE[x.side]} of ${esc(B.name(x.of))} · open pollination</small></button>`;
+     if (x.t === 'origin') { const c = country(x.k); const o = shownOrigin(x.k); const ini = (c.c || o.originCountry || 'LR').replace(/[^A-Za-z ]/g, '').slice(0, 2).toUpperCase();
+       return `<button type="button" class="b60-c origin" data-b60="open" data-b60t="origin" data-node="origin:${esc(x.k)}" data-up="${esc(x.k)}" data-k="${esc(x.k)}" aria-label="Origin of ${esc(B.name(x.k))}, open profile"><span class="b57-ph mono" aria-hidden="true">${esc(ini)}</span><b>Landrace${(o.originCountry || c.c) ? ` · ${esc(o.originCountry || c.c)}` : ''}</b><small>${esc(o.originRegion || 'Region not recorded')}</small><em class="b57-tag bought">Origin</em></button>`; }
+-    const st = B.stat(x.k); const tag = st.t === 'bought' ? `<em class="b57-tag bought">${esc(window.B58 && B58.boughtBadge ? B58.boughtBadge(st.br) : 'Bought')}</em>` : st.t === 'culled' ? '<em class="b57-tag cull">Culled</em>' : st.t === 'removed' ? '<em class="b57-tag gone">Deleted plant</em>' : x.t === 'ref' ? '<em class="b57-tag ref">↺ also above</em>' : '';
+-    return `<button type="button" class="b60-c" data-b57="sel" data-b60t="plant" data-node="${esc(x.k)}" data-up="${esc(x.of)}" data-k="${esc(x.k)}" data-of="${esc(x.of)}" data-side="${x.side}">${B.ph(x.k)}<b>${esc(B.name(x.k))}</b><small>${SIDE[x.side]}${gen(x.k) ? ' · ' + esc(gen(x.k)) : ''}</small>${tag}</button>`;
++    const st = B.stat(x.k); const tag = st.t === 'bought' ? `<em class="b57-tag bought">${esc(window.B58 && B58.boughtBadge ? B58.boughtBadge(st.br) : 'Bought')}</em>` : st.t === 'culled' ? '<em class="b57-tag cull">Culled</em>' : st.t === 'archived' ? '<em class="b57-tag arch">Archived</em>' : st.t === 'retired' ? '<em class="b57-tag ret">Retired</em>' : st.t === 'removed' ? '<em class="b57-tag gone">Deleted plant</em>' : st.t === 'nameonly' ? '<em class="b57-tag nameonly">Name only</em>' : x.t === 'ref' ? '<em class="b57-tag ref">↺ also above</em>' : '';
++    return `<button type="button" class="b60-c${st.t ? ' st-' + st.t : ''}" data-b57="sel" data-b60t="plant" data-node="${esc(x.k)}" data-up="${esc(x.of)}" data-k="${esc(x.k)}" data-of="${esc(x.of)}" data-side="${x.side}">${B.ph(x.k)}<b>${esc(B.name(x.k))}</b><small>${SIDE[x.side]}${gen(x.k) ? ' · ' + esc(gen(x.k)) : ''}${st.l ? ' · ' + esc(st.l) : ''}</small>${tag}</button>`;
+   }
+   function rows(k, g, up) {
+     if (!g || g.self) return '';
+@@ -93,7 +93,8 @@
+   function stub(k) { const del = String(k).startsWith('dx:'); const n = String(k).slice(3); document.querySelectorAll('.b60-stub').forEach((x) => x.remove());
+     const kids = (B49.children(k) || []).map((c) => B.name(c)).filter(Boolean); const br = breederOf(n);
+     const d = document.createElement('div'); d.className = 'b58-sheet b60-stub'; d.setAttribute('role', 'dialog'); d.setAttribute('aria-modal', 'true'); d.setAttribute('aria-label', `${n} profile`); d.dataset.k = k;
+-    d.innerHTML = `<div class="b58-back" data-b60="stub-close"></div><div class="b58-card"><div class="b58-h"><b>${esc(n)}</b><button type="button" class="b58-close" data-b60="stub-close" aria-label="Close">×</button></div><p class="m-s">${del ? 'Deleted plant · the name is kept on the tree' : 'Bought genetics · from another breeder'} · read-only (no plant record in the app)</p><dl class="b58-info"><dt>Name</dt><dd>${esc(n)}</dd><dt>Breeder</dt><dd>${esc(br || 'Not recorded')}</dd><dt>Lineage</dt><dd>Parents not recorded</dd>${kids.length ? `<dt>Parent of</dt><dd>${kids.map(esc).join('<br>')}</dd>` : ''}</dl><div class="b58-acts"><button type="button" class="b58-btn" data-b60="stub-close">Close</button></div></div>`;
++    const kind = del ? (B.stat(k).t === 'removed' ? 'Deleted plant · the name is kept on the tree' : 'Name only · not linked to a plant record') : 'Bought genetics · from another breeder';
++    d.innerHTML = `<div class="b58-back" data-b60="stub-close"></div><div class="b58-card"><div class="b58-h"><b>${esc(n)}</b><button type="button" class="b58-close" data-b60="stub-close" aria-label="Close">×</button></div><p class="m-s">${kind} · read-only (no plant record in the app)</p><dl class="b58-info"><dt>Name</dt><dd>${esc(n)}</dd><dt>Breeder</dt><dd>${esc(br || 'Not recorded')}</dd><dt>Lineage</dt><dd>Parents not recorded</dd>${kids.length ? `<dt>Parent of</dt><dd>${kids.map(esc).join('<br>')}</dd>` : ''}</dl><div class="b58-acts"><button type="button" class="b58-btn" data-b60="stub-close">Close</button></div></div>`;
+     document.body.appendChild(d); return true; }
+   document.addEventListener('click', (e) => { const b = e.target.closest('[data-b60="stub-close"]'); if (!b) return; e.preventDefault(); e.stopPropagation(); document.querySelectorAll('.b60-stub').forEach((x) => x.remove()); }, true);
+   /* ---------- connector lines (SVG overlay per tree): each card to the plant it is a parent of ---------- */
+--- a/ios/App/App/public/build60.js
++++ b/ios/App/App/public/build60.js
+@@ -48,8 +48,8 @@
+     if (x.t === 'unk') return `<button type="button" class="b60-c slot" data-b58="add" data-b60t="unk" data-up="${esc(x.of)}" data-of="${esc(x.of)}" data-side="${x.side}"><b>Unknown</b><small>${SIDE[x.side]} of ${esc(B.name(x.of))} · open pollination</small></button>`;
+     if (x.t === 'origin') { const c = country(x.k); const o = shownOrigin(x.k); const ini = (c.c || o.originCountry || 'LR').replace(/[^A-Za-z ]/g, '').slice(0, 2).toUpperCase();
+       return `<button type="button" class="b60-c origin" data-b60="open" data-b60t="origin" data-node="origin:${esc(x.k)}" data-up="${esc(x.k)}" data-k="${esc(x.k)}" aria-label="Origin of ${esc(B.name(x.k))}, open profile"><span class="b57-ph mono" aria-hidden="true">${esc(ini)}</span><b>Landrace${(o.originCountry || c.c) ? ` · ${esc(o.originCountry || c.c)}` : ''}</b><small>${esc(o.originRegion || 'Region not recorded')}</small><em class="b57-tag bought">Origin</em></button>`; }
+-    const st = B.stat(x.k); const tag = st.t === 'bought' ? `<em class="b57-tag bought">${esc(window.B58 && B58.boughtBadge ? B58.boughtBadge(st.br) : 'Bought')}</em>` : st.t === 'culled' ? '<em class="b57-tag cull">Culled</em>' : st.t === 'removed' ? '<em class="b57-tag gone">Deleted plant</em>' : x.t === 'ref' ? '<em class="b57-tag ref">↺ also above</em>' : '';
+-    return `<button type="button" class="b60-c" data-b57="sel" data-b60t="plant" data-node="${esc(x.k)}" data-up="${esc(x.of)}" data-k="${esc(x.k)}" data-of="${esc(x.of)}" data-side="${x.side}">${B.ph(x.k)}<b>${esc(B.name(x.k))}</b><small>${SIDE[x.side]}${gen(x.k) ? ' · ' + esc(gen(x.k)) : ''}</small>${tag}</button>`;
++    const st = B.stat(x.k); const tag = st.t === 'bought' ? `<em class="b57-tag bought">${esc(window.B58 && B58.boughtBadge ? B58.boughtBadge(st.br) : 'Bought')}</em>` : st.t === 'culled' ? '<em class="b57-tag cull">Culled</em>' : st.t === 'archived' ? '<em class="b57-tag arch">Archived</em>' : st.t === 'retired' ? '<em class="b57-tag ret">Retired</em>' : st.t === 'removed' ? '<em class="b57-tag gone">Deleted plant</em>' : st.t === 'nameonly' ? '<em class="b57-tag nameonly">Name only</em>' : x.t === 'ref' ? '<em class="b57-tag ref">↺ also above</em>' : '';
++    return `<button type="button" class="b60-c${st.t ? ' st-' + st.t : ''}" data-b57="sel" data-b60t="plant" data-node="${esc(x.k)}" data-up="${esc(x.of)}" data-k="${esc(x.k)}" data-of="${esc(x.of)}" data-side="${x.side}">${B.ph(x.k)}<b>${esc(B.name(x.k))}</b><small>${SIDE[x.side]}${gen(x.k) ? ' · ' + esc(gen(x.k)) : ''}${st.l ? ' · ' + esc(st.l) : ''}</small>${tag}</button>`;
+   }
+   function rows(k, g, up) {
+     if (!g || g.self) return '';
+@@ -93,7 +93,8 @@
+   function stub(k) { const del = String(k).startsWith('dx:'); const n = String(k).slice(3); document.querySelectorAll('.b60-stub').forEach((x) => x.remove());
+     const kids = (B49.children(k) || []).map((c) => B.name(c)).filter(Boolean); const br = breederOf(n);
+     const d = document.createElement('div'); d.className = 'b58-sheet b60-stub'; d.setAttribute('role', 'dialog'); d.setAttribute('aria-modal', 'true'); d.setAttribute('aria-label', `${n} profile`); d.dataset.k = k;
+-    d.innerHTML = `<div class="b58-back" data-b60="stub-close"></div><div class="b58-card"><div class="b58-h"><b>${esc(n)}</b><button type="button" class="b58-close" data-b60="stub-close" aria-label="Close">×</button></div><p class="m-s">${del ? 'Deleted plant · the name is kept on the tree' : 'Bought genetics · from another breeder'} · read-only (no plant record in the app)</p><dl class="b58-info"><dt>Name</dt><dd>${esc(n)}</dd><dt>Breeder</dt><dd>${esc(br || 'Not recorded')}</dd><dt>Lineage</dt><dd>Parents not recorded</dd>${kids.length ? `<dt>Parent of</dt><dd>${kids.map(esc).join('<br>')}</dd>` : ''}</dl><div class="b58-acts"><button type="button" class="b58-btn" data-b60="stub-close">Close</button></div></div>`;
++    const kind = del ? (B.stat(k).t === 'removed' ? 'Deleted plant · the name is kept on the tree' : 'Name only · not linked to a plant record') : 'Bought genetics · from another breeder';
++    d.innerHTML = `<div class="b58-back" data-b60="stub-close"></div><div class="b58-card"><div class="b58-h"><b>${esc(n)}</b><button type="button" class="b58-close" data-b60="stub-close" aria-label="Close">×</button></div><p class="m-s">${kind} · read-only (no plant record in the app)</p><dl class="b58-info"><dt>Name</dt><dd>${esc(n)}</dd><dt>Breeder</dt><dd>${esc(br || 'Not recorded')}</dd><dt>Lineage</dt><dd>Parents not recorded</dd>${kids.length ? `<dt>Parent of</dt><dd>${kids.map(esc).join('<br>')}</dd>` : ''}</dl><div class="b58-acts"><button type="button" class="b58-btn" data-b60="stub-close">Close</button></div></div>`;
+     document.body.appendChild(d); return true; }
+   document.addEventListener('click', (e) => { const b = e.target.closest('[data-b60="stub-close"]'); if (!b) return; e.preventDefault(); e.stopPropagation(); document.querySelectorAll('.b60-stub').forEach((x) => x.remove()); }, true);
+   /* ---------- connector lines (SVG overlay per tree): each card to the plant it is a parent of ---------- */
+--- a/build63.css
++++ b/build63.css
+@@ -1,4 +1,11 @@
+ /* Build 63. Narrow layouts reflow. They do not add a horizontal scroll port. */
++#breeding-view .b60-c.st-culled b { text-decoration: line-through; text-decoration-thickness: 1px; }
++#breeding-view .b57-n.st-archived b,
++#breeding-view .b60-c.st-archived b,
++#breeding-view .b57-n.st-retired b,
++#breeding-view .b60-c.st-retired b,
++#breeding-view .b57-n.st-nameonly b,
++#breeding-view .b60-c.st-nameonly b { text-decoration: none; }
+ #compliance-panel-inspection .table-wrap {
+   overflow: visible;
+   max-width: 100%;
+--- a/www/build63.css
++++ b/www/build63.css
+@@ -1,4 +1,11 @@
+ /* Build 63. Narrow layouts reflow. They do not add a horizontal scroll port. */
++#breeding-view .b60-c.st-culled b { text-decoration: line-through; text-decoration-thickness: 1px; }
++#breeding-view .b57-n.st-archived b,
++#breeding-view .b60-c.st-archived b,
++#breeding-view .b57-n.st-retired b,
++#breeding-view .b60-c.st-retired b,
++#breeding-view .b57-n.st-nameonly b,
++#breeding-view .b60-c.st-nameonly b { text-decoration: none; }
+ #compliance-panel-inspection .table-wrap {
+   overflow: visible;
+   max-width: 100%;
+--- a/ios/App/App/public/build63.css
++++ b/ios/App/App/public/build63.css
+@@ -1,4 +1,11 @@
+ /* Build 63. Narrow layouts reflow. They do not add a horizontal scroll port. */
++#breeding-view .b60-c.st-culled b { text-decoration: line-through; text-decoration-thickness: 1px; }
++#breeding-view .b57-n.st-archived b,
++#breeding-view .b60-c.st-archived b,
++#breeding-view .b57-n.st-retired b,
++#breeding-view .b60-c.st-retired b,
++#breeding-view .b57-n.st-nameonly b,
++#breeding-view .b60-c.st-nameonly b { text-decoration: none; }
+ #compliance-panel-inspection .table-wrap {
+   overflow: visible;
+   max-width: 100%;
+--- a/service-worker.js
++++ b/service-worker.js
+@@ -6,11 +6,11 @@
+   so users should still export JSON backups for long-term records.
+ */
+ 
+-// v85: startup reads the packaged repair file. An older cache keeps the previous
++// v86: parent labels, status words, and plant dates changed. An older cache keeps the previous
+ // shell until this file changes. Activate deletes every other cache.
+ // iosScheme is https, so this worker registers inside the iOS wrapper (https://localhost).
+ // Precache requests use cache:'reload' so a cached localhost response cannot refill the new cache.
+-const CACHE_NAME = 'boriken-genetics-logbook-app-v85';
++const CACHE_NAME = 'boriken-genetics-logbook-app-v86';
+ const APP_SHELL = [
+   './',
+   './index.html',
+--- a/www/service-worker.js
++++ b/www/service-worker.js
+@@ -6,11 +6,11 @@
+   so users should still export JSON backups for long-term records.
+ */
+ 
+-// v85: startup reads the packaged repair file. An older cache keeps the previous
++// v86: parent labels, status words, and plant dates changed. An older cache keeps the previous
+ // shell until this file changes. Activate deletes every other cache.
+ // iosScheme is https, so this worker registers inside the iOS wrapper (https://localhost).
+ // Precache requests use cache:'reload' so a cached localhost response cannot refill the new cache.
+-const CACHE_NAME = 'boriken-genetics-logbook-app-v85';
++const CACHE_NAME = 'boriken-genetics-logbook-app-v86';
+ const APP_SHELL = [
+   './',
+   './index.html',
+--- a/ios/App/App/public/service-worker.js
++++ b/ios/App/App/public/service-worker.js
+@@ -6,11 +6,11 @@
+   so users should still export JSON backups for long-term records.
+ */
+ 
+-// v85: startup reads the packaged repair file. An older cache keeps the previous
++// v86: parent labels, status words, and plant dates changed. An older cache keeps the previous
+ // shell until this file changes. Activate deletes every other cache.
+ // iosScheme is https, so this worker registers inside the iOS wrapper (https://localhost).
+ // Precache requests use cache:'reload' so a cached localhost response cannot refill the new cache.
+-const CACHE_NAME = 'boriken-genetics-logbook-app-v85';
++const CACHE_NAME = 'boriken-genetics-logbook-app-v86';
+ const APP_SHELL = [
+   './',
+   './index.html',
+--- a/scripts/b63-real-mockup.js
++++ b/scripts/b63-real-mockup.js
+@@ -13,6 +13,26 @@
+   private repair file. The script does not edit the page after startup.
+ 
+   Viewports default to 390x844, 1024x768, and 1024x1366.
++  The picture is the viewport, not the scrolled page. Wide shots keep the 1.28 text zoom.
++
++  Plant fields the file may include. Omit a field when the record does not have it.
++  The script does not fill a date, a stage, or a count.
++  plants[].startDate "2026-03-01"
++  plants[].vegStartDate "2026-03-20"
++  plants[].flowerStartDate "2026-05-01"
++  plants[].plannedFlipDate "2026-05-01"
++  plants[].harvestDate "2026-07-01"
++  plants[].status "active" | "harvest" | "drying" | "curing" | "finished" | "archived"
++  plants[].growthStage only when the record already stores one
++  plants[].growType "Photoperiod" or "Autoflower"
++  plants[].count 4
++  plants[].expectedVegDays 21
++  plants[].expectedFlowerDays 56
++  plants[].source "seed" or "clone"
++  plants[].b58DeletedAt "2026-01-02T00:00:00.000Z" only for a recorded deletion
++  plants[].grade { "verdict": "cull" }
++  motherFatherPlants[].status "Active" | "Retired" | "Culled"
++  motherFatherPlants[].archived true
+ */
+ const fs = require('fs');
+ const http = require('http');
+@@ -22,10 +42,14 @@
+ const CHROME = '/opt/google/chrome/chrome';
+ const SCREENS = ['tree', 'plants', 'mf', 'compliance', 'inspection'];
+ const VIEWPORTS = [[390, 844], [1024, 768], [1024, 1366]];
++const DATE_FIELDS = ['startDate', 'vegStartDate', 'flowerStartDate', 'flowerFlipDate', 'plannedFlipDate', 'harvestDate', 'archivedAt', 'dryStartDate', 'dryEndDate', 'cureStartDate', 'cureEndDate', 'finishedDate', 'completedAt'];
++const SHORT_FIELDS = ['statusOverride', 'growthStage', 'complianceStage', 'growType', 'location', 'areaOrRoom', 'cultivar', 'crossLabel', 'source', 'b58DeletedAt'];
++const NUM_FIELDS = ['count', 'expectedVegDays', 'expectedFlowerDays', 'seedsPopped'];
++const PLANT_FIELDS = ['id', 'name', 'status', 'archived', 'deleted', 'b49Mother', 'b49Father', 'b58Manual', 'b49ProjectId', 'motherId', 'fatherId', 'motherPlantId', 'grade', ...DATE_FIELDS, ...SHORT_FIELDS, ...NUM_FIELDS];
+ const ALLOWED = {
+-  plants: ['id', 'name', 'status', 'archived', 'b49Mother', 'b49Father', 'b58Manual', 'b49ProjectId', 'motherId', 'fatherId', 'motherPlantId'],
+-  breedingPlants: ['id', 'name', 'status', 'archived', 'b49Mother', 'b49Father', 'b58Manual', 'b49ProjectId', 'motherId', 'fatherId', 'motherPlantId'],
+-  motherFatherPlants: ['id', 'name', 'role', 'status', 'archived', 'b49Mother', 'b49Father', 'b58Manual', 'promotedFrom'],
++  plants: PLANT_FIELDS,
++  breedingPlants: PLANT_FIELDS,
++  motherFatherPlants: ['id', 'name', 'role', 'status', 'archived', 'deleted', 'b49Mother', 'b49Father', 'b58Manual', 'b58DeletedAt', 'promotedFrom', 'startDate'],
+   breedingProjects: ['id', 'name', 'status', 'motherId', 'fatherId', 'mother', 'father', 'b49Mother', 'b49Father', 'b58Manual'],
+   cloneRuns: ['id', 'name', 'srcId', 'srcColl', 'motherPlantId', 'status'],
+ };
+@@ -34,8 +58,9 @@
+ const EMPTY_REPAIR = '{"repairs":[],"undos":[]}\n';
+ 
+ function fail(message) {
+-  console.error('FAIL ' + message);
+-  process.exit(1);
++  const err = new Error(message);
++  err.b63fail = true;
++  throw err;
+ }
+ function arg(name) {
+   const i = process.argv.indexOf(name);
+@@ -47,6 +72,20 @@
+   Object.keys(row).forEach((key) => {
+     if (!fields.includes(key)) fail(where + ' has a field outside the relationship list: ' + key);
+     if (FORBIDDEN.test(key)) fail(where + ' has a private field: ' + key);
++    const value = row[key];
++    if (DATE_FIELDS.includes(key) || SHORT_FIELDS.includes(key) || key === 'b58DeletedAt' || key === 'startDate') {
++      if (value != null && (typeof value !== 'string' || value.length > 80)) fail(where + ' ' + key + ' must be a short string. Leave it out when it is unknown.');
++    } else if (NUM_FIELDS.includes(key)) {
++      if (typeof value !== 'number' || !Number.isFinite(value)) fail(where + ' ' + key + ' must be a number. Leave it out when it is unknown.');
++    } else if (key === 'deleted' || key === 'archived') {
++      if (typeof value !== 'boolean') fail(where + ' ' + key + ' must be true or false');
++    } else if (key === 'grade') {
++      if (!value || typeof value !== 'object' || Array.isArray(value)) fail(where + ' grade must be an object');
++      Object.keys(value).forEach((gk) => {
++        if (gk !== 'verdict' && gk !== 'scores') fail(where + ' grade only allows verdict and scores');
++        if (FORBIDDEN.test(gk)) fail(where + ' grade has a private field');
++      });
++    }
+   });
+   if (row.promotedFrom && (typeof row.promotedFrom !== 'object' || Array.isArray(row.promotedFrom))) fail(where + ' promotedFrom is not a link');
+ }
+@@ -88,9 +127,23 @@
+ }
+ 
+ function sleep(ms) { return new Promise((r) => setTimeout(r, ms)); }
++function freePort() {
++  return new Promise((resolve) => {
++    const probe = http.createServer();
++    probe.listen(0, '127.0.0.1', () => {
++      const assigned = probe.address().port;
++      probe.close(() => resolve(assigned));
++    });
++  });
++}
++function pngSize(buf) {
++  if (buf.length < 24 || buf.toString('ascii', 1, 4) !== 'PNG') return null;
++  return { width: buf.readUInt32BE(16), height: buf.readUInt32BE(20) };
++}
+ 
+ async function runBrowser(opts) {
+-  const port = 9391;
++  const port = await freePort();
++  const debugPort = await freePort();
+   let repairBody = EMPTY_REPAIR;
+   if (opts.phase === 'after') {
+     if (!opts.repairConfig) fail('--phase after requires --repair-config');
+@@ -112,22 +165,27 @@
+     if (rel === '/') rel = '/index.html';
+     const file = path.normalize(path.join(ROOT, rel.replace(/^\/+/, '')));
+     if (file !== ROOT && !file.startsWith(ROOT + path.sep)) { res.statusCode = 403; res.end('no'); return; }
+-    if (!fs.existsSync(file) || !fs.statSync(file).isFile()) { res.statusCode = 404; res.end('missing'); return; }
++    if (!fs.existsSync(file) || !fs.statSync(file).isFile()) {
++      if (rel !== '/favicon.ico') missing.push(rel);
++      res.statusCode = 404; res.end('missing'); return;
++    }
+     res.setHeader('Cache-Control', 'no-store');
+     res.end(fs.readFileSync(file));
+   });
++  const missing = [];
+   await new Promise((resolve) => server.listen(port, '127.0.0.1', resolve));
+   const dir = fs.mkdtempSync(path.join(require('os').tmpdir(), 'b63-real-mockup-'));
+-  const proc = spawn(CHROME, [
++  let proc = null;
++  try {
++  proc = spawn(CHROME, [
+     '--headless=new', '--disable-gpu', '--no-sandbox', '--disable-dev-shm-usage',
+-    '--user-data-dir=' + dir, '--remote-debugging-port=9392', 'about:blank',
++    '--user-data-dir=' + dir, '--remote-debugging-port=' + debugPort, 'about:blank',
+   ], { stdio: 'ignore' });
+-  const init = 'localStorage.setItem(\'boriken-genetics-logbook-v1\', ' + JSON.stringify(JSON.stringify(opts.state)) + ');';
+-  try {
++  const init = 'localStorage.setItem(\'boriken-b63-snapshot\', \'1\'); localStorage.setItem(\'boriken-genetics-logbook-v1\', ' + JSON.stringify(JSON.stringify(opts.state)) + ');';
+     let page = null;
+     for (let i = 0; i < 50 && !page; i++) {
+       try {
+-        const list = await (await fetch('http://127.0.0.1:9392/json/list')).json();
++        const list = await (await fetch('http://127.0.0.1:' + debugPort + '/json/list')).json();
+         page = list.find((t) => t.type === 'page' && t.webSocketDebuggerUrl);
+       } catch (e) { await sleep(100); }
+     }
+@@ -221,18 +279,96 @@
+         const expectedOthers = (opts.state.plants || []).filter((r) => r.id !== opts.record.row.id).map((r) => r.id + ':' + String(r.b49Father || ''));
+         if (JSON.stringify(seen.others) !== JSON.stringify(expectedOthers)) fail('after launch changed another plant');
+       }
++      const blankFather = opts.screen === 'plants' ? (opts.state.plants || []).find((plant) => (!plant.b49Father || plant.b49Father === '-') && plant.b49Mother && plant.b49Mother !== '-') : null;
++      if (blankFather) {
++        let labeled = false;
++        for (let i = 0; i < 30 && !labeled; i++) {
++          labeled = await evaluate('(() => { const row = document.querySelector(' + JSON.stringify('[data-open-plant="' + blankFather.id + '"]') + '); return !!(row && /not recorded/i.test(row.innerText || "")); })()');
++          if (!labeled) await sleep(50);
++        }
++        if (!labeled) fail('the plant list left the empty father blank');
++      }
+       const caption = 'REAL-RECORD · ' + opts.snapshotDate + ' snapshot · ' + w + 'x' + h + ' · ' + opts.screen + (opts.phase ? ' · ' + opts.phase : '') + ' · BROWSER MOCKUP · NOT CURRENT DEVICE PROOF';
+       await evaluate(`(() => { let bar = document.getElementById('real-record-caption'); if (!bar) { bar = document.createElement('div'); bar.id = 'real-record-caption'; document.body.prepend(bar); } bar.textContent = ${JSON.stringify(caption)}; bar.setAttribute('style','position:sticky;top:0;z-index:10000;background:#111;color:#fff;font:600 12px/1.3 sans-serif;padding:8px 12px'); return true; })()`);
+-      const png = await send('Page.captureScreenshot', { format: 'png', fromSurface: true, captureBeyondViewport: true });
++      const layout = await evaluate(`(() => {
++        const zoom = parseFloat(getComputedStyle(document.documentElement).zoom) || 1;
++        const sideEl = document.querySelector('.w-side');
++        const tabEl = document.getElementById('tabbar');
++        const box = (el) => { if (!el) return null; const r = el.getBoundingClientRect(); const name = el.querySelector('b'); return { left: r.left, right: r.right, top: r.top, bottom: r.bottom, width: r.width, height: r.height, strike: name ? getComputedStyle(name).textDecorationLine.indexOf('line-through') >= 0 : false }; };
++        const de = document.scrollingElement || document.documentElement;
++        const tree = document.querySelector('#breeding-view .b57');
++        return {
++          innerWidth: window.innerWidth, innerHeight: window.innerHeight, zoom,
++          side: box(sideEl), tab: box(tabEl),
++          pageScroll: de.scrollWidth, pageClient: de.clientWidth,
++          treeScroll: tree ? tree.scrollWidth : 0, treeClient: tree ? tree.clientWidth : 0,
++          backup: (document.body.innerText || '').indexOf('You have not backed up') >= 0,
++          cards: [...document.querySelectorAll('#breeding-view .b60-c, #breeding-view .b57-n')].map((el) => ({ k: el.getAttribute('data-k') || '', text: el.innerText || '', strike: !!(el.querySelector('b') && getComputedStyle(el.querySelector('b')).textDecorationLine.indexOf('line-through') >= 0) })),
++          rows: [...document.querySelectorAll('[data-open-plant]')].map((el) => ({ id: el.getAttribute('data-open-plant') || '', text: el.innerText || '' })),
++        };
++      })()`);
++      if (!layout || layout.innerWidth !== w || layout.innerHeight !== h) fail('viewport is ' + (layout && layout.innerWidth) + 'x' + (layout && layout.innerHeight) + ' instead of ' + w + 'x' + h);
++      if (missing.length) fail('missing assets ' + missing.join(' '));
++      if (layout.backup) fail('the page claims the logbook has not been backed up');
++      if (w >= 1024) {
++        if (Math.abs(layout.zoom - 1.28) > 0.02) fail('wide zoom is ' + layout.zoom + ' instead of 1.28');
++        if (!layout.side || layout.side.left < -1 || layout.side.right > layout.innerWidth + 1 || layout.side.width < 240 || layout.side.top < -1) fail('sidebar is outside the viewport');
++        if (layout.pageScroll > layout.pageClient + 2) fail('the page is wider than the viewport');
++        if (opts.screen === 'tree' && layout.treeClient && layout.treeScroll > layout.treeClient + 2) fail('the tree is wider than its pane');
++      } else if (!layout.tab || Math.abs(layout.tab.bottom - h) > 12 || layout.tab.top < h * 0.7) {
++        fail('the phone bar is not at the bottom of the viewport');
++      }
++      if (opts.screen === 'plants') {
++        (opts.state.plants || []).forEach((plant) => {
++          const text = (layout.rows || []).filter((item) => item.id === plant.id).map((item) => item.text).join('\n');
++          if (!text) return;
++          if (!plant.startDate && (/\bDay 1\b/.test(text) || text.includes('Seedling'))) fail(plant.id + ' invented Day 1 or Seedling');
++          if (plant.vegStartDate && !text.includes('Veg')) fail(plant.id + ' did not keep the veg stage: ' + text.slice(0, 180));
++          if ((!plant.b49Father || plant.b49Father === '-') && plant.b49Mother && plant.b49Mother !== '-' && !/not recorded/i.test(text)) fail(plant.id + ' left the father blank');
++        });
++      }
++      const labelCounts = { nameonly: 0, archived: 0, retired: 0, culled: 0, deleted: 0 };
++      if (opts.screen === 'tree') {
++        const deleted = new Set();
++        ['plants', 'breedingPlants', 'motherFatherPlants', 'breedingProjects'].forEach((key) => (opts.state[key] || []).forEach((row) => {
++          if (row && row.b58DeletedAt) { if (row.b49Mother) deleted.add(row.b49Mother); if (row.b49Father) deleted.add(row.b49Father); }
++        }));
++        (layout.cards || []).forEach((card) => {
++          if (String(card.k).startsWith('dx:')) {
++            if (deleted.has(card.k)) {
++              if (!card.text.includes('Deleted plant')) fail('a recorded deletion did not say Deleted plant');
++              labelCounts.deleted += 1;
++            } else if (card.text.includes('Deleted plant') || card.strike) fail('a name-only parent was labeled deleted');
++            else if (!card.text.includes('Name only')) fail('a name-only parent did not say Name only');
++            else labelCounts.nameonly += 1;
++          }
++          const id = String(card.k).split(':').slice(1).join(':');
++          const rec = ['plants', 'breedingPlants', 'motherFatherPlants'].map((key) => (opts.state[key] || []).find((row) => row.id === id)).find(Boolean);
++          if (!rec) return;
++          const culled = /cull/i.test(String(rec.status || '')) || (rec.grade && rec.grade.verdict === 'cull');
++          const retired = /^retired$/i.test(String(rec.status || ''));
++          const archived = !culled && !retired && (rec.archived || /^archived$/i.test(String(rec.status || '')));
++          if (archived && (card.text.includes('Culled') || card.strike || !card.text.includes('Archived'))) fail('an archived record was not labeled Archived');
++          if (archived) labelCounts.archived += 1;
++          if (retired && (card.text.includes('Culled') || card.strike || !card.text.includes('Retired'))) fail('a retired record was not labeled Retired');
++          if (retired) labelCounts.retired += 1;
++          if (culled && !card.text.includes('Culled')) fail('a culled record was not labeled Culled');
++          if (culled) labelCounts.culled += 1;
++        });
++      }
++      const png = await send('Page.captureScreenshot', { format: 'png', fromSurface: true, captureBeyondViewport: false, clip: { x: 0, y: 0, width: w, height: h, scale: 1 } });
+       const label = opts.label ? opts.label.replace(/[^A-Za-z0-9._-]+/g, '-') : opts.screen;
+       const phase = opts.phase ? '-' + opts.phase : '';
+       const file = path.join(opts.outDir, 'REAL-RECORD-' + opts.snapshotDate + '-' + label + phase + '-' + w + 'x' + h + '-NOT-DEVICE.png');
+-      fs.writeFileSync(file, Buffer.from(png.data, 'base64'));
+-      console.log('PASS screen ' + opts.screen + ' viewport ' + w + 'x' + h + ' father=' + (seen.father || '') + ' file=' + file);
++      const bytes = Buffer.from(png.data, 'base64');
++      const size = pngSize(bytes);
++      if (!size || size.width !== w || size.height !== h) fail('screenshot is ' + (size && size.width) + 'x' + (size && size.height) + ' instead of the viewport ' + w + 'x' + h);
++      fs.writeFileSync(file, bytes);
++      console.log('PASS screen ' + opts.screen + ' viewport ' + w + 'x' + h + ' inner=' + layout.innerWidth + 'x' + layout.innerHeight + ' zoom=' + layout.zoom + ' father=' + (seen.father || '') + (opts.screen === 'tree' ? ' cards=' + JSON.stringify(labelCounts) : '') + ' file=' + file);
+     }
+   } finally {
+-    proc.kill('SIGKILL');
+-    server.close();
++    if (proc) { try { proc.kill('SIGKILL'); } catch (e) { /* already closed */ } }
++    try { server.close(); } catch (e) { /* already closed */ }
+     await sleep(200);
+     try { fs.rmSync(dir, { recursive: true, force: true, maxRetries: 3 }); } catch (e) { /* the picture was already written */ }
+   }
+@@ -273,6 +409,9 @@
+   });
+ }
+ if (require.main === module) {
+-  Promise.resolve(main()).catch((e) => fail(e && e.message || e));
++  Promise.resolve(main()).catch((e) => {
++    console.error('FAIL ' + (e && e.message ? e.message : e));
++    process.exit(1);
++  });
+ }
+ module.exports = { readFixture, ALLOWED, SCREENS, findRecord };
+--- a/scripts/b63-real-mockup.test.js
++++ b/scripts/b63-real-mockup.test.js
+@@ -19,12 +19,18 @@
+ }
+ const fixture = {
+   plants: [
+-    { id: 'p-target', name: 'Kept Plant', status: 'active', b49Mother: 'mf:m1', b49Father: 'dx:FixtureFather' },
++    { id: 'p-target', name: 'Kept Plant', status: 'active', b49Mother: 'mf:m-arch', b49Father: 'dx:FixtureFather', b58Manual: { m: true, f: true } },
++    { id: 'p-dated', name: 'Dated Plant', status: 'active', startDate: '2026-03-01', vegStartDate: '2026-03-20', count: 3, growType: 'Photoperiod', b49Mother: 'mf:m-arch', b49Father: '-', b58Manual: { m: true, f: true } },
++    { id: 'p-open', name: 'Undated Plant', status: 'active', b49Mother: 'mf:m1', b49Father: 'mf:f1' },
+     { id: 'p-other', name: 'Other Plant', status: 'active', b49Mother: 'mf:m1', b49Father: 'mf:f1' },
++    { id: 'p-gone', name: 'History Plant', status: 'active', b49Mother: 'mf:m1', b49Father: 'dx:GenuineHistory', b58DeletedAt: '2026-01-02T00:00:00.000Z', b58Manual: { m: true, f: true } },
+   ],
+   motherFatherPlants: [
+     { id: 'm1', name: 'Kept Mother', role: 'mother', status: 'Active' },
+     { id: 'f1', name: 'Kept Father', role: 'father', status: 'Active' },
++    { id: 'm-arch', name: 'Archived Mother', role: 'mother', status: 'Active', archived: true, b49Mother: 'mf:m-retired', b49Father: 'mf:f-culled' },
++    { id: 'm-retired', name: 'Retired Mother', role: 'mother', status: 'Retired' },
++    { id: 'f-culled', name: 'Culled Father', role: 'father', status: 'Culled' },
+   ],
+   breedingProjects: [
+     { id: 'pr1', name: 'Kept Cross', status: 'Active', motherId: 'm1', fatherId: 'f1', mother: 'Kept Mother', father: 'Kept Father' },
+@@ -47,6 +53,12 @@
+   undos: [],
+ }));
+ 
++check('a missing date is not filled in', () => {
++  const api = require('./b63-real-mockup');
++  const state = api.readFixture(fixtureFile);
++  const open = state.plants.find((plant) => plant.id === 'p-open');
++  if (!open || open.startDate || open.vegStartDate || open.growthStage || open.count) throw new Error('the renderer invented a date, stage, or count');
++});
+ check('a required package with no file fails', () => {
+   const out = run(['scripts/b63-package-repair.js', '--require', '--root', dir]);
+   if (out.status === 0) throw new Error(out.stdout);
+@@ -67,15 +79,28 @@
+   });
+ });
+ 
+-function shot(extra) {
+-  const outDir = path.join(dir, 'shots-' + extra.filter((x) => !x.startsWith('--')).join('-'));
+-  const out = run(['scripts/b63-real-mockup.js', '--fixture', fixtureFile, '--snapshot-date', '2026-11-06', '--viewport', '390x844', '--out', outDir, ...extra]);
++function shot(extra, allViewports) {
++  const outDir = path.join(dir, 'shots-' + extra.filter((x) => !x.startsWith('--')).join('-') + (allViewports ? '-all' : ''));
++  const args = ['scripts/b63-real-mockup.js', '--fixture', fixtureFile, '--snapshot-date', '2026-11-06', '--out', outDir];
++  if (!allViewports) args.push('--viewport', '390x844');
++  const out = run(args.concat(extra));
+   return out;
+ }
+ check('a tree screen shows the fixture record', () => {
+-  const out = shot(['--screen', 'tree', '--record-id', 'p-target', '--phase', 'before']);
++  const out = shot(['--screen', 'tree', '--record-id', 'p-target', '--phase', 'before'], true);
++  if (out.status !== 0) throw new Error(out.stderr + out.stdout);
++  if (!out.stdout.includes('inner=390x844') || !out.stdout.includes('inner=1024x768') || !out.stdout.includes('inner=1024x1366')) throw new Error(out.stdout);
++  if (!out.stdout.includes('zoom=1.28')) throw new Error(out.stdout);
++  if (!out.stdout.includes('father=dx:FixtureFather')) throw new Error(out.stdout);
++  if (!out.stdout.includes('"nameonly":1') || !out.stdout.includes('"archived":') || !out.stdout.includes('"retired":') || !out.stdout.includes('"culled":')) throw new Error(out.stdout);
++  ['nameonly', 'archived', 'retired', 'culled'].forEach((key) => {
++    if (out.stdout.includes('"' + key + '":0')) throw new Error(out.stdout);
++  });
++});
++check('a recorded deletion stays labeled deleted', () => {
++  const out = shot(['--screen', 'tree', '--record-id', 'p-gone', '--phase', 'before']);
+   if (out.status !== 0) throw new Error(out.stderr + out.stdout);
+-  if (!out.stdout.includes('PASS screen tree') || !out.stdout.includes('father=dx:FixtureFather')) throw new Error(out.stdout);
++  if (!out.stdout.includes('"deleted":1')) throw new Error(out.stdout);
+ });
+ check('the packaged repair clears only that plant father', () => {
+   fs.writeFileSync(repairFile, JSON.stringify(repair));
+@@ -86,7 +111,7 @@
+ ['plants', 'mf', 'compliance', 'inspection'].forEach((screen) => {
+   check(screen + ' renders', () => {
+     const extra = ['--screen', screen];
+-    if (screen === 'plants') extra.push('--record-id', 'p-target');
++    if (screen === 'plants') extra.push('--record-id', 'p-dated');
+     const out = shot(extra);
+     if (out.status !== 0) throw new Error(out.stderr + out.stdout);
+     if (!out.stdout.includes('PASS screen ' + screen)) throw new Error(out.stdout);
+--- a/scripts/b63-r5.test.js
++++ b/scripts/b63-r5.test.js
+@@ -34,7 +34,8 @@
+   if (new Set(hashes).size !== 1) throw new Error(hashes.join(' '));
+   if (hashes[0] === REV4_SW_SHA) throw new Error('script bytes still match revision 4, so an update check would not install a worker');
+   const text = read('service-worker.js').toString('utf8');
+-  if (!text.includes("boriken-genetics-logbook-app-v85")) throw new Error('cache name');
++  if (!text.includes("boriken-genetics-logbook-app-v86")) throw new Error('cache name');
++  if (text.includes("boriken-genetics-logbook-app-v85")) throw new Error('v85 cache name still present');
+   if (text.includes("boriken-genetics-logbook-app-v84")) throw new Error('v84 cache name still present');
+   if (text.includes("boriken-genetics-logbook-app-v83")) throw new Error('v83 cache name still present');
+   if (text.includes("boriken-genetics-logbook-app-v82")) throw new Error('v82 cache name still present');
+@@ -157,6 +158,8 @@
+   await v83.put('https://localhost/build63.js', new Response('V83-STALE-BUILD63', { status: 200 }));
+   const v84 = await scope.caches.open('boriken-genetics-logbook-app-v84');
+   await v84.put('https://localhost/b63-repair.json', new Response('V84-STALE-REPAIR', { status: 200 }));
++  const v85 = await scope.caches.open('boriken-genetics-logbook-app-v85');
++  await v85.put('https://localhost/build49.js', new Response('V85-STALE-BUILD49', { status: 200 }));
+ 
+   const held = await scope.caches.match('https://localhost/build57.js');
+   if (!held || await held.text() !== 'REV2-STALE') throw new Error('seed failed');
+@@ -176,7 +179,8 @@
+   if (names.includes('boriken-genetics-logbook-app-v82')) throw new Error('v82 cache kept ' + names.join(','));
+   if (names.includes('boriken-genetics-logbook-app-v83')) throw new Error('v83 cache kept ' + names.join(','));
+   if (names.includes('boriken-genetics-logbook-app-v84')) throw new Error('v84 cache kept ' + names.join(','));
+-  if (!names.includes('boriken-genetics-logbook-app-v85')) throw new Error('new cache missing ' + names.join(','));
++  if (names.includes('boriken-genetics-logbook-app-v85')) throw new Error('v85 cache kept ' + names.join(','));
++  if (!names.includes('boriken-genetics-logbook-app-v86')) throw new Error('new cache missing ' + names.join(','));
+ 
+   const precached = await scope.caches.match('https://localhost/build57.js');
+   const precachedBody = await precached.text();
+--- a/scripts/b63-photo-missing.test.js
++++ b/scripts/b63-photo-missing.test.js
+@@ -184,7 +184,7 @@
+   });
+   const sw = fs.readFileSync(path.join(ROOT, 'service-worker.js'), 'utf8');
+   check('revision 5 cache name does not change this export path', () => {
+-    if (!sw.includes("boriken-genetics-logbook-app-v85")) throw new Error('worker');
++    if (!sw.includes("boriken-genetics-logbook-app-v86")) throw new Error('worker');
+     const fn = fs.readFileSync(path.join(ROOT, 'app.js'), 'utf8');
+     const start = fn.indexOf('async function buildFullBackupPayload');
+     const body = fn.slice(start, fn.indexOf('function snapshotCounts'));
+--- a/scripts/b63-sw-browser.test.js
++++ b/scripts/b63-sw-browser.test.js
+@@ -144,10 +144,10 @@
+       const out = await send('Runtime.evaluate', { expression: READ, awaitPromise: true, returnByValue: true });
+       updated = out.result && out.result.value;
+       const fresh = updated && updated.build13 && updated.build13.sum === EXPECT['build13.js'] && updated.build58.sum === EXPECT['build58.js'] && updated.build63 && updated.build63.sum === EXPECT['build63.js'];
+-      if (fresh && updated.keys.includes('boriken-genetics-logbook-app-v85') && !updated.keys.includes(cacheName)) break;
++      if (fresh && updated.keys.includes('boriken-genetics-logbook-app-v86') && !updated.keys.includes(cacheName)) break;
+       await sleep(250);
+     }
+-    if (!updated || updated.build13.sum !== EXPECT['build13.js'] || updated.build58.sum !== EXPECT['build58.js'] || !updated.build63 || updated.build63.sum !== EXPECT['build63.js'] || updated.keys.includes(cacheName) || !updated.keys.includes('boriken-genetics-logbook-app-v85')) {
++    if (!updated || updated.build13.sum !== EXPECT['build13.js'] || updated.build58.sum !== EXPECT['build58.js'] || !updated.build63 || updated.build63.sum !== EXPECT['build63.js'] || updated.keys.includes(cacheName) || !updated.keys.includes('boriken-genetics-logbook-app-v86')) {
+       throw new Error(cacheName + ' did not install the current worker ' + JSON.stringify(updated) + ' ' + logs.join(' | '));
+     }
+     console.log('PASS real Chrome replaced ' + cacheName + ' and served the current build13.js, build58.js, and build63.js');
+@@ -171,7 +171,8 @@
+     await chromeCase('boriken-genetics-logbook-app-v82', 9343);
+     await chromeCase('boriken-genetics-logbook-app-v83', 9344);
+     await chromeCase('boriken-genetics-logbook-app-v84', 9345);
+-    console.log('b63 sw browser: v81, v82, v83, and v84 update paths passed');
++    await chromeCase('boriken-genetics-logbook-app-v85', 9346);
++    console.log('b63 sw browser: v81, v82, v83, v84, and v85 update paths passed');
+   } finally {
+     server.close();
+   }
