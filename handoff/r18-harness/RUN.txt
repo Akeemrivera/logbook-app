@@ -1,0 +1,19 @@
+Test-only trace for the original r17 harness. Apply it onto the unchanged snap15 tree. It does not change the app, the service worker, the cache, or the ready loop. With no flags, the tests behave as they do now.
+
+From the snap15 root:
+
+  patch -p1 < b63-harness-trace.patch
+
+Original startup, one run, trace dumped only if that run fails:
+
+  node scripts/b63-repair-startup.test.js --trace
+
+Original renderer, three separate runs. Keep each stdout even if it fails. Do not rerun a failure.
+
+  node scripts/b63-real-mockup.test.js --trace
+
+Declared CPU trace, one run. The value 4 is a CDP Emulation.setCPUThrottlingRate rate. Chrome accepts a rate >= 1. On this machine the call returned success and printed: TRACE cpu-rate=4 accepted Emulation.setCPUThrottlingRate
+
+  node scripts/b63-repair-startup.test.js --trace --cpu 4
+
+A failing run prints TRACE-FAIL, TRACE pending, TRACE server-inflight, and TRACE page before the existing FAIL line. That pending list is the asset proof. This machine's default startup and its --cpu 4 startup both passed inside the original 2 second window, so the stall is not reproduced here.

@@ -1,0 +1,306 @@
+--- a/scripts/b63-fail-trace.js
++++ b/scripts/b63-fail-trace.js
+@@ -0,0 +1,146 @@
++'use strict';
++/*
++  Optional failure trace for the existing startup and renderer harnesses.
++  It does nothing unless --trace / B63_TRACE=1 or --cpu / B63_CPU is set.
++  It does not change the ready loop, the assertions, or the service worker.
++  A CPU rate is the CDP Emulation.setCPUThrottlingRate value. Chrome accepts
++  a rate >= 1. The declared adverse rate is 4 (DevTools 4x slowdown).
++*/
++const MARK = ['app.js', 'build18.js', 'build49.js', 'build57.js', 'build63.js', 'b63-repair.json', 'index.html', 'service-worker.js'];
++
++function arg(name) {
++  const i = process.argv.indexOf(name);
++  return i >= 0 ? process.argv[i + 1] : '';
++}
++function applyArgs() {
++  if (process.argv.includes('--trace')) process.env.B63_TRACE = '1';
++  const cpu = arg('--cpu');
++  if (cpu) process.env.B63_CPU = cpu;
++}
++function active() {
++  return process.env.B63_TRACE === '1' || !!process.env.B63_CPU;
++}
++function cpuRate() {
++  const raw = process.env.B63_CPU || '';
++  if (!raw) return 0;
++  const n = Number(raw);
++  if (!Number.isFinite(n) || n < 1) {
++    throw new Error('B63_CPU/--cpu must be a CDP Emulation.setCPUThrottlingRate rate >= 1. DevTools slowdown presets are 2, 4, and 6. Got ' + raw);
++  }
++  return n;
++}
++function pathOf(url) {
++  try { return decodeURIComponent(new URL(url, 'http://127.0.0.1').pathname); }
++  catch (e) { return String(url || '').slice(0, 160); }
++}
++
++const requests = new Map();
++const serverLog = [];
++const inflight = new Map();
++const workers = new Set();
++let serverSeq = 0;
++let since = 0;
++let phase = '';
++let pageCache = null;
++
++function stamp() { return Date.now(); }
++function mark(label) { phase = label; since = stamp(); }
++function note(msg) {
++  if (!active() || !msg) return;
++  const method = msg.method || '';
++  if (method === 'Target.attachedToTarget') {
++    const info = msg.params && msg.params.targetInfo;
++    const sid = msg.params && msg.params.sessionId;
++    if (sid && info && (info.type === 'service_worker' || info.type === 'worker')) workers.add(sid);
++    return;
++  }
++  if (method !== 'Network.requestWillBeSent' && method !== 'Network.responseReceived' && method !== 'Network.loadingFinished' && method !== 'Network.loadingFailed' && method !== 'Network.requestServedFromCache') return;
++  const params = msg.params || {};
++  const id = params.requestId;
++  if (!id) return;
++  const key = (msg.sessionId || 'page') + ':' + id;
++  const row = requests.get(key) || { session: msg.sessionId || 'page', url: '', type: '', will: 0, finished: 0, failed: '', status: 0, mime: '', fromServiceWorker: false };
++  if (params.request && params.request.url) row.url = params.request.url;
++  if (params.type) row.type = params.type;
++  if (method === 'Network.requestWillBeSent' && !row.will) row.will = stamp();
++  if (method === 'Network.responseReceived') {
++    const response = params.response || {};
++    row.status = response.status || 0;
++    row.mime = response.mimeType || '';
++    row.fromServiceWorker = !!response.fromServiceWorker;
++  }
++  if (method === 'Network.loadingFinished') row.finished = stamp();
++  if (method === 'Network.loadingFailed') { row.failed = (params.errorText || 'failed') + (params.canceled ? ' canceled' : ''); row.finished = stamp(); }
++  if (method === 'Network.requestServedFromCache') row.servedFromCache = true;
++  requests.set(key, row);
++}
++function server(req, res) {
++  if (!active()) return;
++  const id = ++serverSeq;
++  const started = stamp();
++  inflight.set(id, { url: req.url, started });
++  let logged = false;
++  const done = () => {
++    if (logged) return;
++    logged = true;
++    inflight.delete(id);
++    serverLog.push({ url: req.url, status: res.statusCode, ms: stamp() - started, at: started });
++  };
++  res.on('finish', done);
++  res.on('close', done);
++}
++async function arm(send) {
++  if (!active()) return;
++  await send('Target.setAutoAttach', { autoAttach: true, waitForDebuggerOnStart: false, flatten: true });
++  await send('Network.enable');
++}
++async function enableWorker(send, sessionId) {
++  if (!active() || !sessionId) return;
++  workers.add(sessionId);
++  await send('Network.enable', {}, sessionId).catch(() => {});
++}
++async function applyCpu(send) {
++  const rate = cpuRate();
++  if (!rate) return;
++  await send('Emulation.setCPUThrottlingRate', { rate: rate });
++  console.error('TRACE cpu-rate=' + rate + ' accepted Emulation.setCPUThrottlingRate');
++}
++async function readPage(send) {
++  if (!active()) return;
++  try {
++    const out = await send('Runtime.evaluate', {
++      expression: '(async () => { const names = typeof caches === "undefined" ? [] : await caches.keys(); const cachesOut = []; for (const name of names) { const cache = await caches.open(name); const keys = await cache.keys(); const have = keys.map((r) => { try { return new URL(r.url).pathname.split("/").pop(); } catch (e) { return ""; } }); const heads = {}; for (const file of ' + JSON.stringify(MARK) + ') { const res = await cache.match("./" + file); if (!res) { heads[file] = null; continue; } const buf = new Uint8Array(await res.clone().arrayBuffer()); let head = ""; for (let i = 0; i < Math.min(buf.length, 40); i++) head += (buf[i] >= 32 && buf[i] < 127) ? String.fromCharCode(buf[i]) : "."; heads[file] = { status: res.status, type: res.headers.get("content-type") || "", bytes: buf.length, head: head }; } cachesOut.push({ name: name, count: keys.length, missing: ' + JSON.stringify(MARK) + '.filter((file) => have.indexOf(file) < 0), heads: heads }); } const markers = { switchView: typeof switchView, b18BrPageHtml: typeof b18BrPageHtml, B49: typeof B49, B57: typeof B57, B63: typeof B63 }; return { readyState: document.readyState, repair: window.__b63RepairReady === true, boot: window.__b63Boot || null, detail: window.__b63RepairState || null, errors: window.__b63Errors || [], controller: !!(navigator.serviceWorker && navigator.serviceWorker.controller), online: navigator.onLine, markers: markers, caches: cachesOut }; })()',
++      awaitPromise: true,
++      returnByValue: true,
++    }, '', 3000);
++    pageCache = out && out.result ? out.result.value : out;
++    if (out && out.exceptionDetails) pageCache = { evaluateError: JSON.stringify(out.exceptionDetails).slice(0, 300) };
++  } catch (e) {
++    pageCache = { evaluateError: String(e && e.message || e) };
++  }
++}
++function line(row) {
++  const who = workers.has(row.session) ? 'worker' : 'page';
++  const age = row.will ? (row.finished || stamp()) - row.will : 0;
++  return age + 'ms ' + who + ' ' + (row.type || '?') + ' ' + pathOf(row.url) + (row.status ? ' status=' + row.status + ' mime=' + row.mime + ' sw=' + row.fromServiceWorker : ' no-response') + (row.failed ? ' ' + row.failed : '');
++}
++function dump(label) {
++  if (!active()) return;
++  const rows = [];
++  for (const row of requests.values()) {
++    if (row.finished && row.will && row.will < since) continue;
++    rows.push(row);
++  }
++  const pending = rows.filter((row) => !row.finished).sort((a, b) => (workers.has(a.session) === workers.has(b.session) ? 0 : workers.has(a.session) ? 1 : -1) || (b.will || 0) - (a.will || 0));
++  const focus = rows.filter((row) => row.finished && MARK.some((name) => pathOf(row.url).endsWith('/' + name)));
++  const open = [...inflight.values()].filter((row) => row.started >= since).map((row) => ({ url: row.url, age: stamp() - row.started }));
++  const served = serverLog.filter((row) => row.at >= since && MARK.some((name) => String(row.url).split('?')[0].endsWith('/' + name)));
++  console.error('TRACE-FAIL phase=' + phase + ' ' + label);
++  console.error('TRACE pending ' + pending.length + ' ' + pending.slice(0, 20).map(line).join(' || '));
++  console.error('TRACE finished-focus ' + focus.map(line).join(' || '));
++  console.error('TRACE server-inflight ' + JSON.stringify(open));
++  console.error('TRACE server ' + served.map((row) => row.status + ' ' + row.ms + 'ms ' + row.url).join(' || '));
++  console.error('TRACE page ' + JSON.stringify(pageCache));
++}
++
++module.exports = { applyArgs, active, cpuRate, mark, note, server, arm, enableWorker, applyCpu, readPage, dump };
+--- a/scripts/b63-repair-startup.test.js
++++ b/scripts/b63-repair-startup.test.js
+@@ -8,6 +8,9 @@
+ const http = require('http');
+ const path = require('path');
+ const { spawn } = require('child_process');
++const trace = require('./b63-fail-trace');
++trace.applyArgs();
++if (trace.active()) console.error('TRACE startup harness cpu=' + (trace.cpuRate() || 'off'));
+ const ROOT = path.join(__dirname, '..');
+ const CHROME = '/opt/google/chrome/chrome';
+ const state = {
+@@ -21,13 +24,14 @@
+ let repairMode = 'body';
+ let repairDelay = 0;
+ function sleep(ms) { return new Promise((r) => setTimeout(r, ms)); }
+-function fail(message) { console.error('FAIL ' + message); process.exit(1); }
++function fail(message) { if (trace.active()) trace.dump(message); console.error('FAIL ' + message); process.exit(1); }
+ 
+ async function main() {
+   const probe = http.createServer();
+   const port = await new Promise((resolve) => probe.listen(0, '127.0.0.1', () => { const p = probe.address().port; probe.close(() => resolve(p)); }));
+   const debug = port + 1;
+   const server = http.createServer((req, res) => {
++    if (trace.active()) trace.server(req, res);
+     let rel = decodeURIComponent(new URL(req.url, 'http://127.0.0.1').pathname);
+     if (rel === '/b63-repair.json') {
+       const send = () => {
+@@ -65,16 +69,19 @@
+     let n = 0; const pending = new Map(); const logs = [];
+     ws.addEventListener('message', (ev) => {
+       const msg = JSON.parse(ev.data);
++      if (trace.active()) { trace.note(msg); if (msg.method === 'Target.attachedToTarget') trace.enableWorker(send, msg.params && msg.params.sessionId); }
+       if (msg.method === 'Runtime.consoleAPICalled') logs.push((msg.params.args || []).map((a) => a.value || a.description || '').join(' ').slice(0, 240));
+       if (msg.method === 'Runtime.exceptionThrown') logs.push(String((msg.params.exceptionDetails && msg.params.exceptionDetails.exception && msg.params.exceptionDetails.exception.description) || 'exception').slice(0, 400));
+       if (msg.id && pending.has(msg.id)) { const done = pending.get(msg.id); pending.delete(msg.id); done(msg); }
+     });
+-    function send(method, params) {
++    function send(method, params, sessionId, timeout) {
+       const id = ++n;
+       return new Promise((resolve, reject) => {
+-        const timer = setTimeout(() => reject(new Error('timeout ' + method)), 15000);
++        const timer = setTimeout(() => reject(new Error('timeout ' + method)), timeout || 15000);
+         pending.set(id, (msg) => { clearTimeout(timer); if (msg.error) reject(new Error(JSON.stringify(msg.error))); else resolve(msg.result || {}); });
+-        ws.send(JSON.stringify({ id, method, params: params || {} }));
++        const body = { id, method, params: params || {} };
++        if (sessionId) body.sessionId = sessionId;
++        ws.send(JSON.stringify(body));
+       });
+     }
+     async function evaluate(expression) {
+@@ -84,13 +91,14 @@
+     }
+     async function launch(label) {
+       const started = Date.now();
++      if (trace.active()) trace.mark(label);
+       await send('Page.navigate', { url: 'http://127.0.0.1:' + port + '/index.html?' + label });
+       let snap = null;
+       for (let i = 0; i < 40 && !(snap && snap.repair && snap.boot && snap.boot.ready); i++) {
+         snap = await evaluate('(() => { let father = ""; try { father = (state.plants.find((r) => r.id === "p-target") || {}).b49Father || ""; } catch (e) { father = ""; } return { repair: window.__b63RepairReady === true, detail: window.__b63RepairState || null, boot: window.__b63Boot || null, errors: window.__b63Errors || [], controller: !!(navigator.serviceWorker && navigator.serviceWorker.controller), online: navigator.onLine, father, deps: { switchView: typeof switchView, b18BrPageHtml: typeof b18BrPageHtml, B49: !!(window.B49 && window.B49.openPage), B57: typeof B57 !== "undefined" } }; })()');
+         if (!snap || !snap.repair || !snap.boot || !snap.boot.ready) await sleep(50);
+       }
+-      if (!snap || !snap.repair) fail(label + ' repair did not settle ' + JSON.stringify(snap) + ' ' + logs.slice(-4).join(' | '));
++      if (!snap || !snap.repair) { if (trace.active()) await trace.readPage(send); fail(label + ' repair did not settle ' + JSON.stringify(snap) + ' ' + logs.slice(-4).join(' | ')); }
+       snap.elapsed = Date.now() - started;
+       if (snap.elapsed >= 2000) fail(label + ' blocked startup for ' + snap.elapsed + 'ms ' + JSON.stringify(snap.detail));
+       if (!snap.boot || !snap.boot.ready) fail(label + ' scripts were not ready ' + JSON.stringify(snap));
+@@ -102,6 +110,7 @@
+     await send('Runtime.enable');
+     await send('Page.enable');
+     await send('Network.enable');
++    if (trace.active()) { await trace.arm(send); await trace.applyCpu(send); }
+     await send('Page.addScriptToEvaluateOnNewDocument', { source: init });
+     const first = await launch('first');
+     if (first.father !== '-') fail('first launch left the father ' + JSON.stringify(first));
+--- a/scripts/b63-real-mockup.js
++++ b/scripts/b63-real-mockup.js
+@@ -38,6 +38,8 @@
+ const http = require('http');
+ const path = require('path');
+ const { spawn } = require('child_process');
++const trace = require('./b63-fail-trace');
++trace.applyArgs();
+ const ROOT = path.join(__dirname, '..');
+ const CHROME = '/opt/google/chrome/chrome';
+ const SCREENS = ['tree', 'plants', 'mf', 'compliance', 'inspection'];
+@@ -58,6 +60,7 @@
+ const EMPTY_REPAIR = '{"repairs":[],"undos":[]}\n';
+ 
+ function fail(message) {
++  if (trace.active()) trace.dump(message);
+   const err = new Error(message);
+   err.b63fail = true;
+   throw err;
+@@ -165,6 +168,7 @@
+     repairBody = fs.readFileSync(opts.repairConfig, 'utf8');
+   }
+   const server = http.createServer((req, res) => {
++    if (trace.active()) trace.server(req, res);
+     const url = new URL(req.url, 'http://127.0.0.1:' + port);
+     let rel = decodeURIComponent(url.pathname);
+     if (rel === '/b63-repair.json') {
+@@ -210,16 +214,19 @@
+     const logs = [];
+     ws.addEventListener('message', (ev) => {
+       const msg = JSON.parse(ev.data);
++      if (trace.active()) { trace.note(msg); if (msg.method === 'Target.attachedToTarget') trace.enableWorker(send, msg.params && msg.params.sessionId); }
+       if (msg.method === 'Runtime.consoleAPICalled') logs.push(msg.params.type + ' ' + (msg.params.args || []).map((a) => a.value || a.description || '').join(' ').slice(0, 240));
+       if (msg.method === 'Runtime.exceptionThrown') logs.push('exception ' + ((msg.params.exceptionDetails && (msg.params.exceptionDetails.exception && msg.params.exceptionDetails.exception.description || msg.params.exceptionDetails.text)) || '').slice(0, 400));
+       if (msg.id && pending.has(msg.id)) { const done = pending.get(msg.id); pending.delete(msg.id); done(msg); }
+     });
+-    function send(method, params) {
++    function send(method, params, sessionId, timeout) {
+       const id = ++n;
+       return new Promise((resolve, reject) => {
+-        const timer = setTimeout(() => reject(new Error('timeout ' + method)), 20000);
++        const timer = setTimeout(() => reject(new Error('timeout ' + method)), timeout || 20000);
+         pending.set(id, (msg) => { clearTimeout(timer); if (msg.error) reject(new Error(JSON.stringify(msg.error))); else resolve(msg.result || {}); });
+-        ws.send(JSON.stringify({ id, method, params: params || {} }));
++        const body = { id, method, params: params || {} };
++        if (sessionId) body.sessionId = sessionId;
++        ws.send(JSON.stringify(body));
+       });
+     }
+     async function evaluate(expression) {
+@@ -229,16 +236,18 @@
+     }
+     await send('Page.enable');
+     await send('Runtime.enable');
++    if (trace.active()) { await trace.arm(send); await trace.applyCpu(send); }
+     await send('Page.addScriptToEvaluateOnNewDocument', { source: init });
+     for (const [w, h] of opts.viewports) {
+       await send('Emulation.setDeviceMetricsOverride', { width: w, height: h, deviceScaleFactor: 1, mobile: w < 900 });
++      if (trace.active()) trace.mark(opts.screen + ' ' + w + 'x' + h);
+       await send('Page.navigate', { url: 'http://127.0.0.1:' + port + '/index.html?screen=' + opts.screen });
+       let ready = null;
+       for (let i = 0; i < 40 && !(ready && ready.ok); i++) {
+         ready = await evaluate('(() => { const boot = window.__b63Boot || null; const errors = window.__b63Errors || []; const deps = { switchView: typeof switchView, b18BrPageHtml: typeof b18BrPageHtml, B49: !!(window.B49 && window.B49.openPage), B57: typeof B57 !== "undefined", B63: typeof B63 !== "undefined" }; return { repair: window.__b63RepairReady === true, detail: window.__b63RepairState || null, controller: !!(navigator.serviceWorker && navigator.serviceWorker.controller), boot: boot, deps: deps, errors: errors, ok: !!(boot && boot.ready && window.__b63RepairReady === true && deps.switchView === "function" && deps.b18BrPageHtml === "function" && deps.B49 && deps.B57 && deps.B63 && errors.length === 0) }; })()');
+         if (!ready || !ready.ok) await sleep(50);
+       }
+-      if (!ready || !ready.ok) fail('the app did not finish loading ' + JSON.stringify(ready) + ' ' + logs.slice(-6).join(' | '));
++      if (!ready || !ready.ok) { if (trace.active()) await trace.readPage(send); fail('the app did not finish loading ' + JSON.stringify(ready) + ' ' + logs.slice(-6).join(' | ')); }
+       await send('Emulation.setDeviceMetricsOverride', { width: w, height: h, deviceScaleFactor: 1, mobile: w < 900 });
+       const opened = await evaluate(`(() => {
+         const screen = ${JSON.stringify(opts.screen)};
+--- a/scripts/b63-real-mockup.test.js
++++ b/scripts/b63-real-mockup.test.js
+@@ -8,6 +8,9 @@
+ const os = require('os');
+ const path = require('path');
+ const { spawnSync } = require('child_process');
++const trace = require('./b63-fail-trace');
++trace.applyArgs();
++if (trace.active()) console.error('TRACE renderer harness cpu=' + (trace.cpuRate() || 'off'));
+ const ROOT = path.join(__dirname, '..');
+ const FAIL = [];
+ function check(name, fn) {
