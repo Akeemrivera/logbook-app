@@ -1,18 +1,15 @@
-Copy b63-navlog.js and b63-navlog.test.js into scripts/ of the preserved snap17 tree.
-Do not replace scripts/b63-real-mockup.js or scripts/b63-real-mockup.test.js.
+Replace only scripts/b63-navlog.js. Leave scripts/b63-real-mockup.js and scripts/b63-real-mockup.test.js as they are.
 
-Acceptance, unchanged:
-  node scripts/b63-real-mockup.test.js
+One command, same preserved snap17 tree:
 
-One instrumented run, then stop:
   node scripts/b63-navlog.test.js
 
-It is the same checks and the same 40x50ms gate. Page.navigate still follows setDeviceMetricsOverride with nothing between them.
-Keep every NAVLOG line, especially the FAIL viewport.
+Keep the FAIL viewport lines: NAVLOG FAIL, every NAVLOG failed, and every NAVLOG pending.
 
-How to read one failing viewport:
-  frames greater than 1: more than one navigation was recorded.
-  sw greater than 0: service-worker.js was requested during that viewport.
-  frames 1 and sw 0 with scriptFail greater than 0: neither of those two was observed.
-  spreadMs near 0 means the script failures ended together.
-A pass of this command is not a fix.
+scriptsSent is how many script URLs the listener saw started.
+scriptsDone is how many of those later finished.
+scriptsFail is how many later failed. The previous scriptFail count did not match failures to URLs, so 0 did not mean the scripts completed.
+scriptsPending is started and neither finished nor failed when the boot check gave up.
+load=1 means Page.loadEventFired. doc=ok, fail, or pending is the index document.
+
+A pass is not a fix.
