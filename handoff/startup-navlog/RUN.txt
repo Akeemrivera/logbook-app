@@ -1,0 +1,18 @@
+Copy b63-navlog.js and b63-navlog.test.js into scripts/ of the preserved snap17 tree.
+Do not replace scripts/b63-real-mockup.js or scripts/b63-real-mockup.test.js.
+
+Acceptance, unchanged:
+  node scripts/b63-real-mockup.test.js
+
+One instrumented run, then stop:
+  node scripts/b63-navlog.test.js
+
+It is the same checks and the same 40x50ms gate. Page.navigate still follows setDeviceMetricsOverride with nothing between them.
+Keep every NAVLOG line, especially the FAIL viewport.
+
+How to read one failing viewport:
+  frames greater than 1: more than one navigation was recorded.
+  sw greater than 0: service-worker.js was requested during that viewport.
+  frames 1 and sw 0 with scriptFail greater than 0: neither of those two was observed.
+  spreadMs near 0 means the script failures ended together.
+A pass of this command is not a fix.
