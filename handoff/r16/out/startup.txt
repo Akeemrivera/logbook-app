@@ -1,0 +1,6 @@
+PASS first launch settled via sync controller=false
+PASS second navigation settled via sync controller=false
+PASS controlled reload settled via fetch
+PASS offline reload settled via fetch bytes=118
+PASS empty file settled via fetch and left the father
+b63 repair startup: first, controlled, offline, and empty launches settled

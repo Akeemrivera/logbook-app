@@ -1,0 +1,38 @@
+BUILD 63 revision 16. Not compiled. No device is claimed fixed. No upload.
+
+Patch SHA-256 e7849214937d09006ee634dc65b90352734ccfbe151d1eccc0d90a06e524d4b6
+Cache name boriken-genetics-logbook-app-v89
+build63.css unchanged SHA-256 8582bbaa8737fe73cf4833f37088b3032bf6fd19401d4e9f755f7138c3382d71
+Strict layout stdout is unchanged: 42d012134fa8f1d5798020daa4c341a5c2ceee07cfb7a533287e110766c3baec
+
+Changed runtime files, three copies match:
+  build63.js SHA-256 06383c0dc193721a824c8b71e1630a6997bcf544bce08b15ebebdba78b253f2d
+  service-worker.js SHA-256 4a90abe5204091eb9c746d1f8e5a64aca6608c8964e75827d462b163d13f8f2e
+
+The repair no longer reads the cache while install holds it. A controlled page loads the repair file from the network, and an offline launch uses the copy already cached. The ready flag is set when that read finishes, including an empty file or a failed read.
+The test server now sends a JavaScript content type, so the service worker actually installs. The failure report includes the repair phase, whether a controller is present, and the page render.
+
+Three isolated public renderer runs, each exit 0:
+  loop 1 SHA-256 a30763420d9dba0fba82bb7d3b38b4dd61144597a2879b2c5d9a1afd59b501fa exit 0
+  loop 2 SHA-256 a30763420d9dba0fba82bb7d3b38b4dd61144597a2879b2c5d9a1afd59b501fa exit 0
+  loop 3 SHA-256 a30763420d9dba0fba82bb7d3b38b4dd61144597a2879b2c5d9a1afd59b501fa exit 0
+
+Suite outputs, each exit 0:
+  startup.txt SHA-256 2c7be80c310e7db0c7c0c51c125bb1f71ecf6fef5c79c4a63166d47ff58652d1 exit 0
+  father.txt SHA-256 005f7ee68a70abd07c58b201e7f8b0afa9e17f6a41a17fef33c0297fc3a88020 exit 0
+  real-mockup.txt SHA-256 a30763420d9dba0fba82bb7d3b38b4dd61144597a2879b2c5d9a1afd59b501fa exit 0
+  no-sample.txt SHA-256 46686e551aea5424feed836cb467da6c607c26eb1f1a960f4b52014c750b9f7b exit 0
+  integration.txt SHA-256 2d828e559a15418b43507b0ca8469ff462315de36d534adc7a18566e17110bae exit 0
+  remaining.txt SHA-256 d3b5294f09637a05880e2bf007791487a3a129618c5222f3bfe2a761151aebef exit 0
+  photo.txt SHA-256 991db12ba0540e9274a0cc3911512de7844f24573b2250c791a50ae3de8a59aa exit 0
+  r5.txt SHA-256 74d686f72a41a6e25bcc0c2ddafe6bfe774e5b5ac42a67883a4ff189332a1957 exit 0
+  sw-browser.txt SHA-256 ca0e17544533f670f773db348a7b4565e281c500d0e9df77d8d7e4aa9b99df91 exit 0
+  fullapp.txt SHA-256 c0d99c94f1d1d13ed033e12917f11bcf1653109a41dae8e3f9897debb307fabc exit 0
+  r3-1.txt SHA-256 42d012134fa8f1d5798020daa4c341a5c2ceee07cfb7a533287e110766c3baec exit 0
+  r3-2.txt SHA-256 42d012134fa8f1d5798020daa4c341a5c2ceee07cfb7a533287e110766c3baec exit 0
+  r3-3.txt SHA-256 42d012134fa8f1d5798020daa4c341a5c2ceee07cfb7a533287e110766c3baec exit 0
+  r3-4.txt SHA-256 42d012134fa8f1d5798020daa4c341a5c2ceee07cfb7a533287e110766c3baec exit 0
+  r3-5.txt SHA-256 42d012134fa8f1d5798020daa4c341a5c2ceee07cfb7a533287e110766c3baec exit 0
+  r3-6.txt SHA-256 42d012134fa8f1d5798020daa4c341a5c2ceee07cfb7a533287e110766c3baec exit 0
+  r3-7.txt SHA-256 42d012134fa8f1d5798020daa4c341a5c2ceee07cfb7a533287e110766c3baec exit 0
+  r3-8.txt SHA-256 42d012134fa8f1d5798020daa4c341a5c2ceee07cfb7a533287e110766c3baec exit 0
