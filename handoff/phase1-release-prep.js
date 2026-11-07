@@ -29,6 +29,7 @@ const EMPTY_SHA256 = 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b78
 const SHOTS_REL = 'b59shots.js';
 const SHOTS_SIZE = 120061;
 const SHOTS_PREFIX = '1b7735fb296fefd5';
+const SHOTS_SHA256 = '1b7735fb296fefd5f5c7427a3e558ad9237b90d7f8479f60b52ad5880533c5fc';
 const APP_JS_AT_61 = '3c949b1a8b34d6f20590ac690de430e5aa53384b7c891008a80fd1ae3e97d399';
 
 const EXPECTED = {
@@ -68,6 +69,24 @@ function fail(msg) {
 function plistString(xml, key) {
   const m = String(xml).match(new RegExp(`<key>${key}</key>\\s*<string>([^<]*)</string>`));
   return m ? m[1] : '';
+}
+
+function plistXml(file) {
+  const buf = read(file);
+  if (buf.slice(0, 6).toString('ascii') !== 'bplist') return buf.toString('utf8');
+  const converted = spawnSync('plutil', ['-convert', 'xml1', '-o', '-', file], { encoding: 'utf8', maxBuffer: 32 * 1024 * 1024 });
+  if (converted.status === 0 && String(converted.stdout || '').includes('<key>')) return converted.stdout;
+  const keys = ['CFBundleIdentifier', 'CFBundleShortVersionString', 'CFBundleVersion', 'CFBundleDisplayName'];
+  const rows = [];
+  for (const key of keys) {
+    const buddy = spawnSync('/usr/libexec/PlistBuddy', ['-c', `Print :${key}`, file], { encoding: 'utf8' });
+    if (buddy.status === 0 && String(buddy.stdout || '').trim()) rows.push([key, buddy.stdout.trim()]);
+  }
+  if (!rows.length) {
+    const detail = `${converted.stderr || converted.error || ''}${converted.stdout || ''}`.trim();
+    fail(`Could not read ${file} with plutil or PlistBuddy. ${detail}`);
+  }
+  return `<plist><dict>${rows.map(([key, value]) => `<key>${key}</key><string>${value}</string>`).join('')}</dict></plist>`;
 }
 function appBuildOf(text) {
   const m = String(text).match(/const APP_BUILD = '(\d+)';/);
@@ -193,7 +212,7 @@ function extraClass(absFile, rel) {
     return { kind: 'bad', why: `${rel} is ${buf.length} bytes ${hash}, not the empty Capacitor file. It was not replaced.` };
   }
   if (rel === SHOTS_REL) {
-    if (buf.length === SHOTS_SIZE && hash.startsWith(SHOTS_PREFIX)) return { kind: 'shots', hash };
+    if (buf.length === SHOTS_SIZE && hash === SHOTS_SHA256) return { kind: 'shots', hash };
     return { kind: 'bad', why: `${SHOTS_REL} is ${buf.length} bytes ${hash}, not the Nov 3 screenshot helper. It was left in place.` };
   }
   return { kind: 'bad', why: `ios/App/App/public/${rel} is not copied by build-www.js and is not an allowed exclusion` };
@@ -405,6 +424,7 @@ function parseArgs(argv) {
     if (a === '--root') out.root = argv[++i];
     else if (a === '--build') out.build = argv[++i];
     else if (a === '--confirm-unused') out.confirm = true;
+    else if (a === '--archive') out.archive = argv[++i];
     else if (a.startsWith('--')) fail(`Unknown option ${a}`);
     else out._.push(a);
   }
@@ -554,22 +574,26 @@ function forbiddenHits(buf) {
 function inspectAppDir(appDir) {
   const infoPath = path.join(appDir, 'Info.plist');
   if (!fs.existsSync(infoPath)) fail(`No Info.plist in ${appDir}`);
-  const info = fs.readFileSync(infoPath, 'utf8');
+  const info = plistXml(infoPath);
   const id = plistString(info, 'CFBundleIdentifier');
   const marketing = plistString(info, 'CFBundleShortVersionString');
   const build = plistString(info, 'CFBundleVersion');
   const display = plistString(info, 'CFBundleDisplayName');
   if (id !== PROD_ID) fail(`Archived bundle id is ${id || 'missing'}`);
   if (marketing !== MARKETING) fail(`Archived marketing version is ${marketing || 'missing'}`);
-  if (display.includes('QA')) fail(`Archived display name is ${display}`);
-  let ent = '';
+  if (!display || display.includes('QA')) fail(`Archived display name is ${display || 'missing'}`);
   const xcent = path.join(appDir, 'archived-expanded-entitlements.xcent');
-  if (fs.existsSync(xcent)) ent = fs.readFileSync(xcent, 'utf8');
+  let ent = '';
+  if (fs.existsSync(xcent)) ent = plistXml(xcent);
   else {
-    const signed = spawnSync('codesign', ['-d', '--entitlements', ':-', appDir], { encoding: 'utf8' });
-    if (signed.status === 0) ent = signed.stdout || '';
+    const signed = spawnSync('codesign', ['-d', '--entitlements', ':-', appDir], { encoding: 'utf8', maxBuffer: 8 * 1024 * 1024 });
+    ent = `${signed.stdout || ''}${signed.stderr || ''}`;
   }
   if (!ent.includes(CONTAINER)) fail('Archived entitlements do not contain the production iCloud container');
+  const signed = spawnSync('codesign', ['-d', '--verbose=2', appDir], { encoding: 'utf8' });
+  const signing = `${signed.stdout || ''}\n${signed.stderr || ''}`;
+  const team = (signing.match(/TeamIdentifier=([A-Z0-9]+)/) || [])[1] || '';
+  if (team && team !== TEAM) fail(`Archive team is ${team}, not ${TEAM}`);
   const hits = [];
   const walk = (dir) => {
     for (const name of fs.readdirSync(dir)) {
@@ -597,9 +621,15 @@ function unzipApp(ipa, dest) {
   return path.join(payload, apps[0]);
 }
 
-function runXcode(args, root) {
-  const r = spawnSync('xcodebuild', args, { cwd: root, encoding: 'utf8' });
-  if (r.status !== 0) fail(`xcodebuild failed\n${(r.stdout || '').slice(-2000)}\n${(r.stderr || '').slice(-2000)}`);
+function runXcode(args, root, logName) {
+  const r = spawnSync('xcodebuild', args, { cwd: root, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
+  const logPath = path.join(root, 'build/release', logName);
+  fs.mkdirSync(path.dirname(logPath), { recursive: true });
+  fs.writeFileSync(logPath, `${r.stdout || ''}${r.stderr || ''}`);
+  if (r.stdout) process.stdout.write(r.stdout);
+  if (r.stderr) process.stderr.write(r.stderr);
+  if (r.error) fail(`xcodebuild could not be started: ${r.error.message}. Full output: ${logPath}`);
+  if (r.status !== 0) fail(`xcodebuild exited ${r.status}. Full output: ${logPath}`);
 }
 
 function prep(opts) {
@@ -695,12 +725,51 @@ function archive(opts) {
     '-archivePath', archivePath,
     '-allowProvisioningUpdates',
     'archive',
-  ], root);
+  ], root, 'xcode-archive.log');
   const app = path.join(archivePath, 'Products/Applications', built.scheme.buildableName || 'App.app');
   const info = inspectAppDir(app);
   if (info.build !== built.build) fail(`Archive build is ${info.build}, expected ${built.build}`);
   writeArchiveRecord(root, archivePath);
   return { archivePath, info, plistPath: built.plistPath };
+}
+
+function inspectBundledWeb(appDir) {
+  const pub = path.join(appDir, 'public');
+  if (!fs.existsSync(pub)) fail('Archive app has no public web directory');
+  for (const rel of Object.keys(EXPECTED)) {
+    const file = path.join(pub, rel);
+    if (!fs.existsSync(file)) fail(`Archive is missing public/${rel}`);
+    const got = sha256(read(file));
+    if (got !== EXPECTED[rel]) fail(`Archive public/${rel} hash ${got}`);
+  }
+  const appJsPath = path.join(pub, 'app.js');
+  if (!fs.existsSync(appJsPath)) fail('Archive is missing public/app.js');
+  const appJs = fs.readFileSync(appJsPath, 'utf8');
+  if (appBuildOf(appJs) !== RELEASE_BUILD) fail(`Archive public/app.js APP_BUILD is ${appBuildOf(appJs) || 'missing'}`);
+  if (sha256(appJsNormalized(appJs)) !== APP_JS_AT_61) fail('Archive public/app.js differs from the build 61 source besides APP_BUILD');
+  if (fs.existsSync(path.join(pub, SHOTS_REL))) fail(`Archive public still contains ${SHOTS_REL}`);
+}
+
+function adoptArchive(opts) {
+  const root = path.resolve(opts.root);
+  if (!opts.archive) fail('--archive is required');
+  const archivePath = path.resolve(opts.archive);
+  const rootDir = archivesRoot(opts.home);
+  if (!path.isAbsolute(opts.archive) || !archivePath.startsWith(rootDir + path.sep) || !archivePath.endsWith('.xcarchive') || !fs.existsSync(archivePath)) {
+    fail(`--archive must be an existing xcarchive under ${rootDir}`);
+  }
+  const app = path.join(archivePath, 'Products/Applications/App.app');
+  if (!fs.existsSync(app)) fail(`Archive has no ${app}`);
+  const info = inspectAppDir(app);
+  if (info.build !== RELEASE_BUILD) fail(`Archive build is ${info.build}, expected ${RELEASE_BUILD}`);
+  inspectBundledWeb(app);
+  const record = archiveRecordPath(root);
+  if (fs.existsSync(record)) {
+    const current = fs.readFileSync(record, 'utf8').trim();
+    if (path.resolve(current) !== archivePath) fail(`archive-path.txt already records ${current}. It was not overwritten.`);
+  } else writeArchiveRecord(root, archivePath);
+  if (!fs.existsSync(archivePath)) fail('Archive is missing after adopt.');
+  return { archivePath, info };
 }
 
 function exportIpa(opts) {
@@ -716,7 +785,7 @@ function exportIpa(opts) {
     '-exportPath', 'build/release/export',
     '-exportOptionsPlist', 'build/release/Logbook-Internal-ExportOptions.plist',
     '-allowProvisioningUpdates',
-  ], root);
+  ], root, 'xcode-export.log');
   const ipas = fs.readdirSync(exportDir).filter((n) => n.endsWith('.ipa'));
   if (ipas.length !== 1) fail(`Export produced ${ipas.length} ipa files`);
   const ipa = path.join(exportDir, ipas[0]);
@@ -746,6 +815,13 @@ function main(argv) {
     const r = archive(opts);
     console.log(`archive ok: ${r.info.id} ${r.info.marketing} (${r.info.build})`);
     console.log(r.archivePath);
+    return;
+  }
+  if (opts.cmd === 'adopt') {
+    const r = adoptArchive(opts);
+    console.log(`adopt ok: ${r.info.id} ${r.info.marketing} (${r.info.build}) ${r.info.display}`);
+    console.log(r.archivePath);
+    console.log('Recorded. The archive was not overwritten or deleted. Not exported or uploaded.');
     return;
   }
   if (opts.cmd === 'export') {
@@ -781,7 +857,7 @@ function main(argv) {
 module.exports = {
   EXPECTED, UPLOADED_BUILD, RELEASE_BUILD, ASC_APP, CACHE, PROD_ID, CONTAINER, exportPlist, assertInternalPlist,
   assertTree, bump, prep, inspectAppDir, parseArgs, requireBuild, forbiddenHits, findReleaseScheme, webTreeIssues,
-  extraClass, quarantineShots, copyPublic, EMPTY_SHA256, SHOTS_REL, SHOTS_SIZE, SHOTS_PREFIX,
+  extraClass, quarantineShots, copyPublic, adoptArchive, plistXml, EMPTY_SHA256, SHOTS_REL, SHOTS_SIZE, SHOTS_PREFIX, SHOTS_SHA256,
   archivesRoot, planArchive, writeArchiveRecord, readArchivePath,
 };
 

@@ -275,7 +275,7 @@ check('empty Cordova stubs are allowed and any other extra is not', () => {
   const nonempty = prep.webTreeIssues(root);
   if (!nonempty.some((s) => s.includes('not the empty Capacitor file'))) throw new Error(nonempty.join(' | '));
   if (prep.EMPTY_SHA256 !== 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855') throw new Error('empty hash');
-  if (prep.SHOTS_SIZE !== 120061 || prep.SHOTS_PREFIX !== '1b7735fb296fefd5') throw new Error('shots identity');
+  if (prep.SHOTS_SIZE !== 120061 || prep.SHOTS_SHA256 !== '1b7735fb296fefd5f5c7427a3e558ad9237b90d7f8479f60b52ad5880533c5fc' || !prep.SHOTS_SHA256.startsWith(prep.SHOTS_PREFIX)) throw new Error('shots identity');
 });
 check('the screenshot helper is quarantined only when it matches and is unreferenced', () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'shots-'));
@@ -298,6 +298,28 @@ check('an archived screenshot helper is rejected', () => {
   const msg = throws(() => prep.inspectAppDir(dir));
   if (!msg.includes('b59shots.js')) throw new Error(msg || 'no error');
 });
+check('a binary Info.plist is not read as text', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'bplist-'));
+  fs.writeFileSync(path.join(dir, 'Info.plist'), Buffer.concat([Buffer.from('bplist00'), Buffer.from('CFBundleIdentifier')]));
+  fs.writeFileSync(path.join(dir, 'archived-expanded-entitlements.xcent'), '<string>iCloud.com.borikengenetics.logbookapp</string>');
+  const msg = throws(() => prep.inspectAppDir(dir));
+  if (msg.includes('Archived bundle id is missing')) throw new Error(msg);
+  if (!msg.includes('plutil') && !msg.includes('PlistBuddy')) throw new Error(msg || 'no error');
+  if (!fs.existsSync(path.join(dir, 'Info.plist'))) throw new Error('plist removed');
+});
+check('adopt records an existing archive and does not delete it', () => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), 'adopt-home-'));
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'adopt-root-'));
+  const archivePath = path.join(home, 'Library/Developer/Xcode/Archives/2026-11-06/Logbook-phase1-2026-11-06-214738.xcarchive');
+  const app = path.join(archivePath, 'Products/Applications/App.app');
+  fs.mkdirSync(app, { recursive: true });
+  fs.writeFileSync(path.join(app, 'Info.plist'), '<plist><dict><key>CFBundleIdentifier</key><string>com.example.no</string><key>CFBundleShortVersionString</key><string>1.0</string><key>CFBundleVersion</key><string>62</string><key>CFBundleDisplayName</key><string>Borikèn Logbook</string></dict></plist>');
+  fs.writeFileSync(path.join(app, 'archived-expanded-entitlements.xcent'), '<string>iCloud.com.borikengenetics.logbookapp</string>');
+  const msg = throws(() => prep.adoptArchive({ root, archive: archivePath, home }));
+  if (!fs.existsSync(path.join(app, 'Info.plist'))) throw new Error('archive was deleted');
+  if (fs.existsSync(path.join(root, 'build/release/archive-path.txt'))) throw new Error('failed adopt was recorded');
+  if (!msg.includes('com.example.no')) throw new Error(msg || 'no error');
+});
 check('public files outside build-www are reported and kept', () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'public-extra-'));
   fs.mkdirSync(path.join(root, 'scripts'), { recursive: true });
@@ -311,6 +333,30 @@ check('public files outside build-www are reported and kept', () => {
   if (!issues.some((s) => s.includes('stray.txt'))) throw new Error(issues.join(' | ') || 'no issue');
   if (!fs.existsSync(extra)) throw new Error('extra file was deleted');
 });
+
+if (SAMPLE_ROOT) {
+  check('adopt records the prepared archive without deleting it', () => {
+    const home = fs.mkdtempSync(path.join(os.tmpdir(), 'adopt-ok-home-'));
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'adopt-ok-root-'));
+    const archivePath = path.join(home, 'Library/Developer/Xcode/Archives/2026-11-06/Logbook-phase1-2026-11-06-214738.xcarchive');
+    const appDir = path.join(archivePath, 'Products/Applications/App.app');
+    const pub = path.join(appDir, 'public');
+    fs.mkdirSync(pub, { recursive: true });
+    fs.writeFileSync(path.join(appDir, 'Info.plist'), '<plist><dict><key>CFBundleIdentifier</key><string>com.borikengenetics.logbookapp</string><key>CFBundleShortVersionString</key><string>1.0</string><key>CFBundleVersion</key><string>62</string><key>CFBundleDisplayName</key><string>Borikèn Logbook</string></dict></plist>');
+    fs.writeFileSync(path.join(appDir, 'archived-expanded-entitlements.xcent'), '<string>iCloud.com.borikengenetics.logbookapp</string>');
+    for (const rel of ['media-store.js', 'styles.css', 'service-worker.js', 'build59.css', 'build59.js', 'build13.js']) {
+      fs.copyFileSync(path.join(SAMPLE_ROOT, rel), path.join(pub, rel));
+    }
+    const appJs = fs.readFileSync(path.join(SAMPLE_ROOT, 'app.js'), 'utf8').replace("const APP_BUILD = '61';", "const APP_BUILD = '62';");
+    fs.writeFileSync(path.join(pub, 'app.js'), appJs);
+    const result = prep.adoptArchive({ root, archive: archivePath, home });
+    const record = path.join(root, 'build/release/archive-path.txt');
+    if (result.info.build !== '62' || fs.readFileSync(record, 'utf8').trim() !== archivePath) throw new Error('not recorded');
+    if (!fs.existsSync(path.join(appDir, 'Info.plist'))) throw new Error('archive deleted');
+    prep.adoptArchive({ root, archive: archivePath, home });
+    if (fs.readFileSync(record, 'utf8').trim() !== archivePath) throw new Error('record changed');
+  });
+}
 
 if (FAIL.length) {
   console.error('FAILED', FAIL.length);
