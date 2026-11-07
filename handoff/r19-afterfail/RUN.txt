@@ -1,0 +1,18 @@
+Copy b63-real-mockup.js onto scripts/b63-real-mockup.js.
+Leave scripts/b63-real-mockup.test.js and service-worker.js as they are.
+Do not pass --factor. Do not set B63_FAIL_LOG.
+
+Run once, then stop:
+
+  B63_AFTER_FAIL=1 node scripts/b63-real-mockup.test.js
+
+Nothing is added before Page.navigate. The 40x50ms gate and the assertions are unchanged.
+The extra read runs only after that gate has already failed.
+
+AFTERFAIL-ROW fields:
+  entry false and workerStart "unknown" means no resource entry. That is not workerStart 0.
+  workerStart on an entry is a PerformanceResourceTiming number, including 0. It is timing only. It does not prove the worker accepted the fetch or dropped the response.
+  responseStatus 0 is the entry's status. cacheStatus and bytes are caches.match of that URL.
+Rows are build39w.js, build40.js, the first failed or missing script if it is neither of those, then every such script. There is no 8-line cap.
+
+Without B63_AFTER_FAIL, this file follows the acceptance path.
