@@ -1,0 +1,36 @@
+BUILD 63 revision 17. Not compiled. No device is claimed fixed. No upload.
+
+Patch SHA-256 5393fea6700ece8a8da2f1d003c5c5208ac356bb795073183ffff89f33f8691e
+Cache name boriken-genetics-logbook-app-v90
+build63.css unchanged SHA-256 8582bbaa8737fe73cf4833f37088b3032bf6fd19401d4e9f755f7138c3382d71
+Strict layout stdout is unchanged: 42d012134fa8f1d5798020daa4c341a5c2ceee07cfb7a533287e110766c3baec
+
+Changed runtime files, three copies match:
+  build63.js SHA-256 99bc62ca21ed1f7bb2c6836d792db4582fd58b3f2c32ab78fcb646a2b17ea23f
+  service-worker.js SHA-256 d90df335c3467c83e32e3b43f6f0e5b03d8378138ec30bb26d3aad23b39994e9
+  build48.js SHA-256 177166b404d2532567cb2a68b4774586b3b0fed1645d1de6e440f98d98e063e6
+  build49.js SHA-256 f6d5548d054bbd992eb33c44c6290a09140a55d5f605df0ece9f16312b2b29ea
+  build51.js SHA-256 d4133c585e160fd5abaf09abe978d443513f9749369f7163bfa0afd144c1638d
+  index.html SHA-256 df17aa1319165deec3b63e343204c60a8cf7340f7b6bcbd076c99b92a91fa3cc
+
+A controlled page reads the installed shell from the cache. The repair file uses the network when it answers, and the cached copy when the network is offline, slow, or does not answer. A missing file and a failed read settle as an empty no-op. The repair read has its own completion bound, so it cannot hold the app open. The screen opens only after switchView, b18BrPageHtml, B49, B57, and B63 are present and the repair has settled. An uncaught error is recorded and fails that check. The switchView wrappers and the family-tree page call no longer throw when the previous function is missing.
+
+The startup test uses the real service worker. Offline, the cache name is v90 and the cached repair file is the one that cleared the father (202ms). A repair response delayed 3s settled in 561ms. A repair response that never ended settled in 595ms. Empty, missing, and failed reads left the father. Plants, breeding, tree, compliance, inspection, and mothers were opened after the scripts had run, with no uncaught error.
+
+Three isolated public renderer runs, each a first pass, exit 0:
+  loop 1 SHA-256 a30763420d9dba0fba82bb7d3b38b4dd61144597a2879b2c5d9a1afd59b501fa exit 0
+  loop 2 SHA-256 a30763420d9dba0fba82bb7d3b38b4dd61144597a2879b2c5d9a1afd59b501fa exit 0
+  loop 3 SHA-256 a30763420d9dba0fba82bb7d3b38b4dd61144597a2879b2c5d9a1afd59b501fa exit 0
+
+Suite outputs, each exit 0:
+  startup.txt SHA-256 f55389bea62f2ce670d5a088061767af1d4527a4de96f45e725e6a33c8009d31 exit 0
+  father.txt SHA-256 005f7ee68a70abd07c58b201e7f8b0afa9e17f6a41a17fef33c0297fc3a88020 exit 0
+  real-mockup.txt SHA-256 a30763420d9dba0fba82bb7d3b38b4dd61144597a2879b2c5d9a1afd59b501fa exit 0
+  no-sample.txt SHA-256 46686e551aea5424feed836cb467da6c607c26eb1f1a960f4b52014c750b9f7b exit 0
+  integration.txt SHA-256 2d828e559a15418b43507b0ca8469ff462315de36d534adc7a18566e17110bae exit 0
+  remaining.txt SHA-256 d3b5294f09637a05880e2bf007791487a3a129618c5222f3bfe2a761151aebef exit 0
+  photo.txt SHA-256 991db12ba0540e9274a0cc3911512de7844f24573b2250c791a50ae3de8a59aa exit 0
+  r5.txt SHA-256 74d686f72a41a6e25bcc0c2ddafe6bfe774e5b5ac42a67883a4ff189332a1957 exit 0
+  sw-browser.txt SHA-256 9c8dc9f71561162465cff077e54d3ed9b935fcdf6d7a0722ca4251b7bf22dc93 exit 0
+  fullapp.txt SHA-256 c0d99c94f1d1d13ed033e12917f11bcf1653109a41dae8e3f9897debb307fabc exit 0
+  r3-1.txt through r3-8.txt SHA-256 42d012134fa8f1d5798020daa4c341a5c2ceee07cfb7a533287e110766c3baec exit 0
