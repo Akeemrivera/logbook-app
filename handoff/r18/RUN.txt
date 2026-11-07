@@ -1,0 +1,11 @@
+R18 read-only startup diagnostic. It does not change the app, the service worker, the cache, or the repair.
+
+Run it on the failing snapshot and relay stdout. Do not rerun until it looks green.
+
+  node /cursor/stores/self/r18/b63-startup-diag.js --root /workspace/b63audit/snap15
+
+If this store is not mounted there, the same file is handoff/r18/b63-startup-diag.js on branch cursor/logbook-r18-startup-diag-e155. Point --root at the snapshot that contains index.html and service-worker.js.
+
+Leave --latency and --cpu off for this run. Exit 2 means a launch was still open at 2 seconds. The lines that matter are markers, pending-at-2s, pending-now, server-inflight, and boot.
+
+This cloud machine did not reproduce the stall. CLOUD-PASS.txt is that non-reproducing run. No app file was changed.
