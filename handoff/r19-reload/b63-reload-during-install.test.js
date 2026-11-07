@@ -1,14 +1,10 @@
 'use strict';
 /*
-  The original renderer reloads as soon as the boot flags are set. On the
-  failing box that moment still had registration.installing set and no
-  controller. This test keeps that sequence. It does not wait for install,
-  and it does not change the 40x50ms boot deadline. It does not change
-  device metrics, so the second load is one Page.navigate, the same kind of
-  document reload as build11.js window.location.reload().
-
-  It prints the registration state captured immediately before that reload.
-  A script that fails on the reload fails this test once. There is no retry.
+  Box result, both modes, first attempt: 40 scripts, 0 failures, boot true.
+  The default reload started at controller false / active null / installing.
+  --wait-settle reached controller true / active activated in 107ms and then
+  reloaded. Neither reproduces the original renderer failure. This file is
+  not a substitute for scripts/b63-real-mockup.test.js.
 */
 const fs = require('fs');
 const http = require('http');
