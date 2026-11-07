@@ -1,0 +1,16 @@
+Not a code change. app.js normalizePlant stays as shipped. The prevention-test archive is unchanged. No archive, backup, or date migration is implemented.
+
+Current behavior, still in normalizePlant: if flowerFlipDate is set and both flowerStartDate and plannedFlipDate are empty, a date on or before today is copied into flowerStartDate, and a later date is copied into plannedFlipDate. flowerFlipDate is then set to flowerStartDate. The plant form and the stage editor write flowerStartDate and flowerFlipDate together. A planned flip is stored only in plannedFlipDate and does not start flower. Empty fields stay empty, so a record with all three empty is not moved into flower by this block.
+
+A blanket removal of that copy would drop flower start on older records whose only flip date is flowerFlipDate. Those records are legitimate flowers. That change is not approved.
+
+Safe minimum, for a later patch only after approval:
+
+- Keep a past or today flowerFlipDate as flowerStartDate when flowerStartDate and plannedFlipDate are both empty.
+- Keep a future flowerFlipDate as plannedFlipDate only, and do not set flowerStartDate.
+- If flowerStartDate is already set, leave it, including when it is a real legacy flower.
+- If plannedFlipDate is already set and flowerStartDate is empty, do not invent a flower start.
+- If all three are empty, leave them empty.
+- Do not clear flowerStartDate, logs, or photos.
+
+Later tests should use synthetic plants only and assert those five cases. They must not load a live backup. They belong in a new patch, not in the current prevention archive.
