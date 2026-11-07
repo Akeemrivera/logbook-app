@@ -1,0 +1,536 @@
+--- a/build49.js
++++ b/build49.js
+@@ -260,9 +260,12 @@
+         row.dataset.b49g = '1';
+         const key = row.dataset.openPlant ? `${row.dataset.coll === 'breedingPlants' ? 'bp' : 'pl'}:${row.dataset.openPlant}` : `mf:${row.dataset.id}`;
+         const p = par(key); if (!p && !manualGen(key)) return;
+-        const t = row.querySelector('.m-t'); if (!t) return;
+-        t.insertAdjacentHTML('beforeend', ` ${badge(key)}`);
+-        const grow = t.parentElement; if (p && grow && !grow.querySelector('.b49-par')) { const shown = (k) => nameOf(k) || 'not recorded'; grow.insertAdjacentHTML('beforeend', `<div class="m-s b49-par">${esc(shown(p[0]))} × ${esc(shown(p[1]))}</div>`); }
++        const t = row.querySelector('.m-t');
++        const title = t || row.querySelector('h3');
++        if (!title) return;
++        if (t) t.insertAdjacentHTML('beforeend', ` ${badge(key)}`);
++        const grow = (t && t.parentElement) || row.querySelector('.w-pc-id') || title.parentElement;
++        if (p && grow && !grow.querySelector('.b49-par')) { const shown = (k) => nameOf(k) || 'not recorded'; grow.insertAdjacentHTML('beforeend', `<div class="m-s b49-par">${esc(shown(p[0]))} × ${esc(shown(p[1]))}</div>`); }
+       });
+       const pd = document.querySelector('#plant-detail-view.active .pd-sheet');
+       if (pd && !pd.querySelector('.b49-gcard')) { const key = `${detailColl === 'breedingPlants' ? 'bp' : 'pl'}:${detailPlantId()}`; const h = genCard(key); if (h) (pd.querySelector('.pd-quick') || pd.firstElementChild).insertAdjacentHTML('afterend', h); }
+--- a/www/build49.js
++++ b/www/build49.js
+@@ -260,9 +260,12 @@
+         row.dataset.b49g = '1';
+         const key = row.dataset.openPlant ? `${row.dataset.coll === 'breedingPlants' ? 'bp' : 'pl'}:${row.dataset.openPlant}` : `mf:${row.dataset.id}`;
+         const p = par(key); if (!p && !manualGen(key)) return;
+-        const t = row.querySelector('.m-t'); if (!t) return;
+-        t.insertAdjacentHTML('beforeend', ` ${badge(key)}`);
+-        const grow = t.parentElement; if (p && grow && !grow.querySelector('.b49-par')) { const shown = (k) => nameOf(k) || 'not recorded'; grow.insertAdjacentHTML('beforeend', `<div class="m-s b49-par">${esc(shown(p[0]))} × ${esc(shown(p[1]))}</div>`); }
++        const t = row.querySelector('.m-t');
++        const title = t || row.querySelector('h3');
++        if (!title) return;
++        if (t) t.insertAdjacentHTML('beforeend', ` ${badge(key)}`);
++        const grow = (t && t.parentElement) || row.querySelector('.w-pc-id') || title.parentElement;
++        if (p && grow && !grow.querySelector('.b49-par')) { const shown = (k) => nameOf(k) || 'not recorded'; grow.insertAdjacentHTML('beforeend', `<div class="m-s b49-par">${esc(shown(p[0]))} × ${esc(shown(p[1]))}</div>`); }
+       });
+       const pd = document.querySelector('#plant-detail-view.active .pd-sheet');
+       if (pd && !pd.querySelector('.b49-gcard')) { const key = `${detailColl === 'breedingPlants' ? 'bp' : 'pl'}:${detailPlantId()}`; const h = genCard(key); if (h) (pd.querySelector('.pd-quick') || pd.firstElementChild).insertAdjacentHTML('afterend', h); }
+--- a/ios/App/App/public/build49.js
++++ b/ios/App/App/public/build49.js
+@@ -260,9 +260,12 @@
+         row.dataset.b49g = '1';
+         const key = row.dataset.openPlant ? `${row.dataset.coll === 'breedingPlants' ? 'bp' : 'pl'}:${row.dataset.openPlant}` : `mf:${row.dataset.id}`;
+         const p = par(key); if (!p && !manualGen(key)) return;
+-        const t = row.querySelector('.m-t'); if (!t) return;
+-        t.insertAdjacentHTML('beforeend', ` ${badge(key)}`);
+-        const grow = t.parentElement; if (p && grow && !grow.querySelector('.b49-par')) { const shown = (k) => nameOf(k) || 'not recorded'; grow.insertAdjacentHTML('beforeend', `<div class="m-s b49-par">${esc(shown(p[0]))} × ${esc(shown(p[1]))}</div>`); }
++        const t = row.querySelector('.m-t');
++        const title = t || row.querySelector('h3');
++        if (!title) return;
++        if (t) t.insertAdjacentHTML('beforeend', ` ${badge(key)}`);
++        const grow = (t && t.parentElement) || row.querySelector('.w-pc-id') || title.parentElement;
++        if (p && grow && !grow.querySelector('.b49-par')) { const shown = (k) => nameOf(k) || 'not recorded'; grow.insertAdjacentHTML('beforeend', `<div class="m-s b49-par">${esc(shown(p[0]))} × ${esc(shown(p[1]))}</div>`); }
+       });
+       const pd = document.querySelector('#plant-detail-view.active .pd-sheet');
+       if (pd && !pd.querySelector('.b49-gcard')) { const key = `${detailColl === 'breedingPlants' ? 'bp' : 'pl'}:${detailPlantId()}`; const h = genCard(key); if (h) (pd.querySelector('.pd-quick') || pd.firstElementChild).insertAdjacentHTML('afterend', h); }
+--- a/build57.js
++++ b/build57.js
+@@ -56,11 +56,22 @@
+   }
+   const isUnk = (k) => !k || (String(k).startsWith('tx:') && (UNK.test(String(k).slice(3).trim()) || !String(k).slice(3).trim()));
+   function recordedDeletion(k) {
+-    return [state.plants, state.breedingPlants, state.motherFatherPlants, state.breedingProjects].some((a) => (a || []).some((r) => r && r.b58DeletedAt && (r.b49Mother === k || r.b49Father === k)));
++    const text = String(k || '');
++    if (!text.startsWith('dx:')) return false;
++    const name = text.slice(3);
++    if (!name) return false;
++    /* A timestamp on the child is not proof. Only a side entry that still names this parent and keeps the old record key is. */
++    return [state.plants, state.breedingPlants, state.motherFatherPlants, state.breedingProjects].some((a) => (a || []).some((r) => {
++      const book = r && r.b58DeletedParents;
++      if (!book || typeof book !== 'object') return false;
++      return ['m', 'f'].some((side) => {
++        const entry = book[side];
++        return !!(entry && typeof entry === 'object' && entry.key && entry.name === name);
++      });
++    }));
+   }
+   function stat(k) {
+     if (isUnk(k)) return { t: 'unknown', l: 'Unknown · open pollination / mixed pollen' };
+-    /* A dx: name is a recorded deletion only when the same write stored b58DeletedAt. A name with no deletion record stays unlinked. */
+     if (String(k).startsWith('dx:')) return recordedDeletion(k) ? { t: 'removed', l: 'Deleted plant (name kept)' } : { t: 'nameonly', l: 'Name only · not linked' };
+     const r = rec(k); if (String(k).startsWith('tx:')) return { t: 'bought', l: 'Bought genetics · From another breeder', br: '' };
+     if (!r) return { t: 'removed', l: 'Deleted plant' };
+--- a/www/build57.js
++++ b/www/build57.js
+@@ -56,11 +56,22 @@
+   }
+   const isUnk = (k) => !k || (String(k).startsWith('tx:') && (UNK.test(String(k).slice(3).trim()) || !String(k).slice(3).trim()));
+   function recordedDeletion(k) {
+-    return [state.plants, state.breedingPlants, state.motherFatherPlants, state.breedingProjects].some((a) => (a || []).some((r) => r && r.b58DeletedAt && (r.b49Mother === k || r.b49Father === k)));
++    const text = String(k || '');
++    if (!text.startsWith('dx:')) return false;
++    const name = text.slice(3);
++    if (!name) return false;
++    /* A timestamp on the child is not proof. Only a side entry that still names this parent and keeps the old record key is. */
++    return [state.plants, state.breedingPlants, state.motherFatherPlants, state.breedingProjects].some((a) => (a || []).some((r) => {
++      const book = r && r.b58DeletedParents;
++      if (!book || typeof book !== 'object') return false;
++      return ['m', 'f'].some((side) => {
++        const entry = book[side];
++        return !!(entry && typeof entry === 'object' && entry.key && entry.name === name);
++      });
++    }));
+   }
+   function stat(k) {
+     if (isUnk(k)) return { t: 'unknown', l: 'Unknown · open pollination / mixed pollen' };
+-    /* A dx: name is a recorded deletion only when the same write stored b58DeletedAt. A name with no deletion record stays unlinked. */
+     if (String(k).startsWith('dx:')) return recordedDeletion(k) ? { t: 'removed', l: 'Deleted plant (name kept)' } : { t: 'nameonly', l: 'Name only · not linked' };
+     const r = rec(k); if (String(k).startsWith('tx:')) return { t: 'bought', l: 'Bought genetics · From another breeder', br: '' };
+     if (!r) return { t: 'removed', l: 'Deleted plant' };
+--- a/ios/App/App/public/build57.js
++++ b/ios/App/App/public/build57.js
+@@ -56,11 +56,22 @@
+   }
+   const isUnk = (k) => !k || (String(k).startsWith('tx:') && (UNK.test(String(k).slice(3).trim()) || !String(k).slice(3).trim()));
+   function recordedDeletion(k) {
+-    return [state.plants, state.breedingPlants, state.motherFatherPlants, state.breedingProjects].some((a) => (a || []).some((r) => r && r.b58DeletedAt && (r.b49Mother === k || r.b49Father === k)));
++    const text = String(k || '');
++    if (!text.startsWith('dx:')) return false;
++    const name = text.slice(3);
++    if (!name) return false;
++    /* A timestamp on the child is not proof. Only a side entry that still names this parent and keeps the old record key is. */
++    return [state.plants, state.breedingPlants, state.motherFatherPlants, state.breedingProjects].some((a) => (a || []).some((r) => {
++      const book = r && r.b58DeletedParents;
++      if (!book || typeof book !== 'object') return false;
++      return ['m', 'f'].some((side) => {
++        const entry = book[side];
++        return !!(entry && typeof entry === 'object' && entry.key && entry.name === name);
++      });
++    }));
+   }
+   function stat(k) {
+     if (isUnk(k)) return { t: 'unknown', l: 'Unknown · open pollination / mixed pollen' };
+-    /* A dx: name is a recorded deletion only when the same write stored b58DeletedAt. A name with no deletion record stays unlinked. */
+     if (String(k).startsWith('dx:')) return recordedDeletion(k) ? { t: 'removed', l: 'Deleted plant (name kept)' } : { t: 'nameonly', l: 'Name only · not linked' };
+     const r = rec(k); if (String(k).startsWith('tx:')) return { t: 'bought', l: 'Bought genetics · From another breeder', br: '' };
+     if (!r) return { t: 'removed', l: 'Deleted plant' };
+--- a/build58.js
++++ b/build58.js
+@@ -209,7 +209,7 @@
+   let SNAP = null; const allKeys = () => [['pl', state.plants], ['bp', state.breedingPlants], ['mf', state.motherFatherPlants], ['pr', state.breedingProjects]].flatMap(([t, a]) => (a || []).map((r) => [`${t}:${r.id}`, r]));
+   function snap() { const m = new Map(); allKeys().forEach(([k, r]) => m.set(k, { n: r.name || nameOf(k), p: parOf(k) })); SNAP = m; }
+   function tomb() { if (!SNAP) return; const now = new Set(allKeys().map(([k]) => k)); const gone = [...SNAP.keys()].filter((k) => !now.has(k)); if (!gone.length) return;
+-    allKeys().forEach(([k, r]) => { const s0 = SNAP.get(k); if (!s0 || !s0.p) return; s0.p.forEach((q, i) => { if (q && gone.includes(q)) { const sd = i ? 'f' : 'm'; if (r.b58Manual && r.b58Manual[sd] && r[F[sd]] !== q) return; r.b58Manual = Object.assign({}, r.b58Manual, { [sd]: true }); r[F[sd]] = `dx:${SNAP.get(q).n || 'Deleted plant'}`; r.b58DeletedAt = new Date().toISOString(); } }); }); }
++    allKeys().forEach(([k, r]) => { const s0 = SNAP.get(k); if (!s0 || !s0.p) return; s0.p.forEach((q, i) => { if (q && gone.includes(q)) { const sd = i ? 'f' : 'm'; if (r.b58Manual && r.b58Manual[sd] && r[F[sd]] !== q) return; const nm = SNAP.get(q).n || 'Deleted plant'; const at = new Date().toISOString(); r.b58Manual = Object.assign({}, r.b58Manual, { [sd]: true }); r.b58DeletedParents = Object.assign({}, r.b58DeletedParents, { [sd]: { key: q, name: nm, at } }); r[F[sd]] = `dx:${nm}`; r.b58DeletedAt = at; } }); }); }
+   const _sv = saveState; let inSv = false; saveState = function () { if (!inSv) { inSv = true; try { tomb(); } catch (e) { console.warn('b58 tomb', e); } inSv = false; } const x = _sv.apply(this, arguments); try { setTimeout(snap, 0); } catch (e) { /* */ } return x; };
+   try { if (migrate()) saveState(); else snap(); } catch (e) { console.warn('b58 migrate', e); }
+   setInterval(decorate, 300);
+--- a/www/build58.js
++++ b/www/build58.js
+@@ -209,7 +209,7 @@
+   let SNAP = null; const allKeys = () => [['pl', state.plants], ['bp', state.breedingPlants], ['mf', state.motherFatherPlants], ['pr', state.breedingProjects]].flatMap(([t, a]) => (a || []).map((r) => [`${t}:${r.id}`, r]));
+   function snap() { const m = new Map(); allKeys().forEach(([k, r]) => m.set(k, { n: r.name || nameOf(k), p: parOf(k) })); SNAP = m; }
+   function tomb() { if (!SNAP) return; const now = new Set(allKeys().map(([k]) => k)); const gone = [...SNAP.keys()].filter((k) => !now.has(k)); if (!gone.length) return;
+-    allKeys().forEach(([k, r]) => { const s0 = SNAP.get(k); if (!s0 || !s0.p) return; s0.p.forEach((q, i) => { if (q && gone.includes(q)) { const sd = i ? 'f' : 'm'; if (r.b58Manual && r.b58Manual[sd] && r[F[sd]] !== q) return; r.b58Manual = Object.assign({}, r.b58Manual, { [sd]: true }); r[F[sd]] = `dx:${SNAP.get(q).n || 'Deleted plant'}`; r.b58DeletedAt = new Date().toISOString(); } }); }); }
++    allKeys().forEach(([k, r]) => { const s0 = SNAP.get(k); if (!s0 || !s0.p) return; s0.p.forEach((q, i) => { if (q && gone.includes(q)) { const sd = i ? 'f' : 'm'; if (r.b58Manual && r.b58Manual[sd] && r[F[sd]] !== q) return; const nm = SNAP.get(q).n || 'Deleted plant'; const at = new Date().toISOString(); r.b58Manual = Object.assign({}, r.b58Manual, { [sd]: true }); r.b58DeletedParents = Object.assign({}, r.b58DeletedParents, { [sd]: { key: q, name: nm, at } }); r[F[sd]] = `dx:${nm}`; r.b58DeletedAt = at; } }); }); }
+   const _sv = saveState; let inSv = false; saveState = function () { if (!inSv) { inSv = true; try { tomb(); } catch (e) { console.warn('b58 tomb', e); } inSv = false; } const x = _sv.apply(this, arguments); try { setTimeout(snap, 0); } catch (e) { /* */ } return x; };
+   try { if (migrate()) saveState(); else snap(); } catch (e) { console.warn('b58 migrate', e); }
+   setInterval(decorate, 300);
+--- a/ios/App/App/public/build58.js
++++ b/ios/App/App/public/build58.js
+@@ -209,7 +209,7 @@
+   let SNAP = null; const allKeys = () => [['pl', state.plants], ['bp', state.breedingPlants], ['mf', state.motherFatherPlants], ['pr', state.breedingProjects]].flatMap(([t, a]) => (a || []).map((r) => [`${t}:${r.id}`, r]));
+   function snap() { const m = new Map(); allKeys().forEach(([k, r]) => m.set(k, { n: r.name || nameOf(k), p: parOf(k) })); SNAP = m; }
+   function tomb() { if (!SNAP) return; const now = new Set(allKeys().map(([k]) => k)); const gone = [...SNAP.keys()].filter((k) => !now.has(k)); if (!gone.length) return;
+-    allKeys().forEach(([k, r]) => { const s0 = SNAP.get(k); if (!s0 || !s0.p) return; s0.p.forEach((q, i) => { if (q && gone.includes(q)) { const sd = i ? 'f' : 'm'; if (r.b58Manual && r.b58Manual[sd] && r[F[sd]] !== q) return; r.b58Manual = Object.assign({}, r.b58Manual, { [sd]: true }); r[F[sd]] = `dx:${SNAP.get(q).n || 'Deleted plant'}`; r.b58DeletedAt = new Date().toISOString(); } }); }); }
++    allKeys().forEach(([k, r]) => { const s0 = SNAP.get(k); if (!s0 || !s0.p) return; s0.p.forEach((q, i) => { if (q && gone.includes(q)) { const sd = i ? 'f' : 'm'; if (r.b58Manual && r.b58Manual[sd] && r[F[sd]] !== q) return; const nm = SNAP.get(q).n || 'Deleted plant'; const at = new Date().toISOString(); r.b58Manual = Object.assign({}, r.b58Manual, { [sd]: true }); r.b58DeletedParents = Object.assign({}, r.b58DeletedParents, { [sd]: { key: q, name: nm, at } }); r[F[sd]] = `dx:${nm}`; r.b58DeletedAt = at; } }); }); }
+   const _sv = saveState; let inSv = false; saveState = function () { if (!inSv) { inSv = true; try { tomb(); } catch (e) { console.warn('b58 tomb', e); } inSv = false; } const x = _sv.apply(this, arguments); try { setTimeout(snap, 0); } catch (e) { /* */ } return x; };
+   try { if (migrate()) saveState(); else snap(); } catch (e) { console.warn('b58 migrate', e); }
+   setInterval(decorate, 300);
+--- a/wide.js
++++ b/wide.js
+@@ -137,7 +137,7 @@
+   const cur = typeof detailPlantId === 'function' ? detailPlantId() : '';
+   list.innerHTML = `${wSearchHtml('plants', breeding ? 'Search breeding plants' : 'Search plants')}${items.map((p) => {
+     const st = getPlantStats(p); const stage = p.status === 'harvest' ? 'Harvest' : st.stage;
+-    const day = stage === 'Flower' && st.flowerDays !== null ? `Flower day ${st.flowerDays + 1}` : stage === 'Veg' && st.daysInVeg !== null ? `Veg day ${st.daysInVeg + 1}` : `Day ${st.totalDays + 1}`;
++    const day = typeof plantDayLabel === 'function' ? plantDayLabel(p, st) : (stage === 'Flower' && st.flowerDays !== null ? `Flower day ${st.flowerDays + 1}` : stage === 'Veg' && st.daysInVeg !== null ? `Veg day ${st.daysInVeg + 1}` : (p.startDate ? `Day ${st.totalDays + 1}` : 'Date not recorded'));
+     return `<button type="button" class="w-li${p.id === cur ? ' on' : ''}" data-w-open="${wEsc(p.id)}" data-coll="${breeding ? 'breedingPlants' : 'plants'}"${p.id === cur ? ' aria-current="true"' : ''}>${plantThumbHtml(p)}<span class="w-li-t"><b>${wEsc(p.name)}</b><small>${wEsc([day, p.location].filter(Boolean).join(' · '))}</small></span><span class="badge ${getStageClass(stage)}">${wEsc(stage)}</span></button>`;
+   }).join('')}`;
+   wApplySearch();
+--- a/www/wide.js
++++ b/www/wide.js
+@@ -137,7 +137,7 @@
+   const cur = typeof detailPlantId === 'function' ? detailPlantId() : '';
+   list.innerHTML = `${wSearchHtml('plants', breeding ? 'Search breeding plants' : 'Search plants')}${items.map((p) => {
+     const st = getPlantStats(p); const stage = p.status === 'harvest' ? 'Harvest' : st.stage;
+-    const day = stage === 'Flower' && st.flowerDays !== null ? `Flower day ${st.flowerDays + 1}` : stage === 'Veg' && st.daysInVeg !== null ? `Veg day ${st.daysInVeg + 1}` : `Day ${st.totalDays + 1}`;
++    const day = typeof plantDayLabel === 'function' ? plantDayLabel(p, st) : (stage === 'Flower' && st.flowerDays !== null ? `Flower day ${st.flowerDays + 1}` : stage === 'Veg' && st.daysInVeg !== null ? `Veg day ${st.daysInVeg + 1}` : (p.startDate ? `Day ${st.totalDays + 1}` : 'Date not recorded'));
+     return `<button type="button" class="w-li${p.id === cur ? ' on' : ''}" data-w-open="${wEsc(p.id)}" data-coll="${breeding ? 'breedingPlants' : 'plants'}"${p.id === cur ? ' aria-current="true"' : ''}>${plantThumbHtml(p)}<span class="w-li-t"><b>${wEsc(p.name)}</b><small>${wEsc([day, p.location].filter(Boolean).join(' · '))}</small></span><span class="badge ${getStageClass(stage)}">${wEsc(stage)}</span></button>`;
+   }).join('')}`;
+   wApplySearch();
+--- a/ios/App/App/public/wide.js
++++ b/ios/App/App/public/wide.js
+@@ -137,7 +137,7 @@
+   const cur = typeof detailPlantId === 'function' ? detailPlantId() : '';
+   list.innerHTML = `${wSearchHtml('plants', breeding ? 'Search breeding plants' : 'Search plants')}${items.map((p) => {
+     const st = getPlantStats(p); const stage = p.status === 'harvest' ? 'Harvest' : st.stage;
+-    const day = stage === 'Flower' && st.flowerDays !== null ? `Flower day ${st.flowerDays + 1}` : stage === 'Veg' && st.daysInVeg !== null ? `Veg day ${st.daysInVeg + 1}` : `Day ${st.totalDays + 1}`;
++    const day = typeof plantDayLabel === 'function' ? plantDayLabel(p, st) : (stage === 'Flower' && st.flowerDays !== null ? `Flower day ${st.flowerDays + 1}` : stage === 'Veg' && st.daysInVeg !== null ? `Veg day ${st.daysInVeg + 1}` : (p.startDate ? `Day ${st.totalDays + 1}` : 'Date not recorded'));
+     return `<button type="button" class="w-li${p.id === cur ? ' on' : ''}" data-w-open="${wEsc(p.id)}" data-coll="${breeding ? 'breedingPlants' : 'plants'}"${p.id === cur ? ' aria-current="true"' : ''}>${plantThumbHtml(p)}<span class="w-li-t"><b>${wEsc(p.name)}</b><small>${wEsc([day, p.location].filter(Boolean).join(' · '))}</small></span><span class="badge ${getStageClass(stage)}">${wEsc(stage)}</span></button>`;
+   }).join('')}`;
+   wApplySearch();
+--- a/service-worker.js
++++ b/service-worker.js
+@@ -6,11 +6,11 @@
+   so users should still export JSON backups for long-term records.
+ */
+ 
+-// v86: parent labels, status words, and plant dates changed. An older cache keeps the previous
++// v87: parent labels and the tree page changed. An older cache keeps the previous
+ // shell until this file changes. Activate deletes every other cache.
+ // iosScheme is https, so this worker registers inside the iOS wrapper (https://localhost).
+ // Precache requests use cache:'reload' so a cached localhost response cannot refill the new cache.
+-const CACHE_NAME = 'boriken-genetics-logbook-app-v86';
++const CACHE_NAME = 'boriken-genetics-logbook-app-v87';
+ const APP_SHELL = [
+   './',
+   './index.html',
+--- a/www/service-worker.js
++++ b/www/service-worker.js
+@@ -6,11 +6,11 @@
+   so users should still export JSON backups for long-term records.
+ */
+ 
+-// v86: parent labels, status words, and plant dates changed. An older cache keeps the previous
++// v87: parent labels and the tree page changed. An older cache keeps the previous
+ // shell until this file changes. Activate deletes every other cache.
+ // iosScheme is https, so this worker registers inside the iOS wrapper (https://localhost).
+ // Precache requests use cache:'reload' so a cached localhost response cannot refill the new cache.
+-const CACHE_NAME = 'boriken-genetics-logbook-app-v86';
++const CACHE_NAME = 'boriken-genetics-logbook-app-v87';
+ const APP_SHELL = [
+   './',
+   './index.html',
+--- a/ios/App/App/public/service-worker.js
++++ b/ios/App/App/public/service-worker.js
+@@ -6,11 +6,11 @@
+   so users should still export JSON backups for long-term records.
+ */
+ 
+-// v86: parent labels, status words, and plant dates changed. An older cache keeps the previous
++// v87: parent labels and the tree page changed. An older cache keeps the previous
+ // shell until this file changes. Activate deletes every other cache.
+ // iosScheme is https, so this worker registers inside the iOS wrapper (https://localhost).
+ // Precache requests use cache:'reload' so a cached localhost response cannot refill the new cache.
+-const CACHE_NAME = 'boriken-genetics-logbook-app-v86';
++const CACHE_NAME = 'boriken-genetics-logbook-app-v87';
+ const APP_SHELL = [
+   './',
+   './index.html',
+--- a/scripts/b63-real-mockup.js
++++ b/scripts/b63-real-mockup.js
+@@ -45,11 +45,11 @@
+ const DATE_FIELDS = ['startDate', 'vegStartDate', 'flowerStartDate', 'flowerFlipDate', 'plannedFlipDate', 'harvestDate', 'archivedAt', 'dryStartDate', 'dryEndDate', 'cureStartDate', 'cureEndDate', 'finishedDate', 'completedAt'];
+ const SHORT_FIELDS = ['statusOverride', 'growthStage', 'complianceStage', 'growType', 'location', 'areaOrRoom', 'cultivar', 'crossLabel', 'source', 'b58DeletedAt'];
+ const NUM_FIELDS = ['count', 'expectedVegDays', 'expectedFlowerDays', 'seedsPopped'];
+-const PLANT_FIELDS = ['id', 'name', 'status', 'archived', 'deleted', 'b49Mother', 'b49Father', 'b58Manual', 'b49ProjectId', 'motherId', 'fatherId', 'motherPlantId', 'grade', ...DATE_FIELDS, ...SHORT_FIELDS, ...NUM_FIELDS];
++const PLANT_FIELDS = ['id', 'name', 'status', 'archived', 'deleted', 'b49Mother', 'b49Father', 'b58Manual', 'b58DeletedParents', 'b49ProjectId', 'motherId', 'fatherId', 'motherPlantId', 'grade', ...DATE_FIELDS, ...SHORT_FIELDS, ...NUM_FIELDS];
+ const ALLOWED = {
+   plants: PLANT_FIELDS,
+   breedingPlants: PLANT_FIELDS,
+-  motherFatherPlants: ['id', 'name', 'role', 'status', 'archived', 'deleted', 'b49Mother', 'b49Father', 'b58Manual', 'b58DeletedAt', 'promotedFrom', 'startDate'],
++  motherFatherPlants: ['id', 'name', 'role', 'status', 'archived', 'deleted', 'b49Mother', 'b49Father', 'b58Manual', 'b58DeletedAt', 'b58DeletedParents', 'promotedFrom', 'startDate'],
+   breedingProjects: ['id', 'name', 'status', 'motherId', 'fatherId', 'mother', 'father', 'b49Mother', 'b49Father', 'b58Manual'],
+   cloneRuns: ['id', 'name', 'srcId', 'srcColl', 'motherPlantId', 'status'],
+ };
+@@ -79,6 +79,17 @@
+       if (typeof value !== 'number' || !Number.isFinite(value)) fail(where + ' ' + key + ' must be a number. Leave it out when it is unknown.');
+     } else if (key === 'deleted' || key === 'archived') {
+       if (typeof value !== 'boolean') fail(where + ' ' + key + ' must be true or false');
++    } else if (key === 'b58DeletedParents') {
++      if (!value || typeof value !== 'object' || Array.isArray(value)) fail(where + ' b58DeletedParents must be an object');
++      Object.keys(value).forEach((side) => {
++        if (side !== 'm' && side !== 'f') fail(where + ' b58DeletedParents only allows m and f');
++        const entry = value[side];
++        if (!entry || typeof entry !== 'object' || Array.isArray(entry)) fail(where + ' b58DeletedParents.' + side + ' must be an object');
++        Object.keys(entry).forEach((ek) => {
++          if (ek !== 'key' && ek !== 'name' && ek !== 'at') fail(where + ' b58DeletedParents.' + side + ' only allows key, name, and at');
++        });
++        if (typeof entry.key !== 'string' || !entry.key || typeof entry.name !== 'string' || !entry.name) fail(where + ' b58DeletedParents.' + side + ' needs the old record key and the name');
++      });
+     } else if (key === 'grade') {
+       if (!value || typeof value !== 'object' || Array.isArray(value)) fail(where + ' grade must be an object');
+       Object.keys(value).forEach((gk) => {
+@@ -194,8 +205,11 @@
+     await new Promise((resolve, reject) => { ws.addEventListener('open', resolve); ws.addEventListener('error', reject); });
+     let n = 0;
+     const pending = new Map();
++    const logs = [];
+     ws.addEventListener('message', (ev) => {
+       const msg = JSON.parse(ev.data);
++      if (msg.method === 'Runtime.consoleAPICalled') logs.push(msg.params.type + ' ' + (msg.params.args || []).map((a) => a.value || a.description || '').join(' ').slice(0, 240));
++      if (msg.method === 'Runtime.exceptionThrown') logs.push('exception ' + ((msg.params.exceptionDetails && (msg.params.exceptionDetails.exception && msg.params.exceptionDetails.exception.description || msg.params.exceptionDetails.text)) || '').slice(0, 400));
+       if (msg.id && pending.has(msg.id)) { const done = pending.get(msg.id); pending.delete(msg.id); done(msg); }
+     });
+     function send(method, params) {
+@@ -217,12 +231,12 @@
+     for (const [w, h] of opts.viewports) {
+       await send('Emulation.setDeviceMetricsOverride', { width: w, height: h, deviceScaleFactor: 1, mobile: w < 900 });
+       await send('Page.navigate', { url: 'http://127.0.0.1:' + port + '/index.html?screen=' + opts.screen });
+-      let ready = false;
+-      for (let i = 0; i < 40 && !ready; i++) {
+-        ready = await evaluate('document.readyState === \'complete\' && typeof switchView === \'function\' && typeof B49 !== \'undefined\'');
+-        if (!ready) await sleep(50);
++      let ready = null;
++      for (let i = 0; i < 40 && !(ready && ready.ok); i++) {
++        ready = await evaluate('({ readyState: document.readyState, ok: document.readyState !== "loading" && typeof switchView === "function" && typeof B49 !== "undefined" && typeof B57 !== "undefined" && !!document.getElementById("breeding-view") && !!document.getElementById("compliance-view") && !!document.getElementById("home-view") })');
++        if (!ready || !ready.ok) await sleep(50);
+       }
+-      if (!ready) fail('the app did not finish loading');
++      if (!ready || !ready.ok) fail('the app did not finish loading ' + JSON.stringify(ready) + ' ' + logs.slice(-6).join(' | '));
+       await send('Emulation.setDeviceMetricsOverride', { width: w, height: h, deviceScaleFactor: 1, mobile: w < 900 });
+       const opened = await evaluate(`(() => {
+         const screen = ${JSON.stringify(opts.screen)};
+@@ -236,19 +250,23 @@
+       })()`);
+       if (opened !== opts.screen) fail('the ' + opts.screen + ' screen did not open');
+       let seen = null;
++      let lastSeen = null;
+       for (let i = 0; i < 40 && !seen; i++) {
+         await evaluate('new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(() => r(true))))');
+         seen = await evaluate(`(() => {
+           const screen = ${JSON.stringify(opts.screen)};
+           const title = ${JSON.stringify(opts.record ? (opts.record.row.name || '') : '')};
++          const key = ${JSON.stringify(opts.record ? opts.record.appKey : '')};
+           const id = ${JSON.stringify(opts.record ? opts.record.row.id : '')};
+           const list = ${JSON.stringify(opts.record ? opts.record.list : '')};
+           const text = document.body.innerText || '';
+           const heading = (document.querySelector('h2.b18-h1, #home-heading, #compliance-heading') || {}).textContent || '';
+           let identity = false;
+           if (screen === 'tree') {
+-            const h = document.querySelector('#breeding-view h2.b18-h1');
+-            identity = !!(h && h.textContent === 'Family tree' && title && text.includes(title));
++            const view = document.getElementById('breeding-view');
++            const h = view && view.querySelector('h2.b18-h1');
++            const treeText = (view && view.innerText) || '';
++            identity = !!(view && view.classList.contains('active') && h && h.textContent === 'Family tree' && title && treeText.toLowerCase().includes(String(title).toLowerCase()));
+           } else if (screen === 'plants') {
+             identity = document.querySelector('#home-view') && document.querySelector('#home-view').classList.contains('active') && (!title || text.includes(title));
+           } else if (screen === 'mf') {
+@@ -266,11 +284,14 @@
+             father = row ? String(row.b49Father || '') : '';
+           }
+           const others = (state.plants || []).filter((r) => r.id !== id).map((r) => r.id + ':' + String(r.b49Father || ''));
+-          return { identity, readyCss, heading, father, others, hasTitle: !title || text.includes(title) };
++          const pageKey = (window.B18 && B18.brPage && B18.brPage.key) || '';
++          const treeText = ((document.querySelector('#breeding-view') || {}).innerText || '').replace(/\\s+/g, ' ').slice(0, 240);
++          return { identity, readyCss, heading, father, others, hasTitle: !title || text.toLowerCase().includes(String(title).toLowerCase()), pageKey, treeText };
+         })()`);
++        lastSeen = seen;
+         if (!seen || !seen.identity || !seen.readyCss) { seen = null; await sleep(50); }
+       }
+-      if (!seen || !seen.identity) fail('the ' + opts.screen + ' page did not render the requested record at ' + w + 'x' + h);
++      if (!seen || !seen.identity) fail('the ' + opts.screen + ' page did not render the requested record at ' + w + 'x' + h + ' ' + JSON.stringify({ heading: lastSeen && lastSeen.heading, pageKey: lastSeen && lastSeen.pageKey, treeText: lastSeen && lastSeen.treeText, readyCss: lastSeen && lastSeen.readyCss }) + ' ' + logs.slice(-4).join(' | '));
+       if (opts.phase === 'before' && opts.record && opts.record.list === 'plants') {
+         if (seen.father !== String(opts.record.row.b49Father || '')) fail('before launch changed the father');
+       }
+@@ -283,7 +304,7 @@
+       if (blankFather) {
+         let labeled = false;
+         for (let i = 0; i < 30 && !labeled; i++) {
+-          labeled = await evaluate('(() => { const row = document.querySelector(' + JSON.stringify('[data-open-plant="' + blankFather.id + '"]') + '); return !!(row && /not recorded/i.test(row.innerText || "")); })()');
++          labeled = await evaluate('(() => { const rows = [...document.querySelectorAll(' + JSON.stringify('#home-view [data-open-plant="' + blankFather.id + '"]') + ')].filter((el) => el.getClientRects().length); return rows.length > 0 && rows.every((el) => /not recorded/i.test(el.innerText || el.textContent || "")); })()');
+           if (!labeled) await sleep(50);
+         }
+         if (!labeled) fail('the plant list left the empty father blank');
+@@ -323,7 +344,8 @@
+           const text = (layout.rows || []).filter((item) => item.id === plant.id).map((item) => item.text).join('\n');
+           if (!text) return;
+           if (!plant.startDate && (/\bDay 1\b/.test(text) || text.includes('Seedling'))) fail(plant.id + ' invented Day 1 or Seedling');
+-          if (plant.vegStartDate && !text.includes('Veg')) fail(plant.id + ' did not keep the veg stage: ' + text.slice(0, 180));
++          if (plant.flowerStartDate && !text.includes('Flower')) fail(plant.id + ' did not keep the flower stage: ' + text.slice(0, 180));
++          else if (!plant.flowerStartDate && plant.vegStartDate && !text.includes('Veg')) fail(plant.id + ' did not keep the veg stage: ' + text.slice(0, 180));
+           if ((!plant.b49Father || plant.b49Father === '-') && plant.b49Mother && plant.b49Mother !== '-' && !/not recorded/i.test(text)) fail(plant.id + ' left the father blank');
+         });
+       }
+@@ -331,7 +353,9 @@
+       if (opts.screen === 'tree') {
+         const deleted = new Set();
+         ['plants', 'breedingPlants', 'motherFatherPlants', 'breedingProjects'].forEach((key) => (opts.state[key] || []).forEach((row) => {
+-          if (row && row.b58DeletedAt) { if (row.b49Mother) deleted.add(row.b49Mother); if (row.b49Father) deleted.add(row.b49Father); }
++          const book = row && row.b58DeletedParents;
++          if (!book || typeof book !== 'object') return;
++          ['m', 'f'].forEach((side) => { const entry = book[side]; if (entry && entry.key && entry.name) deleted.add('dx:' + entry.name); });
+         }));
+         (layout.cards || []).forEach((card) => {
+           if (String(card.k).startsWith('dx:')) {
+--- a/scripts/b63-real-mockup.test.js
++++ b/scripts/b63-real-mockup.test.js
+@@ -17,13 +17,13 @@
+ function run(args, env) {
+   return spawnSync(process.execPath, args, { cwd: ROOT, env: Object.assign({}, process.env, env || {}), encoding: 'utf8' });
+ }
++const dates = { startDate: '2024-03-01', vegStartDate: '2024-03-20', flowerStartDate: '2024-05-01', plannedFlipDate: '2024-05-01', flowerFlipDate: '2024-05-01' };
+ const fixture = {
+   plants: [
+-    { id: 'p-target', name: 'Kept Plant', status: 'active', b49Mother: 'mf:m-arch', b49Father: 'dx:FixtureFather', b58Manual: { m: true, f: true } },
+-    { id: 'p-dated', name: 'Dated Plant', status: 'active', startDate: '2026-03-01', vegStartDate: '2026-03-20', count: 3, growType: 'Photoperiod', b49Mother: 'mf:m-arch', b49Father: '-', b58Manual: { m: true, f: true } },
++    { id: 'p-target', name: 'Kept Plant', status: 'active', count: 2, growType: 'Photoperiod', ...dates, b49Mother: 'mf:m-arch', b49Father: 'dx:FixtureFather', b58Manual: { m: true, f: true }, b58DeletedAt: '2024-01-02T00:00:00.000Z' },
++    { id: 'p-blank', name: 'Dated Blank', status: 'active', count: 2, ...dates, b49Mother: 'mf:m-arch', b49Father: '-', b58Manual: { m: true, f: true } },
++    { id: 'p-proof', name: 'Proof Plant', status: 'active', count: 2, ...dates, b49Mother: 'mf:m1', b49Father: 'dx:Removed Parent', b58Manual: { m: true, f: true }, b58DeletedParents: { f: { key: 'mf:old-father', name: 'Removed Parent', at: '2024-02-02T00:00:00.000Z' } } },
+     { id: 'p-open', name: 'Undated Plant', status: 'active', b49Mother: 'mf:m1', b49Father: 'mf:f1' },
+-    { id: 'p-other', name: 'Other Plant', status: 'active', b49Mother: 'mf:m1', b49Father: 'mf:f1' },
+-    { id: 'p-gone', name: 'History Plant', status: 'active', b49Mother: 'mf:m1', b49Father: 'dx:GenuineHistory', b58DeletedAt: '2026-01-02T00:00:00.000Z', b58Manual: { m: true, f: true } },
+   ],
+   motherFatherPlants: [
+     { id: 'm1', name: 'Kept Mother', role: 'mother', status: 'Active' },
+@@ -53,6 +53,12 @@
+   undos: [],
+ }));
+ 
++check('the three stylesheets are the same bytes', () => {
++  const crypto = require('crypto');
++  const files = ['build63.css', 'www/build63.css', 'ios/App/App/public/build63.css'].map((rel) => crypto.createHash('sha256').update(fs.readFileSync(path.join(ROOT, rel))).digest('hex'));
++  if (new Set(files).size !== 1) throw new Error(files.join(' '));
++  console.log('CSS-SHA256 ' + files[0]);
++});
+ check('a missing date is not filled in', () => {
+   const api = require('./b63-real-mockup');
+   const state = api.readFixture(fixtureFile);
+@@ -82,7 +88,7 @@
+ function shot(extra, allViewports) {
+   const outDir = path.join(dir, 'shots-' + extra.filter((x) => !x.startsWith('--')).join('-') + (allViewports ? '-all' : ''));
+   const args = ['scripts/b63-real-mockup.js', '--fixture', fixtureFile, '--snapshot-date', '2026-11-06', '--out', outDir];
+-  if (!allViewports) args.push('--viewport', '390x844');
++  if (!allViewports && !extra.includes('--viewport')) args.push('--viewport', '390x844');
+   const out = run(args.concat(extra));
+   return out;
+ }
+@@ -97,22 +103,35 @@
+     if (out.stdout.includes('"' + key + '":0')) throw new Error(out.stdout);
+   });
+ });
+-check('a recorded deletion stays labeled deleted', () => {
+-  const out = shot(['--screen', 'tree', '--record-id', 'p-gone', '--phase', 'before']);
++check('a child timestamp does not label a name-only parent deleted', () => {
++  const out = shot(['--screen', 'tree', '--record-id', 'p-target', '--phase', 'before']);
++  if (out.status !== 0) throw new Error(out.stderr + out.stdout);
++  if (!out.stdout.includes('"nameonly":1')) throw new Error(out.stdout);
++  if (out.stdout.includes('"deleted":1') || out.stdout.includes('"deleted":2')) throw new Error(out.stdout);
++});
++check('a parent-specific deletion record still says deleted', () => {
++  const out = shot(['--screen', 'tree', '--record-id', 'p-proof', '--phase', 'before']);
+   if (out.status !== 0) throw new Error(out.stderr + out.stdout);
+   if (!out.stdout.includes('"deleted":1')) throw new Error(out.stdout);
+ });
+ check('the packaged repair clears only that plant father', () => {
+   fs.writeFileSync(repairFile, JSON.stringify(repair));
+-  const out = shot(['--screen', 'tree', '--record-id', 'p-target', '--repair-config', repairFile, '--phase', 'after']);
++  const out = shot(['--screen', 'tree', '--record-id', 'p-target', '--repair-config', repairFile, '--phase', 'after'], true);
++  if (out.status !== 0) throw new Error(out.stderr + out.stdout);
++  if (!out.stdout.includes('father=-')) throw new Error(out.stdout);
++  if (!out.stdout.includes('inner=390x844') || !out.stdout.includes('zoom=1.28')) throw new Error(out.stdout);
++});
++check('dated plants still say not recorded after the repair', () => {
++  fs.writeFileSync(repairFile, JSON.stringify(repair));
++  const out = shot(['--screen', 'plants', '--record-id', 'p-target', '--repair-config', repairFile, '--phase', 'after'], true);
+   if (out.status !== 0) throw new Error(out.stderr + out.stdout);
+   if (!out.stdout.includes('father=-')) throw new Error(out.stdout);
+ });
+ ['plants', 'mf', 'compliance', 'inspection'].forEach((screen) => {
+   check(screen + ' renders', () => {
+     const extra = ['--screen', screen];
+-    if (screen === 'plants') extra.push('--record-id', 'p-dated');
+-    const out = shot(extra);
++    if (screen === 'plants') extra.push('--record-id', 'p-blank');
++    const out = shot(extra, screen === 'plants' || screen === 'compliance');
+     if (out.status !== 0) throw new Error(out.stderr + out.stdout);
+     if (!out.stdout.includes('PASS screen ' + screen)) throw new Error(out.stdout);
+   });
+--- a/scripts/b63-r5.test.js
++++ b/scripts/b63-r5.test.js
+@@ -34,7 +34,8 @@
+   if (new Set(hashes).size !== 1) throw new Error(hashes.join(' '));
+   if (hashes[0] === REV4_SW_SHA) throw new Error('script bytes still match revision 4, so an update check would not install a worker');
+   const text = read('service-worker.js').toString('utf8');
+-  if (!text.includes("boriken-genetics-logbook-app-v86")) throw new Error('cache name');
++  if (!text.includes("boriken-genetics-logbook-app-v87")) throw new Error('cache name');
++  if (text.includes("boriken-genetics-logbook-app-v86")) throw new Error('v86 cache name still present');
+   if (text.includes("boriken-genetics-logbook-app-v85")) throw new Error('v85 cache name still present');
+   if (text.includes("boriken-genetics-logbook-app-v84")) throw new Error('v84 cache name still present');
+   if (text.includes("boriken-genetics-logbook-app-v83")) throw new Error('v83 cache name still present');
+@@ -160,6 +161,8 @@
+   await v84.put('https://localhost/b63-repair.json', new Response('V84-STALE-REPAIR', { status: 200 }));
+   const v85 = await scope.caches.open('boriken-genetics-logbook-app-v85');
+   await v85.put('https://localhost/build49.js', new Response('V85-STALE-BUILD49', { status: 200 }));
++  const v86 = await scope.caches.open('boriken-genetics-logbook-app-v86');
++  await v86.put('https://localhost/build57.js', new Response('V86-STALE-BUILD57', { status: 200 }));
+ 
+   const held = await scope.caches.match('https://localhost/build57.js');
+   if (!held || await held.text() !== 'REV2-STALE') throw new Error('seed failed');
+@@ -180,7 +183,8 @@
+   if (names.includes('boriken-genetics-logbook-app-v83')) throw new Error('v83 cache kept ' + names.join(','));
+   if (names.includes('boriken-genetics-logbook-app-v84')) throw new Error('v84 cache kept ' + names.join(','));
+   if (names.includes('boriken-genetics-logbook-app-v85')) throw new Error('v85 cache kept ' + names.join(','));
+-  if (!names.includes('boriken-genetics-logbook-app-v86')) throw new Error('new cache missing ' + names.join(','));
++  if (names.includes('boriken-genetics-logbook-app-v86')) throw new Error('v86 cache kept ' + names.join(','));
++  if (!names.includes('boriken-genetics-logbook-app-v87')) throw new Error('new cache missing ' + names.join(','));
+ 
+   const precached = await scope.caches.match('https://localhost/build57.js');
+   const precachedBody = await precached.text();
+--- a/scripts/b63-photo-missing.test.js
++++ b/scripts/b63-photo-missing.test.js
+@@ -184,7 +184,7 @@
+   });
+   const sw = fs.readFileSync(path.join(ROOT, 'service-worker.js'), 'utf8');
+   check('revision 5 cache name does not change this export path', () => {
+-    if (!sw.includes("boriken-genetics-logbook-app-v86")) throw new Error('worker');
++    if (!sw.includes("boriken-genetics-logbook-app-v87")) throw new Error('worker');
+     const fn = fs.readFileSync(path.join(ROOT, 'app.js'), 'utf8');
+     const start = fn.indexOf('async function buildFullBackupPayload');
+     const body = fn.slice(start, fn.indexOf('function snapshotCounts'));
+--- a/scripts/b63-sw-browser.test.js
++++ b/scripts/b63-sw-browser.test.js
+@@ -144,10 +144,10 @@
+       const out = await send('Runtime.evaluate', { expression: READ, awaitPromise: true, returnByValue: true });
+       updated = out.result && out.result.value;
+       const fresh = updated && updated.build13 && updated.build13.sum === EXPECT['build13.js'] && updated.build58.sum === EXPECT['build58.js'] && updated.build63 && updated.build63.sum === EXPECT['build63.js'];
+-      if (fresh && updated.keys.includes('boriken-genetics-logbook-app-v86') && !updated.keys.includes(cacheName)) break;
++      if (fresh && updated.keys.includes('boriken-genetics-logbook-app-v87') && !updated.keys.includes(cacheName)) break;
+       await sleep(250);
+     }
+-    if (!updated || updated.build13.sum !== EXPECT['build13.js'] || updated.build58.sum !== EXPECT['build58.js'] || !updated.build63 || updated.build63.sum !== EXPECT['build63.js'] || updated.keys.includes(cacheName) || !updated.keys.includes('boriken-genetics-logbook-app-v86')) {
++    if (!updated || updated.build13.sum !== EXPECT['build13.js'] || updated.build58.sum !== EXPECT['build58.js'] || !updated.build63 || updated.build63.sum !== EXPECT['build63.js'] || updated.keys.includes(cacheName) || !updated.keys.includes('boriken-genetics-logbook-app-v87')) {
+       throw new Error(cacheName + ' did not install the current worker ' + JSON.stringify(updated) + ' ' + logs.join(' | '));
+     }
+     console.log('PASS real Chrome replaced ' + cacheName + ' and served the current build13.js, build58.js, and build63.js');
+@@ -172,7 +172,8 @@
+     await chromeCase('boriken-genetics-logbook-app-v83', 9344);
+     await chromeCase('boriken-genetics-logbook-app-v84', 9345);
+     await chromeCase('boriken-genetics-logbook-app-v85', 9346);
+-    console.log('b63 sw browser: v81, v82, v83, v84, and v85 update paths passed');
++    await chromeCase('boriken-genetics-logbook-app-v86', 9347);
++    console.log('b63 sw browser: v81 through v86 update paths passed');
+   } finally {
+     server.close();
+   }

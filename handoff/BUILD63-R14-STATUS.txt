@@ -1,0 +1,48 @@
+BUILD 63 revision 14. Not compiled. No device is claimed fixed. No upload.
+
+Patch SHA-256 87c4b2df0d9ca8ca30733b90f5630c32879786a68423ffdbafd92baf11c2b874
+Cache name boriken-genetics-logbook-app-v87
+Strict layout stdout is unchanged: 42d012134fa8f1d5798020daa4c341a5c2ceee07cfb7a533287e110766c3baec
+
+build63.css three copies, hash taken from the test run and checked against the files:
+  build63.css SHA-256 146985dfc80f9142cf7cfcc095aeaff6a6e76109ebe255bb3e8cb1581bc9ff5b
+  www/build63.css SHA-256 146985dfc80f9142cf7cfcc095aeaff6a6e76109ebe255bb3e8cb1581bc9ff5b
+  ios/App/App/public/build63.css SHA-256 146985dfc80f9142cf7cfcc095aeaff6a6e76109ebe255bb3e8cb1581bc9ff5b
+The revision 13 status named this same stylesheet hash. The test prints CSS-SHA256 before the screen checks.
+
+Changed app files, source www and public copies match:
+  build49.js SHA-256 70d97fbd87d0355ba43cfdc5fe5dd91e3e352c890f9608874a49103ab55295d4
+  build57.js SHA-256 9254ea0bbad1cb0014675a9ad498a59318ade57a977ffc4d22ceda64a3ab5455
+  build58.js SHA-256 25c5e81a37f3d97c36b97c5db33f3be75d5e812f6e4708c2222d8701b95535d5
+  wide.js SHA-256 6b910536ac5c1e8ebff433be05cefacb75ac3e38698614807fc33a74a967b848
+  service-worker.js SHA-256 4f6d7f6b4c56fcee09bb8971a22748c816de8408d40de33a232c0ef450b450fd
+
+Changed tests and renderer:
+  scripts/b63-real-mockup.js SHA-256 20b67e519fb940359ba8cd44fbe3b5799d2e491e6135b84b15b8fb1cf0580b40
+  scripts/b63-real-mockup.test.js SHA-256 b048eeed6a9c6be691c0d695ff6500a0a6e65814d376aa79b9b1cd2f34c610af
+  scripts/b63-r5.test.js SHA-256 f2bf3195d4e4d7d559bb324fcaabc529e6af63b1fa518499e7cf1e698b67adf9
+  scripts/b63-photo-missing.test.js SHA-256 8c489c83517529407021a8154be3e0f87f01dd207eaa919250b31ba9d6c07b7f
+  scripts/b63-sw-browser.test.js SHA-256 5ae8b0d8231205e582d0ffee9695b2728a87d04ba5c66b22ad4945c469199ad1
+
+The renderer fixture now has count 2, start/veg/flower/flip dates, an unknown father, an archived mother, a child b58DeletedAt, and a separate b58DeletedParents entry.
+Tree, plants, and compliance were run at 390x844, 1024x768, and 1024x1366. Before and after the repair both ran.
+A child timestamp alone stays Name only. A side entry that keeps the old parent key says Deleted plant.
+
+Outputs, each exit 0:
+  father.txt SHA-256 005f7ee68a70abd07c58b201e7f8b0afa9e17f6a41a17fef33c0297fc3a88020 exit 0
+  real-mockup.txt SHA-256 2144b7cafa7a0c8d3e4e443f39869d7e89b4ef8ae7eea7a49874b134cef649e5 exit 0
+  no-sample.txt SHA-256 46686e551aea5424feed836cb467da6c607c26eb1f1a960f4b52014c750b9f7b exit 0
+  integration.txt SHA-256 2d828e559a15418b43507b0ca8469ff462315de36d534adc7a18566e17110bae exit 0
+  remaining.txt SHA-256 d3b5294f09637a05880e2bf007791487a3a129618c5222f3bfe2a761151aebef exit 0
+  photo.txt SHA-256 991db12ba0540e9274a0cc3911512de7844f24573b2250c791a50ae3de8a59aa exit 0
+  r5.txt SHA-256 74d686f72a41a6e25bcc0c2ddafe6bfe774e5b5ac42a67883a4ff189332a1957 exit 0
+  sw-browser.txt SHA-256 de9a0e5372ac6002641f438514b0c0679d8cd98e1e5f1ae9e9240c1f57b70660 exit 0
+  fullapp.txt SHA-256 c0d99c94f1d1d13ed033e12917f11bcf1653109a41dae8e3f9897debb307fabc exit 0
+  r3-1.txt SHA-256 42d012134fa8f1d5798020daa4c341a5c2ceee07cfb7a533287e110766c3baec exit 0
+  r3-2.txt SHA-256 42d012134fa8f1d5798020daa4c341a5c2ceee07cfb7a533287e110766c3baec exit 0
+  r3-3.txt SHA-256 42d012134fa8f1d5798020daa4c341a5c2ceee07cfb7a533287e110766c3baec exit 0
+  r3-4.txt SHA-256 42d012134fa8f1d5798020daa4c341a5c2ceee07cfb7a533287e110766c3baec exit 0
+  r3-5.txt SHA-256 42d012134fa8f1d5798020daa4c341a5c2ceee07cfb7a533287e110766c3baec exit 0
+  r3-6.txt SHA-256 42d012134fa8f1d5798020daa4c341a5c2ceee07cfb7a533287e110766c3baec exit 0
+  r3-7.txt SHA-256 42d012134fa8f1d5798020daa4c341a5c2ceee07cfb7a533287e110766c3baec exit 0
+  r3-8.txt SHA-256 42d012134fa8f1d5798020daa4c341a5c2ceee07cfb7a533287e110766c3baec exit 0

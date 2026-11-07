@@ -1,0 +1,38 @@
+Plant-only fixture fields. Omit a field when the record does not have it.
+The renderer does not invent a date, a stage, or a count.
+
+plants and breedingPlants
+  id, name, status, archived, deleted
+  b49Mother, b49Father, b58Manual, b49ProjectId, motherId, fatherId, motherPlantId
+  startDate "2026-03-01"
+  vegStartDate "2026-03-20"
+  flowerStartDate "2026-05-01"
+  flowerFlipDate "2026-05-01"
+  plannedFlipDate "2026-05-01"
+  harvestDate "2026-07-01"
+  archivedAt, dryStartDate, dryEndDate, cureStartDate, cureEndDate, finishedDate, completedAt
+  growthStage only when the record already stores one
+  statusOverride "Finished"
+  complianceStage "immature"
+  growType "Photoperiod" or "Autoflower"
+  count 4
+  expectedVegDays 21
+  expectedFlowerDays 56
+  seedsPopped 4
+  source "seed" or "clone"
+  location, areaOrRoom, cultivar, crossLabel
+  b58DeletedAt "2026-01-02T00:00:00.000Z" only when a real deletion wrote the dx: link
+  grade { "verdict": "cull" }
+
+motherFatherPlants
+  id, name, role, status "Active" | "Retired" | "Culled", archived, deleted
+  b49Mother, b49Father, b58Manual, b58DeletedAt, promotedFrom, startDate
+
+breedingProjects
+  id, name, status, motherId, fatherId, mother, father, b49Mother, b49Father, b58Manual
+
+cloneRuns
+  id, name, srcId, srcColl, motherPlantId, status
+
+Do not include notes, photos, patients, credentials, or addresses.
+A snapshot launch says backup status is not in the snapshot. It does not invent a backup.
