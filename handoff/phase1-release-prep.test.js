@@ -20,20 +20,15 @@ function throws(fn) {
   try { fn(); return ''; } catch (error) { return error.message; }
 }
 
-const SRC = {
-  'media-store.js': '/tmp/mac-reconcile/patched/media-store.js',
-  'styles.css': '/tmp/mac-reconcile/patched/styles.css',
-  'service-worker.js': '/tmp/mac-reconcile/patched/service-worker.js',
-  'build59.css': '/tmp/rel-hash/build59.css',
-  'build59.js': '/tmp/rel-hash/build59.js',
-  'build13.js': '/tmp/rel-hash/build13.js',
-  'app.js': '/tmp/mac-test-tree/app.js',
-};
+const SAMPLE_FILES = ['media-store.js', 'styles.css', 'service-worker.js', 'build59.css', 'build59.js', 'build13.js', 'app.js'];
+const SAMPLE_ROOT = process.env.PHASE1_SAMPLE_ROOT;
 
 function tree(name) {
+  if (!SAMPLE_ROOT) throw new Error('PHASE1_SAMPLE_ROOT is not set');
   const root = fs.mkdtempSync(path.join(os.tmpdir(), name));
-  for (const [rel, from] of Object.entries(SRC)) {
-    if (!fs.existsSync(from)) throw new Error(`sample missing: ${from}`);
+  for (const rel of SAMPLE_FILES) {
+    const from = path.join(SAMPLE_ROOT, rel);
+    if (!fs.existsSync(from)) throw new Error(`PHASE1_SAMPLE_ROOT is missing ${rel} (${SAMPLE_ROOT})`);
     fs.copyFileSync(from, path.join(root, rel));
   }
   fs.mkdirSync(path.join(root, 'ios/App/App.xcodeproj/xcshareddata/xcschemes'), { recursive: true });
@@ -94,31 +89,19 @@ const shown = (/const APP_BUILD = '([\\d.]+)'/.exec(fs.readFileSync(path.join(ro
 if (builds.length !== 1 || builds[0] !== shown) { console.error('version mismatch ' + shown + ' ' + builds.join(',')); process.exit(1); }
 const www = path.join(root, 'www');
 fs.rmSync(www, { recursive: true, force: true }); fs.mkdirSync(www);
-for (const f of ${JSON.stringify(Object.keys(SRC))}) fs.copyFileSync(path.join(root, f), path.join(www, f));
+for (const f of ${JSON.stringify(SAMPLE_FILES)}) fs.copyFileSync(path.join(root, f), path.join(www, f));
 `);
   return root;
 }
 
+if (!SAMPLE_ROOT) {
+  console.log('SAMPLE NOT RUN. Set PHASE1_SAMPLE_ROOT to the phase 1 directory that contains app.js and build13.js, then rerun.');
+  console.log('Example: PHASE1_SAMPLE_ROOT="$HOME/Documents/Apps/Logbook/Builds/logbook-b61-phase1" node phase1-release-prep.test.js');
+} else {
 const root = tree('phase1-prep-');
 check('check leaves build 61 in place', () => {
   prep.assertTree(root);
   if (!fs.readFileSync(path.join(root, 'app.js'), 'utf8').includes("const APP_BUILD = '61';")) throw new Error('build changed');
-});
-check('build 61 is refused', () => {
-  const msg = throws(() => prep.requireBuild({ build: '61', confirm: true }));
-  if (!msg.includes('62')) throw new Error(msg || 'no error');
-});
-check('an unconfirmed build 62 is refused', () => {
-  const msg = throws(() => prep.requireBuild({ build: '62', confirm: false }));
-  if (!msg.includes('App Store Connect')) throw new Error(msg || 'no error');
-});
-check('a number other than 62 is refused', () => {
-  const msg = throws(() => prep.requireBuild({ build: '70', confirm: true }));
-  if (!msg.includes('62')) throw new Error(msg || 'no error');
-});
-check('upload is not a command', () => {
-  const msg = throws(() => prep.parseArgs(['--root', root, 'upload']));
-  if (!msg.includes('does not upload')) throw new Error(msg || 'no error');
 });
 check('prep sets the given build and keeps production ids', () => {
   const result = prep.prep({ root, build: '62', confirm: true });
@@ -138,6 +121,23 @@ check('prep sets the given build and keeps production ids', () => {
   if (!result.manifest.includes('6820774919') || !result.manifest.includes('no build 62')) throw new Error('manifest');
   if (!result.manifest.includes('upload: not performed')) throw new Error('manifest upload');
   prep.assertInternalPlist(fs.readFileSync(result.plistPath, 'utf8'));
+});
+}
+check('build 61 is refused', () => {
+  const msg = throws(() => prep.requireBuild({ build: '61', confirm: true }));
+  if (!msg.includes('62')) throw new Error(msg || 'no error');
+});
+check('an unconfirmed build 62 is refused', () => {
+  const msg = throws(() => prep.requireBuild({ build: '62', confirm: false }));
+  if (!msg.includes('App Store Connect')) throw new Error(msg || 'no error');
+});
+check('a number other than 62 is refused', () => {
+  const msg = throws(() => prep.requireBuild({ build: '70', confirm: true }));
+  if (!msg.includes('62')) throw new Error(msg || 'no error');
+});
+check('upload is not a command', () => {
+  const msg = throws(() => prep.parseArgs(['--root', 'phase1', 'upload']));
+  if (!msg.includes('does not upload')) throw new Error(msg || 'no error');
 });
 check('the old internal-testing false plist is rejected', () => {
   const msg = throws(() => prep.assertInternalPlist('<key>testFlightInternalTestingOnly</key><false/>'));

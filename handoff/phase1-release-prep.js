@@ -33,7 +33,7 @@ const EXPECTED = {
   'service-worker.js': 'f6825ca93fda9bd109d69b85cb63aeb488c9935b8f0b7cf1207d0e35b0d3f60d',
   'build59.css': '55d57bf28349aff607542b0475331e4698774f285f7cd5f692a829cb82fba1a8',
   'build59.js': '50c829d14ddf07a6f330b29b692c9c77782f3b396742cf30d066f29ee8679043',
-  'build13.js': '2d83685eb5703932b5f621ac43a01971c208b8fde6e39f43f75f2715f91676e2',
+  'build13.js': '389d60e770bfe9127465de05c914193afe347e9e6b7ebacb0b4d5648b743dcad',
 };
 
 const FORBIDDEN = [

@@ -24,4 +24,8 @@ Upload the exported ipa only after inspect passes, from Xcode Organizer or Trans
 
 Mac QA already showed a synthetic grow photo and a synthetic mother photo still present after quit and relaunch, long tag names wrapping on whole words in wide and narrow layouts, notes refreshing immediately, and plant Save. Live photo recovery and an iPhone check are not part of this package. Inspection-table wrapping is unchanged. Tree, retirement, and archive-prevention work are not in this package.
 
-node phase1-release-prep.test.js passed against the patched file bytes. It is not a Mac archive.
+The build13.js check expects 389d60e770bfe9127465de05c914193afe347e9e6b7ebacb0b4d5648b743dcad, the Mac file. Its mfRefresh matches the mother-list patch. Do not replace that file with the other hash.
+
+  PHASE1_SAMPLE_ROOT="$HOME/Documents/Apps/Logbook/Builds/logbook-b61-phase1" node phase1-release-prep.test.js
+
+That test is not a Mac archive. Without PHASE1_SAMPLE_ROOT it runs only the checks that do not need the app source.
