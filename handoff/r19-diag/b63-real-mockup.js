@@ -247,21 +247,7 @@ async function runBrowser(opts) {
     await send('Runtime.enable');
     if (trace.active()) { await trace.arm(send); await trace.applyCpu(send); }
     await send('Page.addScriptToEvaluateOnNewDocument', { source: init });
-    async function waitUntilWorkerSettled() {
-      const started = Date.now();
-      let last = null;
-      while (Date.now() - started < 20000) {
-        last = await evaluate('navigator.serviceWorker.getRegistration().then((reg) => { if (!reg) return { state: "none" }; if (reg.installing || reg.waiting) return { state: "busy", installing: reg.installing && reg.installing.state, waiting: reg.waiting && reg.waiting.state }; return { state: "active", controller: !!(navigator.serviceWorker.controller) }; })');
-        if (!last || last.state === 'none' || (last.state === 'active' && last.controller)) return last;
-        await sleep(100);
-      }
-      if (trace.active()) console.error('TRACE worker-settle timed out ' + JSON.stringify(last));
-      return last;
-    }
-    let viewportIndex = 0;
     for (const [w, h] of opts.viewports) {
-      if (viewportIndex > 0) await waitUntilWorkerSettled();
-      viewportIndex += 1;
       await send('Emulation.setDeviceMetricsOverride', { width: w, height: h, deviceScaleFactor: 1, mobile: w < 900 });
       if (trace.active()) trace.mark(opts.screen + ' ' + w + 'x' + h);
       await send('Page.navigate', { url: 'http://127.0.0.1:' + port + '/index.html?screen=' + opts.screen });
