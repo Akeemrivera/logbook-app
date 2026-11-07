@@ -191,6 +191,38 @@ check('an ipa with the QA display name is rejected', () => {
   if (!msg.includes('QA')) throw new Error(msg || 'no error');
 });
 
+check('a new archive is a timestamped xcarchive in the Xcode Archives date folder', () => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), 'archives-home-'));
+  const when = new Date(2026, 10, 7, 2, 30, 45);
+  const older = path.join(home, 'Library/Developer/Xcode/Archives/2026-11-07/Logbook-phase1-2026-11-06-010101.xcarchive');
+  fs.mkdirSync(older, { recursive: true });
+  const archivePath = prep.planArchive(home, when);
+  const expected = path.join(home, 'Library/Developer/Xcode/Archives/2026-11-07/Logbook-phase1-2026-11-07-023045.xcarchive');
+  if (archivePath !== expected) throw new Error(archivePath);
+  if (!fs.existsSync(older)) throw new Error('previous archive was removed');
+  fs.mkdirSync(archivePath);
+  const msg = throws(() => prep.planArchive(home, when));
+  if (!msg.includes('Refusing to overwrite')) throw new Error(msg || 'no error');
+  if (!fs.existsSync(older) || !fs.existsSync(archivePath)) throw new Error('an archive was removed');
+});
+check('export and inspect reuse the recorded absolute archive path', () => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), 'archives-home-'));
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'phase1-root-'));
+  const when = new Date(2026, 10, 7, 2, 31, 5);
+  const archivePath = prep.planArchive(home, when);
+  fs.mkdirSync(path.join(archivePath, 'Products/Applications/App.app'), { recursive: true });
+  prep.writeArchiveRecord(root, archivePath);
+  if (prep.readArchivePath(root, home) !== archivePath) throw new Error('record was not reused');
+  prep.writeArchiveRecord(root, path.join(root, 'build/release/Logbook-phase1.xcarchive'));
+  const msg = throws(() => prep.readArchivePath(root, home));
+  if (!msg.includes('not an xcarchive')) throw new Error(msg || 'no error');
+});
+check('the script no longer archives under the project or deletes an xcarchive', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'phase1-release-prep.js'), 'utf8');
+  if (src.includes('build/release/Logbook-phase1.xcarchive')) throw new Error('project archive path remains');
+  if (src.includes('rmSync(archivePath')) throw new Error('archive delete remains');
+});
+
 if (FAIL.length) {
   console.error('FAILED', FAIL.length);
   process.exit(1);

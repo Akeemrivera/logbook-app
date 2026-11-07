@@ -11,6 +11,7 @@
 */
 
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
 const crypto = require('crypto');
 const { spawnSync } = require('child_process');
@@ -379,38 +380,80 @@ function scanPublic(root) {
   if (hits.length) fail(`www/public contains QA or test material: ${hits.join('; ')}`);
 }
 
+function archivesRoot(home) {
+  return path.join(home || os.homedir(), 'Library/Developer/Xcode/Archives');
+}
+
+function archiveParts(now) {
+  const pad = (n) => String(n).padStart(2, '0');
+  const day = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+  const stamp = `${day}-${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
+  return { day, stamp };
+}
+
+function planArchive(home, now) {
+  const { day, stamp } = archiveParts(now || new Date());
+  const archivePath = path.join(archivesRoot(home), day, `Logbook-phase1-${stamp}.xcarchive`);
+  if (fs.existsSync(archivePath)) fail(`Refusing to overwrite ${archivePath}`);
+  return archivePath;
+}
+
+function archiveRecordPath(root) {
+  return path.join(root, 'build/release/archive-path.txt');
+}
+
+function writeArchiveRecord(root, archivePath) {
+  const record = archiveRecordPath(root);
+  fs.mkdirSync(path.dirname(record), { recursive: true });
+  fs.writeFileSync(record, `${archivePath}\n`);
+}
+
+function readArchivePath(root, home) {
+  const record = archiveRecordPath(root);
+  if (!fs.existsSync(record)) fail('No recorded archive. Archive first.');
+  const archivePath = fs.readFileSync(record, 'utf8').trim();
+  const resolved = path.resolve(archivePath);
+  const rootDir = archivesRoot(home);
+  if (!path.isAbsolute(archivePath) || resolved !== archivePath || !resolved.startsWith(rootDir + path.sep) || !resolved.endsWith('.xcarchive')) {
+    fail(`Recorded archive is not an xcarchive under ${rootDir}`);
+  }
+  if (!fs.existsSync(resolved)) fail(`Recorded archive is missing: ${resolved}`);
+  return resolved;
+}
+
 function archive(opts) {
   const built = prep(opts);
   const root = path.resolve(opts.root);
-  const archivePath = path.join(root, 'build/release/Logbook-phase1.xcarchive');
-  fs.rmSync(archivePath, { recursive: true, force: true });
+  const archivePath = planArchive();
+  fs.mkdirSync(path.dirname(archivePath), { recursive: true });
+  if (fs.existsSync(archivePath)) fail(`Refusing to overwrite ${archivePath}`);
   runXcode([
     '-project', 'ios/App/App.xcodeproj',
     '-scheme', built.scheme.name,
     '-configuration', 'Release',
     '-destination', 'generic/platform=iOS',
     '-derivedDataPath', 'build/release-derived',
-    '-archivePath', 'build/release/Logbook-phase1.xcarchive',
+    '-archivePath', archivePath,
     '-allowProvisioningUpdates',
     'archive',
   ], root);
   const app = path.join(archivePath, 'Products/Applications/App.app');
   const info = inspectAppDir(app);
   if (info.build !== built.build) fail(`Archive build is ${info.build}, expected ${built.build}`);
+  writeArchiveRecord(root, archivePath);
   return { archivePath, info, plistPath: built.plistPath };
 }
 
 function exportIpa(opts) {
   const root = path.resolve(opts.root);
-  const archivePath = path.join(root, 'build/release/Logbook-phase1.xcarchive');
-  if (!fs.existsSync(archivePath)) fail('Archive first.');
+  const archivePath = readArchivePath(root);
   const plistPath = path.join(root, 'build/release/Logbook-Internal-ExportOptions.plist');
   assertInternalPlist(fs.readFileSync(plistPath, 'utf8'));
   const exportDir = path.join(root, 'build/release/export');
   fs.rmSync(exportDir, { recursive: true, force: true });
   runXcode([
     '-exportArchive',
-    '-archivePath', 'build/release/Logbook-phase1.xcarchive',
+    '-archivePath', archivePath,
     '-exportPath', 'build/release/export',
     '-exportOptionsPlist', 'build/release/Logbook-Internal-ExportOptions.plist',
     '-allowProvisioningUpdates',
@@ -456,11 +499,11 @@ function main(argv) {
   }
   if (opts.cmd === 'inspect') {
     const root = path.resolve(opts.root);
-    const app = path.join(root, 'build/release/Logbook-phase1.xcarchive/Products/Applications/App.app');
-    if (fs.existsSync(app)) {
-      const info = inspectAppDir(app);
-      console.log(`archive ${info.id} ${info.marketing} (${info.build}) ${info.display}`);
-    }
+    const archivePath = readArchivePath(root);
+    const app = path.join(archivePath, 'Products/Applications/App.app');
+    const info = inspectAppDir(app);
+    console.log(`archive ${archivePath}`);
+    console.log(`archive ${info.id} ${info.marketing} (${info.build}) ${info.display}`);
     const exportDir = path.join(root, 'build/release/export');
     if (fs.existsSync(exportDir)) {
       const ipas = fs.readdirSync(exportDir).filter((n) => n.endsWith('.ipa'));
@@ -478,6 +521,7 @@ function main(argv) {
 module.exports = {
   EXPECTED, UPLOADED_BUILD, RELEASE_BUILD, ASC_APP, CACHE, PROD_ID, CONTAINER, exportPlist, assertInternalPlist,
   assertTree, bump, prep, inspectAppDir, parseArgs, requireBuild, forbiddenHits,
+  archivesRoot, planArchive, writeArchiveRecord, readArchivePath,
 };
 
 if (require.main === module) {
