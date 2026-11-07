@@ -1,0 +1,34 @@
+BUILD 63 revision 11. Not compiled here. Revision 8 is still the last native candidate. No device is claimed fixed.
+
+Patch SHA-256 3d7f066357d0b98b98275bd4f890e264dbe3650b1bdc59dd931ba48e4d5c69b8
+build63.js SHA-256 8dbb878a8f52845b45938ecf29f4e90553d4c7117df5c9d7937ea1b68f3cbbe5
+build58.js SHA-256 5597e93dced53a74581bcbfa4b649e8b6ef515f447236e60b2552f9239339a7a
+service-worker.js SHA-256 53e666bcd302bb0ba430ee1f01bdfd81d279b31dd50db06767228e22c4aea48f
+The three copies of each file match.
+Cache name boriken-genetics-logbook-app-v84
+
+scripts/b63-father-repair.test.js SHA-256 d04fd1063932ab0a3faf3b86a272e7f59de0e1e8cf696da4c906e9da1e0b846d
+scripts/b63-real-mockup.js SHA-256 2aabf49b78db616933011a057b23f7673396afc300519fa7a47879dc11de4756
+scripts/b63-sw-browser.test.js SHA-256 f349c6ee001a0f3d4513b9a7560b05195630bb258622f25c09f15c447ee5dda9
+scripts/b63-r5.test.js SHA-256 7ce85f5458038cf1d36e84b0ce6af7f2897905f4a520e3a7f00bd40dd4bc67b2
+
+Outputs, each exit 0:
+  father.txt SHA-256 18615936cc0730c465b4304b9ff25e3025739a6904415636d3bf8cd96910bdde
+  no-sample.txt SHA-256 46686e551aea5424feed836cb467da6c607c26eb1f1a960f4b52014c750b9f7b
+  integration.txt SHA-256 2d828e559a15418b43507b0ca8469ff462315de36d534adc7a18566e17110bae
+  remaining.txt SHA-256 d3b5294f09637a05880e2bf007791487a3a129618c5222f3bfe2a761151aebef
+  photo.txt SHA-256 991db12ba0540e9274a0cc3911512de7844f24573b2250c791a50ae3de8a59aa
+  r5.txt SHA-256 74d686f72a41a6e25bcc0c2ddafe6bfe774e5b5ac42a67883a4ff189332a1957
+  sw-browser.txt SHA-256 4eb0535f6466739927ffc1e1b1dda87038b599260c5a60ff58326ae83d3bbe8a
+  fullapp.txt SHA-256 c0d99c94f1d1d13ed033e12917f11bcf1653109a41dae8e3f9897debb307fabc
+  r3-1.txt SHA-256 42d012134fa8f1d5798020daa4c341a5c2ceee07cfb7a533287e110766c3baec
+  r3-2.txt SHA-256 42d012134fa8f1d5798020daa4c341a5c2ceee07cfb7a533287e110766c3baec
+  r3-3.txt SHA-256 42d012134fa8f1d5798020daa4c341a5c2ceee07cfb7a533287e110766c3baec
+  r3-4.txt SHA-256 42d012134fa8f1d5798020daa4c341a5c2ceee07cfb7a533287e110766c3baec
+  r3-5.txt SHA-256 42d012134fa8f1d5798020daa4c341a5c2ceee07cfb7a533287e110766c3baec
+  r3-6.txt SHA-256 42d012134fa8f1d5798020daa4c341a5c2ceee07cfb7a533287e110766c3baec
+  r3-7.txt SHA-256 42d012134fa8f1d5798020daa4c341a5c2ceee07cfb7a533287e110766c3baec
+  r3-8.txt SHA-256 42d012134fa8f1d5798020daa4c341a5c2ceee07cfb7a533287e110766c3baec
+r3 eight launches identical 42d012134fa8f1d5798020daa4c341a5c2ceee07cfb7a533287e110766c3baec
+
+Repair config key boriken-b63-repair. Instructions: PRIVATE-REPAIR-CONFIG.txt. No plant id is in the repo.

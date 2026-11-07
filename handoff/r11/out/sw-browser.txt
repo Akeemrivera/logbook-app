@@ -1,0 +1,10 @@
+PASS real Chrome served stale build13.js, build58.js, and build63.js from boriken-genetics-logbook-app-v81
+PASS real Chrome replaced boriken-genetics-logbook-app-v81 and served the current build13.js, build58.js, and build63.js
+PASS real Chrome served the current build13.js, build58.js, and build63.js offline after boriken-genetics-logbook-app-v81
+PASS real Chrome served stale build13.js, build58.js, and build63.js from boriken-genetics-logbook-app-v82
+PASS real Chrome replaced boriken-genetics-logbook-app-v82 and served the current build13.js, build58.js, and build63.js
+PASS real Chrome served the current build13.js, build58.js, and build63.js offline after boriken-genetics-logbook-app-v82
+PASS real Chrome served stale build13.js, build58.js, and build63.js from boriken-genetics-logbook-app-v83
+PASS real Chrome replaced boriken-genetics-logbook-app-v83 and served the current build13.js, build58.js, and build63.js
+PASS real Chrome served the current build13.js, build58.js, and build63.js offline after boriken-genetics-logbook-app-v83
+b63 sw browser: v81, v82, and v83 update paths passed
