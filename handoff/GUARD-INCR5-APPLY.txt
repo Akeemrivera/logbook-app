@@ -1,0 +1,7 @@
+Apply after logbook-b61-rig-guard-incr4.patch. Checker and its test only. Do not reapply earlier patches. Do not launch QA.
+
+  patch -p1 --dry-run < logbook-b61-rig-guard-incr5.patch
+  patch -p1 < logbook-b61-rig-guard-incr5.patch
+  node scripts/rig-guard-running.test.js
+
+The test no longer runs the real lsappinfo or osascript. Missing and unusable lookups are simulated, and those still exit as a blocked identity check. A production bundle id still blocks.
