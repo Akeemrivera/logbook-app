@@ -1,0 +1,51 @@
+Apply on the phase 1 tree after logbook-b61-phase1-mac.patch and logbook-b61-qa-prep.patch.
+Do not apply it to scheme App, Debug, or Release. Do not edit the project by hand.
+
+From ~/Documents/Apps/Logbook/Builds/logbook-b61-phase1:
+
+  patch -p1 --dry-run < logbook-b61-qa-uitest.patch
+  patch -p1 < logbook-b61-qa-uitest.patch
+  node scripts/qa-uitest-harness.test.js
+
+The harness check does not launch the app. It only checks the QA target, the
+runner bundle, and that the default command does not pass -allowProvisioningUpdates.
+
+Team 2Z94YL957X. QA app bundle com.borikengenetics.logbookapp.qa.
+Runner bundle com.borikengenetics.logbookapp.qa.uitests.
+Test host is the QA App.app built by scheme App-QA, configuration QA.
+Mac already registered: 00008142-00100936266B401C.
+If Xcode asks to register a device, stop. Do not confirm it.
+
+Default run, no provisioning flag:
+
+  zsh scripts/run-qa-uitest.sh
+
+Destination is platform=macOS,variant=Designed for iPad.
+Derived data stays build/qa-derived. Result bundle is build/qa-uitest.xcresult.
+Screenshots are XCTest attachments kept in that bundle. The script also tries
+to export them to build/qa-screenshots.
+
+The script refuses to continue if QA_APP is not com.borikengenetics.logbookapp.qa,
+and it runs rig-guard.sh on that app before xcodebuild. It does not launch
+com.borikengenetics.logbookapp.
+
+A missing runner profile is an App ID / profile download, not a new device.
+Only if the prompt is that download, and not a device registration, re-run with:
+
+  ALLOW_PROFILE_DOWNLOAD=1 zsh scripts/run-qa-uitest.sh
+
+That is the only command that passes -allowProvisioningUpdates. Stop if the
+prompt then asks to register a device.
+
+This environment has no Xcode and no Mac screen, so it cannot produce the
+xcresult. The command above is what produces it. Do not treat a web or
+simulator capture as this result.
+
+The photo test opens the real photo control, cancels the system picker, and
+does not choose a library photo. Until a non-personal image is attached, that
+test fails and the xcresult holds the actual screenshots. That failure is the
+persistence result, not a pass. The long-name test creates a synthetic plant
+named "cannalien x afghan landrace", opens Compliance, and fails if the name
+is squeezed to about one letter.
+
+No production access. No live photo repair. No second restore.

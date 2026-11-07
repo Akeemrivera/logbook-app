@@ -8,8 +8,29 @@ Apply on the phase 1 tree (logbook-b61-phase1-mac.patch already applied). Do not
 Root app.js becomes the shipped b61 bytes (the only previous difference was APP_BUILD 60 vs 61).
 www/app.js and ios/App/App/public/app.js were already those bytes.
 
+The Mac root does not contain build61.js or build61.css. Prep refuses to continue
+until those two files exist, and it does not change www while they are missing.
+The shipped copies already match each other. Copy only those two, unchanged,
+from this tree's www into this tree's root. Do not use any other build61 file.
+The cloud baseline copies are different and must not be substituted.
+Do not modify Builds/logbook-b61 or the shared parent guard.
+
+  JS=3c79681a21769cac2aa0abb4ba065827f887182f92ac936e9b9892dad3549fb7
+  CSS=2d6248f80e6238d366c10aef24eed0b913e66bcb1f3effabb38ad29eb48e9ce3
+  shasum -a 256 www/build61.js www/build61.css ios/App/App/public/build61.js ios/App/App/public/build61.css
+  test ! -e build61.js && test ! -e build61.css
+  cp -n www/build61.js ./build61.js
+  cp -n www/build61.css ./build61.css
+  shasum -a 256 build61.js build61.css www/build61.js www/build61.css
+
+All four JS hashes must be $JS and all four CSS hashes must be $CSS.
+If any hash differs, stop. Do not copy and do not run prep.
+
 Web prep, still no launch:
   zsh scripts/prep-www.sh
+
+If prep prints another MISSING line, stop. Do not copy any further file
+unless the same three copies match and the root file is absent.
 
 QA compile, separate container, no launch:
   zsh scripts/qa-build.sh

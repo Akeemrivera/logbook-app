@@ -1,0 +1,75 @@
+Separate from the QA UI-test patch. It does not change app.js, media-store.js,
+styles.css, or service-worker.js. Phase 1 photo and tag fixes stay as applied.
+
+From the phase 1 tree:
+
+  patch -p1 --dry-run < logbook-b61-prevention-tests.patch
+  patch -p1 < logbook-b61-prevention-tests.patch
+  node scripts/archive-signature-regression.test.js
+  node scripts/photo-restore-regression.test.js
+
+Both use synthetic records and a fake photo store. They do not open a backup,
+launch the app, or write a repair.
+
+Archive writer
+The shipped archive path is applyPlantStatus('archived') through archivePlant.
+That sets status archived, completed true, and archivedAt when it was empty.
+isCompleted stays false. Start, veg, flower, planned flip, harvest, and logs
+are not cleared. returnToActive sets status active and completed false, leaves
+archivedAt, and does not import photos. The Nov 6 field change matches that
+archive signature. Which control called it is still unknown. These tests do
+not call returnToActive on a live record and do not restore anything.
+
+mobile.js still calls archivePlant(selectedPlantId) from the profile Archive
+button. A synthetic case shows a stale selected id archives that other plant.
+That is a code hazard. It is not evidence of the Nov 6 control.
+
+normalizePlant still copies a past flowerFlipDate into flowerStartDate when
+both new date fields are empty, and copies a future one into plannedFlipDate.
+Empty fields stay empty. Do not change this in the current patch.
+
+fx- cleanup matches only ids that start with fx- or keys such as pl:fx-.
+A normal UUID does not match. The cleanup source runs only when the protocol
+is capacitor: or ionic:.
+
+Automatic iCloud backups are named boriken-logbook-backup-YYYY-MM-DD.json.
+writeBackup uses a replacing write, so a second backup on the same date
+replaces the first. prune keeps the newest 7 dated names. The tests reproduce
+that collision and prune with synthetic names.
+
+Proposed later, not in this patch: pass the open plant id into archivePlant;
+do not promote flowerFlipDate into flowerStartDate; put the time in the backup
+name so one day is not a single replaceable file. No recovery action.
+
+Photo import
+Shipped collectIds walks plants and breedingPlants only. A grow observation
+photoId is exported. A mother or landrace photoId is not, so those bytes are
+absent from the backup even when the log still has the id. The phase 1
+media-store also collects motherFatherPlants. The test checks both.
+
+importPhotos accepts only data: URLs, writes them with putDataUrl, and the
+readback in the synthetic store matches the bytes. Full import then replaces
+state, runs migrateInlinePhotos, hydrateMediaCache, and renderAll. photoSrc
+returns the cached object URL. An empty cache with a photoId still set renders
+"This photo is saved on the device but could not be loaded." and does not
+delete the id. A photos entry that is not a data: URL counts as a failure.
+The shipped import still replaces state after that failure. import does not
+prune. Prune runs only from clear backup history and clear all data. The
+shipped keep-set would drop a landrace-only id and keep the grow id. The
+phase 1 keep-set retains both.
+
+Tree circles use the same photoSrc cache. With an empty cache the circle is
+the monogram, including a mother with no logs of her own. After the grow id
+is hydrated, a mother with the same name can reuse that URL. An empty circle
+does not by itself mean the JPEG is gone from the backup.
+
+The backed-up grow JPEG is the one observation photo present in both exports.
+Which screen is blank is still unknown. No live repair is included. The
+synthetic one-id path puts that id's data URL back into the fake store and
+paints only that log; another plant is left without a blob. Use that only
+later, and only if the blank screen is the grow profile and the phone store
+has no blob for that id. Do not full-import. Landrace bytes are not in the
+exports, so there is nothing to put back for those ids. The mother record
+has no photo of its own.
+
+Rocco and the duplicate tree stay queued. No code for them.
