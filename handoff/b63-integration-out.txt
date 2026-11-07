@@ -1,0 +1,12 @@
+PASS mothers page render drops retired and the configured id and keeps the array
+PASS sidebar list and breeding section use the same projection
+PASS harvest search and active count omit the configured id
+PASS id-linked crosses are kids and a same-name other id is not
+PASS tree page hides the configured partner and says Also crossed with
+PASS typed parent gets a Not recorded slot and origin stays on the flagged side
+PASS archive selection, status, and card paths do not touch the other plant
+PASS future flip, notes save, and photo id stay on the record
+PASS render did not write records or local config
+LAYOUT {"phone":{"box":422,"frame":390,"pagePast":true,"cardPast":false,"colPast":false,"sidePast":false,"sideW":390,"word":"normal","closed":"none","opened":"flex","h1":"Family tree"},"pad":{"box":1024,"frame":1024,"pagePast":false,"cardPast":false,"colPast":false,"sidePast":false,"sideW":248,"word":"normal","closed":"none","opened":"flex","h1":"Family tree"}}
+PASS phone and ipad layout keep the tree and sidebar inside the width
+b63 integration: all checks passed

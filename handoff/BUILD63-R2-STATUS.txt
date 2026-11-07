@@ -1,0 +1,32 @@
+Build 63 revision 2. Revision 1 patch is unchanged. Build 62 is not rebuilt.
+
+Revision 1 file, still SHA-256 74890721ad445efcbf164e20b29ea0b6142402fd8a015f80927cbd89b8359223. It is partial. Its seven checks call stand-in functions. This revision does not replace that file.
+
+Revision 2 patch SHA-256 059aadb2b430cf4d55c94901c5c17a11e71aadb71b80de7a340b661f00c473d3. It is the cumulative diff from the validated build 62 tree. It applies on that tree. Raw test stdout SHA-256 ddd931ddf6f4e4852653ebf4f3efb017b6321c72c7ce8434d0a7d6bc0f619f3c.
+
+Candidate settings stay APP_BUILD 63. The three app.js copies now hash b8bb53d61dd32dbf29aa5f62a0fb53bd72a5181670382801d3d87f1a9968d682. Marketing stays 1.0. No upload. No signing change. No device claim.
+
+Local view config, read only, no record write. Key boriken-b63-view in localStorage, or B63.configure. Shape: hideIds is an array of ids, originById maps an id to originRegion, originCountry, and landrace. Both start empty. A later local mapping turns them on without another source change. This patch contains no record ids and no production names.
+
+Installed paths exercised with synthetic ids:
+- B41.mfpOpen HTML, B42.listHtml, and mfSectionHtml. Retired rows leave the lists and the Mothers and Fathers counts. The arrays are the same objects afterwards.
+- filteredHarvestRecords, activeStrains, and wNavCounts. A configured id is absent. A same-name second id stays.
+- B49.children. A project is a kid when motherId, fatherId, b49Mother, or b49Father stores that id. A same-name other id is not the kid. The record is not its own child.
+- b18BrPageHtml for the family tree. The partner row says Also crossed with. The configured id is not a partner. The header does not say scroll sideways.
+- B57.ancestors. One key is not emitted twice as a full node. Two ids stay two nodes.
+- B60.line and B60.rows. A typed parent gets a Not recorded slot. An origin flag renders in that record's column. An originById overlay renders without writing the record.
+- archivePlant, applyPlantStatus to archived, and the harvest-card fromCard argument. A shown id that differs is refused. The card id is archived. The other plant's note and log stay. No automatic archive writer was added.
+- normalizePlant, savePlantFromForm, hasPhoto, and photoSrc. A future flip stays off the flower clock. The saved note replaces the note field and the existing log stays. A photo id with an empty cache still counts as a photo.
+- Headless Chrome at a 390 frame and a 1024 frame, loading the real stylesheets. Cards and columns fit. The iPad sidebar is 248 wide and does not overflow itself. Tag word-break computes to normal. A closed dialog computes to display none. An open dialog computes to flex.
+
+Not done, split by block:
+- Merging two records. Data evidence blocked. No id pair was supplied. The code does not merge by name.
+- Writing origin text onto a record. Data evidence blocked. The overlay is view-only.
+- Turning on a specific hide list. Data evidence blocked. The list stays empty until the local config supplies ids.
+- Suppressing one lower branch. Data evidence blocked. No verified link ids. There is no descendant cascade.
+- Attaching a kid that is linked only by a typed name. Data evidence blocked. The new kid path reads stored ids. The typed name gets a Not recorded slot.
+- The vanished grow-plant event. Data evidence blocked. No date or status rewrite.
+- Pixel match to the approved tree image, and any title that exists only on that image. Artifact blocked. The image is not in this handoff. The fit-width measurement above is what was run.
+- Device, native archive, export, and upload. Not run. The build 62 archive is untouched.
+
+The pre-existing load-time migration in build 60 was not edited and was not extended.
