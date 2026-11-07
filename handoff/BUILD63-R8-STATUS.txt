@@ -1,0 +1,11 @@
+BUILD 63 revision 8. LATER and UNBUILT. Not applied to logbook-b63r5-20261107-1114. Do not change the revision 7 patch. No signing, upload, export, or device test.
+
+This patch only replaces two form hints in build58.js. They were placeholder text, not records.
+- "e.g. Rocco OG" is now "Name"
+- "e.g. Rocco Seeds" is now "Breeder or seed bank"
+source, www, and public: SHA-256 7262c38cfc24019a95de4e8189b046b7f71997827a2bf55323b0ad81c0591fb1
+
+Patch SHA-256 3aa0777d2dddf0d867e7aec62246ca36918eba592a388a32d360779221e9aacd
+Dry-run onto the revision 5 tree exited 0. Apply revision 7 first if the tree does not already contain it; this file does not overlap revision 7.
+
+No saved plant was deleted. No sample id was invented. The production sample is still unidentified.
