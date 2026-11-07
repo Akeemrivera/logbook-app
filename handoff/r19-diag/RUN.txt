@@ -1,0 +1,16 @@
+Diagnostic only. The production service worker is not changed.
+
+From the snap17 tree, copy these three files over the same paths, then run the original renderer once:
+
+  node scripts/b63-real-mockup.test.js --trace --sw-diag
+
+Keep the failure output. Do not rerun it.
+
+On the failing 1024 viewport, the lines that carry the worker result are TRACE sw-post, TRACE worker, and TRACE finished-focus. TRACE finished-focus now includes blockedReason, corsErrorStatus, and the full URL when Chrome reports a failed load. TRACE sw-post is the worker's own record of that fetch: request mode, destination, cache mode, lookup hit or error, bodyUsed, locked, Vary, and the respondWith rejection text.
+
+Limits of this diagnostic:
+Page-level Chrome reports net::ERR_FAILED for a service-worker failure and usually leaves blockedReason and corsErrorStatus empty. That empty pair is not evidence about CORS.
+Chrome's process stderr does not include a service-worker JavaScript exception.
+The worker log is also POSTed to the test server because attaching DevTools to the worker can miss the first events. If the worker is killed before that POST is sent, the reason is still absent.
+The diagnostic worker is a copy. Its bytes are not the production worker. The fetch decisions are the same. If the failure disappears only while this copy is served, the log changed the timing and is not a cause.
+This machine does not reproduce the box failure, so there is no worker rejection to quote from here.
