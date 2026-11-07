@@ -1,45 +1,39 @@
 # MOCKUP · SYNTHETIC · NOT DEVICE PROOF
 
-These are browser screenshots of the revision 7 web UI plus one hint-text change. They are not an iPhone, not an iPad, and not TestFlight. No upload is authorized. User review is still required before any TestFlight, and device QA is still required after that.
+These are Chrome renders of the full application after the revision 9 layout and cache changes. They are not an iPhone, not an iPad, and not TestFlight. No upload is authorized. User review is still required before any TestFlight, and device QA is still required after that.
 
-The black strip at the top of each image is a caption, not a phone frame.
+The black strip at the top of each image is a caption, not a phone frame. Variant A keeps the existing "Family tree" heading and the Parents label. Variant B hides those two labels in the picture only. That preview is not approved and is not in the app.
 
-## What the pictures are
+## What changed in these pictures
 
-| File | What it shows |
+The previous iPad pictures were taken at 1440 CSS px so the zoom rule would leave the sidebar at 248px. Those files are not in this set. These pictures use 390, 768, 1024, and 1366 CSS px windows.
+
+At 390 and 768 the tree cards in one half stack, so "Synthetic Gran" and "Synthetic Grandfather" stay whole words. "1 generation recorded" is the full string. The two halves stay equal. Card min-height stays 110px. The page does not scroll sideways.
+
+The subtitle "Synthetic Gran × Synthetic Grandfather" is the opened record. That record is Synthetic Mother. Her saved parents are Synthetic Gran (`mf:syn-gran`) and Synthetic Grandfather (`mf:syn-granf`). Synthetic Father is the partner on the lower row, not a parent in that subtitle.
+
+At 1024 and 1366 the default wide text size is still 1.28. The effective-width flag is still set. The sidebar's computed width is 248px. Below 1024 there is no wide sidebar. Text size was not changed.
+
+## Files
+
+| File | Window |
 |---|---|
-| MOCKUP-SYNTHETIC-NOT-DEVICE-iphone-tree-sample-visible.png | iPhone-width Chrome, 390 CSS px. Family tree of Synthetic Mother. Synthetic Sample is still on the page because hideIds is empty. |
-| MOCKUP-SYNTHETIC-NOT-DEVICE-iphone-tree-sample-absent-VARIANT-A-existing-heading-parents.png | Same tree after the view projection hides only the synthetic id `syn-sample`. Synthetic Sample is gone. Synthetic Father and the kept cross stay. Heading is the existing "Family tree". The Parents label is the existing one. This is variant A. It is not an approval of that wording. |
-| MOCKUP-SYNTHETIC-NOT-DEVICE-iphone-tree-VARIANT-B-preview-heading-parents-hidden-NOT-APPROVAL.png | Same pixels as variant A, with a preview stylesheet that hides `h2.b18-h1` and `.b60-gen[data-gen="1"] > .b57-lab` only. Mother's line, Father's line, and Grandparents stay. This is not approved and is not in the app source. |
-| MOCKUP-SYNTHETIC-NOT-DEVICE-iphone-retired-active-counts.png | Mothers & Fathers. Counts read Mothers · 2 and Fathers · 2. Synthetic Retired is not in the list. Synthetic Sample is not in the list. |
-| MOCKUP-SYNTHETIC-NOT-DEVICE-iphone-fathers-active-list.png | Fathers tab. Synthetic Father and Synthetic Grandfather are listed. Synthetic Retired and Synthetic Sample are not. |
-| MOCKUP-SYNTHETIC-NOT-DEVICE-iphone-compliance-tag-wrap.png | Compliance dashboard. Tag cards use the existing `.tag-top .m-t` rule. Measured `word-break: normal` and `overflow-wrap: break-word` on "SyntheticLongName AlphaBeta". |
-| MOCKUP-SYNTHETIC-NOT-DEVICE-iphone-inspection-table.png | Inspection tab. Existing narrow reflow. Synthetic rows only. |
-| MOCKUP-SYNTHETIC-NOT-DEVICE-ipad-tree-sidebar-248-sample-absent.png | Chrome at 1440 CSS px so the existing wide rule applies. Computed sidebar width 248px, `data-weff` empty, body padding-left 248px. Default wide text size still zooms the page 1.28×, so the painted box is about 317px. That zoom is build 40, already in the app. Synthetic Sample is absent. |
-| MOCKUP-SYNTHETIC-NOT-DEVICE-ipad-retired-active-counts-sidebar-248.png | Same 1440px window. Sidebar CSS width still 248px. Counts Mothers · 2 and Fathers · 2. Retired and the hidden synthetic id are absent. |
-
-At 1024 CSS px the same app sets `data-weff` from build 40 because default wide zoom is 1.28, and the existing stylesheet then draws the sidebar at 216px. The 248px pictures use a wider window so that existing 248px rule is the one on screen. No sidebar CSS was rewritten for these pictures.
+| MOCKUP-SYNTHETIC-NOT-DEVICE-iphone-tree-sample-visible.png | 390×1200. Synthetic Sample is still on the tree. |
+| MOCKUP-SYNTHETIC-NOT-DEVICE-iphone-tree-sample-absent-VARIANT-A-existing-heading-parents.png | 390×1200. Only the synthetic id `syn-sample` is hidden. Variant A. Not an approval. |
+| MOCKUP-SYNTHETIC-NOT-DEVICE-iphone-tree-VARIANT-B-preview-heading-parents-hidden-NOT-APPROVAL.png | Same page with a preview stylesheet. Not approved. |
+| MOCKUP-SYNTHETIC-NOT-DEVICE-iphone-retired-active-counts.png | 390. Retired and the hidden id are absent. Counts Mothers · 2 and Fathers · 2. |
+| MOCKUP-SYNTHETIC-NOT-DEVICE-iphone-fathers-active-list.png | Fathers tab. |
+| MOCKUP-SYNTHETIC-NOT-DEVICE-iphone-compliance-tag-wrap.png | Tag cards. An unspaced cultivar token still breaks only when it is wider than the card. The fixture name was not shortened. |
+| MOCKUP-SYNTHETIC-NOT-DEVICE-iphone-inspection-table.png | Inspection table. |
+| MOCKUP-SYNTHETIC-NOT-DEVICE-768x1024-portrait-tree.png | 768×1024. Phone layout. No sidebar. |
+| MOCKUP-SYNTHETIC-NOT-DEVICE-1024x768-landscape-tree-sidebar-248.png | 1024×768. Sidebar CSS 248px. Zoom 1.28. |
+| MOCKUP-SYNTHETIC-NOT-DEVICE-1024x1366-portrait-tree-sidebar-248.png | 1024×1366. Sidebar CSS 248px. Zoom 1.28. |
+| MOCKUP-SYNTHETIC-NOT-DEVICE-1366x1024-landscape-tree-sidebar-248.png | 1366×1024. Sidebar CSS 248px. Zoom 1.28. |
+| MOCKUP-SYNTHETIC-NOT-DEVICE-1366x1024-landscape-retired-counts-sidebar-248.png | Same window. Retired and the hidden id are absent. |
 
 ## Synthetic records only
 
-Ids used: `syn-mother`, `syn-father`, `syn-sample`, `syn-retired`, `syn-gran`, `syn-granf`, `syn-cross`, `syn-kept`, `syn-grow-long`, `syn-grow-short`. None of these are production ids. Hiding `syn-sample` is a fixture for the projection. It does not mean a saved plant was removed. A real saved record still has no stable sample id in the source, so it was not deleted and is not claimed gone.
-
-## Sources checked before any capture
-
-No new art was drawn. The screens use the files the app already loads.
-
-- `index.html` tab-bar SVG icons and the page itself
-- `assets/logo-crop.png` (sidebar mark), `assets/logo.png`, `assets/boriken-logo.jpg`, `assets/boriken-mark.jpg`, `assets/boriken-favicon.jpg`
-- `assets/icons/icon-192.png`, `icon-512.png`, `apple-touch-icon.png`, `app-icon-1024.png`
-- `assets/looks/pr01.jpg` through `pr24.jpg` (profile looks; not composited into these shots)
-- `mascots/` cartoon, dark, light, variants, and `coqui-flag-icon.png` / `coqui-flag-hero.png`
-- `wide.css` sidebar 248px rule and the build 40 effective-width override
-- `build57.js` heading text "Family tree"
-- `build60.js` generation label "Parents"
-- `build63.css` card min-height 110px and slot min-height 60px
-- `styles.css` `.tag-top .m-t` word-break
-- `build4.js` plant tag cards
-- `build41.js` Mothers · N / Fathers · N
+Ids: `syn-mother`, `syn-father`, `syn-sample`, `syn-retired`, `syn-gran`, `syn-granf`, `syn-cross`, `syn-kept`, `syn-grow-long`, `syn-grow-short`. None of these are production ids. Hiding `syn-sample` does not delete a saved row. There is still no stable production sample id, so a saved row was not removed. The three-photo backup abort is unchanged. This is not a photo recovery.
 
 ## Not device proof
 

@@ -1,0 +1,15 @@
+BUILD 63 revision 9. LATER and UNBUILT relative to logbook-b63r8. Do not treat this note as a compile. No signing, upload, export, or device test.
+
+Native revision 8 compiled unsigned on its own machine. This patch was not part of that compile.
+
+build63.css, source www and public, SHA-256 c2afd8a6244bcddab961e6fe31368e994b9496e1c3f599a5ce06466555fc3a3f
+service-worker.js, source www and public, SHA-256 a5b9114ba3aafab229256c664bcdd7f8ae93d01d238289ec2938abe448cf5fd6
+Patch SHA-256 252dfade982b258b28c2b14d0d1c7498206bd1e9213e0a5a6dd2cb21f096a1b1
+
+The cache name is boriken-genetics-logbook-app-v83. Activate deletes every other cache, including v81 and v82. Real Chrome installed that worker from a seeded v81 cache and from a seeded v82 cache, then served the current build13.js and build58.js online and offline.
+
+The stripped 390 fixture is unchanged: halves 187/187, card height 110, document width 390. The stripped 1024 fixture is unchanged: sidebar 248, tree 776. The full app at a real 1024 and 1366 window keeps zoom 1.28 and text size default, and the sidebar computed width is 248px. At 768 there is no wide sidebar.
+
+Names on the tree break at spaces. The generation line reads "1 generation recorded". The subtitle Synthetic Gran × Synthetic Grandfather is the opened mother's saved parents.
+
+No production id was added. No saved row was deleted. The photo export abort is unchanged.
