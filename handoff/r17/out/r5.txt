@@ -1,0 +1,8 @@
+PASS service worker copies match and are not the revision 4 script
+PASS ios scheme is https, so the protocol gate does register inside the wrapper
+PASS update from the revision 4 cache replaces the shell and still serves it offline
+PASS photo readback, failed read keeps ids, mother photos are collected
+PASS plant picker, notes refresh, and archive guard
+PASS sheet lock, closed dialog rule, and tag wrap rule
+PASS breeding candidates, dashboard count, calendar filter, clone source, and grade subjects
+b63 r5: update path and behavior checks passed

@@ -1,0 +1,6 @@
+PASS three unreadable photos abort before a file exists
+PASS the abort keeps the records, the stored photo, and does not delete ids
+PASS Backup JSON shows the abort and does not share or mark success
+PASS the same builder saves when every referenced photo can be read
+PASS revision 5 cache name does not change this export path
+b63 photo missing: existing abort held

@@ -1,0 +1,852 @@
+--- a/build63.js
++++ b/build63.js
+@@ -201,6 +201,19 @@
+     }, extra || {});
+     return window.__b63RepairState;
+   }
++  function markBoot() {
++    const errors = window.__b63Errors || [];
++    window.__b63Boot = {
++      ready: typeof switchView === 'function' && typeof b18BrPageHtml === 'function' && !!(window.B49 && window.B49.openPage) && !!window.B57 && !!window.B63 && window.__b63RepairReady === true && errors.length === 0,
++      switchView: typeof switchView,
++      b18BrPageHtml: typeof b18BrPageHtml,
++      B49: !!(window.B49 && window.B49.openPage),
++      B57: !!window.B57,
++      B63: !!window.B63,
++      errors: errors.slice(),
++    };
++    return window.__b63Boot;
++  }
+   function settleRepair(text, via) {
+     const body = text || '';
+     try {
+@@ -210,8 +223,28 @@
+       repairStatus('error', { via: via, error: String(e && e.message || e), bytes: body.length });
+     }
+     window.__b63RepairReady = true;
++    markBoot();
+     return window.__b63RepairState;
+   }
++  function bounded(work, ms) {
++    return new Promise((resolve) => {
++      let done = false;
++      const finish = (value) => { if (!done) { done = true; resolve(value); } };
++      const timer = typeof setTimeout === 'function' ? setTimeout(() => finish(null), ms) : 0;
++      Promise.resolve().then(work).then((value) => { if (typeof clearTimeout === 'function') clearTimeout(timer); finish(value); }).catch(() => { if (typeof clearTimeout === 'function') clearTimeout(timer); finish(null); });
++    });
++  }
++  function readCacheText() {
++    if (typeof caches === 'undefined' || !caches.match) return Promise.resolve('');
++    return caches.match('./b63-repair.json', { ignoreSearch: true }).then((res) => (res ? res.text() : '')).catch(() => '');
++  }
++  function readNetResult() {
++    if (typeof fetch !== 'function') return Promise.resolve(null);
++    return fetch('b63-repair.json', { cache: 'no-store' }).then((res) => {
++      if (!res || !res.ok) return null;
++      return res.text().then((text) => ({ text: text || '' }));
++    }).catch(() => null);
++  }
+   function startRepair() {
+     const controlled = typeof navigator !== 'undefined' && navigator.serviceWorker && navigator.serviceWorker.controller;
+     repairStatus('start', { controller: !!controlled });
+@@ -228,15 +261,12 @@
+         repairStatus('sync-error', { error: String(e && e.message || e) });
+       }
+     }
+-    const readNet = (typeof fetch === 'function')
+-      ? fetch('b63-repair.json', { cache: 'no-store' }).then((res) => (res && res.ok ? res.text() : '')).catch((e) => { repairStatus('fetch-error', { error: String(e && e.message || e) }); return ''; })
+-      : Promise.resolve('');
+-    return readNet.then((text) => {
+-      if (text) return settleRepair(text, 'fetch');
+-      if (typeof caches === 'undefined' || !caches.match) return settleRepair('', 'empty');
+-      return caches.match('./b63-repair.json').then((res) => (res ? res.text() : '')).catch(() => '')
+-        .then((cached) => settleRepair(cached || '', cached ? 'cache' : 'empty'));
+-    }).catch((e) => settleRepair('', 'error'));
++    const offline = typeof navigator !== 'undefined' && navigator.onLine === false;
++    if (offline) return bounded(() => readCacheText(), 400).then((cached) => settleRepair(cached || '', cached ? 'cache' : 'empty'));
++    return bounded(() => readNetResult(), 800).then((result) => {
++      if (result) return settleRepair(result.text, result.text ? 'fetch' : 'empty');
++      return bounded(() => readCacheText(), 400).then((cached) => settleRepair(cached || '', cached ? 'cache' : 'empty'));
++    });
+   }
+   function install() {
+     if (window.B49 && typeof B49.children === 'function' && !B49.children.b63) {
+--- a/www/build63.js
++++ b/www/build63.js
+@@ -201,6 +201,19 @@
+     }, extra || {});
+     return window.__b63RepairState;
+   }
++  function markBoot() {
++    const errors = window.__b63Errors || [];
++    window.__b63Boot = {
++      ready: typeof switchView === 'function' && typeof b18BrPageHtml === 'function' && !!(window.B49 && window.B49.openPage) && !!window.B57 && !!window.B63 && window.__b63RepairReady === true && errors.length === 0,
++      switchView: typeof switchView,
++      b18BrPageHtml: typeof b18BrPageHtml,
++      B49: !!(window.B49 && window.B49.openPage),
++      B57: !!window.B57,
++      B63: !!window.B63,
++      errors: errors.slice(),
++    };
++    return window.__b63Boot;
++  }
+   function settleRepair(text, via) {
+     const body = text || '';
+     try {
+@@ -210,8 +223,28 @@
+       repairStatus('error', { via: via, error: String(e && e.message || e), bytes: body.length });
+     }
+     window.__b63RepairReady = true;
++    markBoot();
+     return window.__b63RepairState;
+   }
++  function bounded(work, ms) {
++    return new Promise((resolve) => {
++      let done = false;
++      const finish = (value) => { if (!done) { done = true; resolve(value); } };
++      const timer = typeof setTimeout === 'function' ? setTimeout(() => finish(null), ms) : 0;
++      Promise.resolve().then(work).then((value) => { if (typeof clearTimeout === 'function') clearTimeout(timer); finish(value); }).catch(() => { if (typeof clearTimeout === 'function') clearTimeout(timer); finish(null); });
++    });
++  }
++  function readCacheText() {
++    if (typeof caches === 'undefined' || !caches.match) return Promise.resolve('');
++    return caches.match('./b63-repair.json', { ignoreSearch: true }).then((res) => (res ? res.text() : '')).catch(() => '');
++  }
++  function readNetResult() {
++    if (typeof fetch !== 'function') return Promise.resolve(null);
++    return fetch('b63-repair.json', { cache: 'no-store' }).then((res) => {
++      if (!res || !res.ok) return null;
++      return res.text().then((text) => ({ text: text || '' }));
++    }).catch(() => null);
++  }
+   function startRepair() {
+     const controlled = typeof navigator !== 'undefined' && navigator.serviceWorker && navigator.serviceWorker.controller;
+     repairStatus('start', { controller: !!controlled });
+@@ -228,15 +261,12 @@
+         repairStatus('sync-error', { error: String(e && e.message || e) });
+       }
+     }
+-    const readNet = (typeof fetch === 'function')
+-      ? fetch('b63-repair.json', { cache: 'no-store' }).then((res) => (res && res.ok ? res.text() : '')).catch((e) => { repairStatus('fetch-error', { error: String(e && e.message || e) }); return ''; })
+-      : Promise.resolve('');
+-    return readNet.then((text) => {
+-      if (text) return settleRepair(text, 'fetch');
+-      if (typeof caches === 'undefined' || !caches.match) return settleRepair('', 'empty');
+-      return caches.match('./b63-repair.json').then((res) => (res ? res.text() : '')).catch(() => '')
+-        .then((cached) => settleRepair(cached || '', cached ? 'cache' : 'empty'));
+-    }).catch((e) => settleRepair('', 'error'));
++    const offline = typeof navigator !== 'undefined' && navigator.onLine === false;
++    if (offline) return bounded(() => readCacheText(), 400).then((cached) => settleRepair(cached || '', cached ? 'cache' : 'empty'));
++    return bounded(() => readNetResult(), 800).then((result) => {
++      if (result) return settleRepair(result.text, result.text ? 'fetch' : 'empty');
++      return bounded(() => readCacheText(), 400).then((cached) => settleRepair(cached || '', cached ? 'cache' : 'empty'));
++    });
+   }
+   function install() {
+     if (window.B49 && typeof B49.children === 'function' && !B49.children.b63) {
+--- a/ios/App/App/public/build63.js
++++ b/ios/App/App/public/build63.js
+@@ -201,6 +201,19 @@
+     }, extra || {});
+     return window.__b63RepairState;
+   }
++  function markBoot() {
++    const errors = window.__b63Errors || [];
++    window.__b63Boot = {
++      ready: typeof switchView === 'function' && typeof b18BrPageHtml === 'function' && !!(window.B49 && window.B49.openPage) && !!window.B57 && !!window.B63 && window.__b63RepairReady === true && errors.length === 0,
++      switchView: typeof switchView,
++      b18BrPageHtml: typeof b18BrPageHtml,
++      B49: !!(window.B49 && window.B49.openPage),
++      B57: !!window.B57,
++      B63: !!window.B63,
++      errors: errors.slice(),
++    };
++    return window.__b63Boot;
++  }
+   function settleRepair(text, via) {
+     const body = text || '';
+     try {
+@@ -210,8 +223,28 @@
+       repairStatus('error', { via: via, error: String(e && e.message || e), bytes: body.length });
+     }
+     window.__b63RepairReady = true;
++    markBoot();
+     return window.__b63RepairState;
+   }
++  function bounded(work, ms) {
++    return new Promise((resolve) => {
++      let done = false;
++      const finish = (value) => { if (!done) { done = true; resolve(value); } };
++      const timer = typeof setTimeout === 'function' ? setTimeout(() => finish(null), ms) : 0;
++      Promise.resolve().then(work).then((value) => { if (typeof clearTimeout === 'function') clearTimeout(timer); finish(value); }).catch(() => { if (typeof clearTimeout === 'function') clearTimeout(timer); finish(null); });
++    });
++  }
++  function readCacheText() {
++    if (typeof caches === 'undefined' || !caches.match) return Promise.resolve('');
++    return caches.match('./b63-repair.json', { ignoreSearch: true }).then((res) => (res ? res.text() : '')).catch(() => '');
++  }
++  function readNetResult() {
++    if (typeof fetch !== 'function') return Promise.resolve(null);
++    return fetch('b63-repair.json', { cache: 'no-store' }).then((res) => {
++      if (!res || !res.ok) return null;
++      return res.text().then((text) => ({ text: text || '' }));
++    }).catch(() => null);
++  }
+   function startRepair() {
+     const controlled = typeof navigator !== 'undefined' && navigator.serviceWorker && navigator.serviceWorker.controller;
+     repairStatus('start', { controller: !!controlled });
+@@ -228,15 +261,12 @@
+         repairStatus('sync-error', { error: String(e && e.message || e) });
+       }
+     }
+-    const readNet = (typeof fetch === 'function')
+-      ? fetch('b63-repair.json', { cache: 'no-store' }).then((res) => (res && res.ok ? res.text() : '')).catch((e) => { repairStatus('fetch-error', { error: String(e && e.message || e) }); return ''; })
+-      : Promise.resolve('');
+-    return readNet.then((text) => {
+-      if (text) return settleRepair(text, 'fetch');
+-      if (typeof caches === 'undefined' || !caches.match) return settleRepair('', 'empty');
+-      return caches.match('./b63-repair.json').then((res) => (res ? res.text() : '')).catch(() => '')
+-        .then((cached) => settleRepair(cached || '', cached ? 'cache' : 'empty'));
+-    }).catch((e) => settleRepair('', 'error'));
++    const offline = typeof navigator !== 'undefined' && navigator.onLine === false;
++    if (offline) return bounded(() => readCacheText(), 400).then((cached) => settleRepair(cached || '', cached ? 'cache' : 'empty'));
++    return bounded(() => readNetResult(), 800).then((result) => {
++      if (result) return settleRepair(result.text, result.text ? 'fetch' : 'empty');
++      return bounded(() => readCacheText(), 400).then((cached) => settleRepair(cached || '', cached ? 'cache' : 'empty'));
++    });
+   }
+   function install() {
+     if (window.B49 && typeof B49.children === 'function' && !B49.children.b63) {
+--- a/service-worker.js
++++ b/service-worker.js
+@@ -6,12 +6,12 @@
+   so users should still export JSON backups for long-term records.
+ */
+ 
+-// v89: the packaged repair file is fetched from the network before the cache.
+-// A cache read during install was holding the cache lock and leaving startup unsettled.
+-// An older cache keeps the previous shell until this file changes. Activate deletes every other cache.
++// v90: a controlled page serves the cached shell first, and the repair file falls
++// back to that cache when the network does not answer. An older cache keeps the
++// previous shell until this file changes. Activate deletes every other cache.
+ // iosScheme is https, so this worker registers inside the iOS wrapper (https://localhost).
+ // Precache requests use cache:'reload' so a cached localhost response cannot refill the new cache.
+-const CACHE_NAME = 'boriken-genetics-logbook-app-v89';
++const CACHE_NAME = 'boriken-genetics-logbook-app-v90';
+ const APP_SHELL = [
+   './',
+   './index.html',
+@@ -162,25 +162,46 @@
+   try { return new URL(request.url).pathname.endsWith('/b63-repair.json'); }
+   catch (e) { return false; }
+ }
++function remember(request, response) {
++  if (!response || !response.ok) return;
++  const copy = response.clone();
++  caches.open(CACHE_NAME).then((cache) => cache.put(request, copy)).catch(() => {});
++}
++function cached(request) {
++  return caches.match(request, { ignoreSearch: true }).then((found) => found || caches.match('./b63-repair.json'));
++}
++function repairResponse(request) {
++  return new Promise((resolve, reject) => {
++    let done = false;
++    const finish = (value) => { if (!done && value) { done = true; resolve(value); } };
++    const timer = setTimeout(() => { cached(request).then(finish).catch(() => {}); }, 400);
++    fetch(request).then((response) => {
++      clearTimeout(timer);
++      remember(request, response);
++      if (response && response.ok) finish(response);
++      else cached(request).then((found) => { if (found) finish(found); else finish(response); }).catch(() => finish(response));
++    }).catch(() => {
++      clearTimeout(timer);
++      cached(request).then((found) => { if (found) finish(found); else reject(new Error('repair unavailable')); }).catch(() => reject(new Error('repair unavailable')));
++    });
++  });
++}
+ self.addEventListener('fetch', (event) => {
+   if (event.request.method !== 'GET') return;
+   if (repairRequest(event.request)) {
+-    event.respondWith(fetch(event.request).then((response) => {
+-      const copy = response.clone();
+-      caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy)).catch(() => {});
+-      return response;
+-    }).catch(() => caches.match(event.request).then((cached) => cached || caches.match('./b63-repair.json'))));
++    event.respondWith(repairResponse(event.request));
+     return;
+   }
+-
+   event.respondWith(
+-    caches.match(event.request)
+-      .then((cached) => cached || fetch(event.request)
+-        .then((response) => {
+-          const copy = response.clone();
+-          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
+-          return response;
+-        })
+-        .catch(() => caches.match('./index.html'))),
++    caches.match(event.request, { ignoreSearch: true }).then((found) => {
++      if (found) return found;
++      return fetch(event.request).then((response) => {
++        remember(event.request, response);
++        return response;
++      }).catch(() => {
++        if (event.request.mode === 'navigate') return caches.match('./index.html');
++        return Promise.reject(new Error('unavailable'));
++      });
++    }),
+   );
+ });
+--- a/www/service-worker.js
++++ b/www/service-worker.js
+@@ -6,12 +6,12 @@
+   so users should still export JSON backups for long-term records.
+ */
+ 
+-// v89: the packaged repair file is fetched from the network before the cache.
+-// A cache read during install was holding the cache lock and leaving startup unsettled.
+-// An older cache keeps the previous shell until this file changes. Activate deletes every other cache.
++// v90: a controlled page serves the cached shell first, and the repair file falls
++// back to that cache when the network does not answer. An older cache keeps the
++// previous shell until this file changes. Activate deletes every other cache.
+ // iosScheme is https, so this worker registers inside the iOS wrapper (https://localhost).
+ // Precache requests use cache:'reload' so a cached localhost response cannot refill the new cache.
+-const CACHE_NAME = 'boriken-genetics-logbook-app-v89';
++const CACHE_NAME = 'boriken-genetics-logbook-app-v90';
+ const APP_SHELL = [
+   './',
+   './index.html',
+@@ -162,25 +162,46 @@
+   try { return new URL(request.url).pathname.endsWith('/b63-repair.json'); }
+   catch (e) { return false; }
+ }
++function remember(request, response) {
++  if (!response || !response.ok) return;
++  const copy = response.clone();
++  caches.open(CACHE_NAME).then((cache) => cache.put(request, copy)).catch(() => {});
++}
++function cached(request) {
++  return caches.match(request, { ignoreSearch: true }).then((found) => found || caches.match('./b63-repair.json'));
++}
++function repairResponse(request) {
++  return new Promise((resolve, reject) => {
++    let done = false;
++    const finish = (value) => { if (!done && value) { done = true; resolve(value); } };
++    const timer = setTimeout(() => { cached(request).then(finish).catch(() => {}); }, 400);
++    fetch(request).then((response) => {
++      clearTimeout(timer);
++      remember(request, response);
++      if (response && response.ok) finish(response);
++      else cached(request).then((found) => { if (found) finish(found); else finish(response); }).catch(() => finish(response));
++    }).catch(() => {
++      clearTimeout(timer);
++      cached(request).then((found) => { if (found) finish(found); else reject(new Error('repair unavailable')); }).catch(() => reject(new Error('repair unavailable')));
++    });
++  });
++}
+ self.addEventListener('fetch', (event) => {
+   if (event.request.method !== 'GET') return;
+   if (repairRequest(event.request)) {
+-    event.respondWith(fetch(event.request).then((response) => {
+-      const copy = response.clone();
+-      caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy)).catch(() => {});
+-      return response;
+-    }).catch(() => caches.match(event.request).then((cached) => cached || caches.match('./b63-repair.json'))));
++    event.respondWith(repairResponse(event.request));
+     return;
+   }
+-
+   event.respondWith(
+-    caches.match(event.request)
+-      .then((cached) => cached || fetch(event.request)
+-        .then((response) => {
+-          const copy = response.clone();
+-          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
+-          return response;
+-        })
+-        .catch(() => caches.match('./index.html'))),
++    caches.match(event.request, { ignoreSearch: true }).then((found) => {
++      if (found) return found;
++      return fetch(event.request).then((response) => {
++        remember(event.request, response);
++        return response;
++      }).catch(() => {
++        if (event.request.mode === 'navigate') return caches.match('./index.html');
++        return Promise.reject(new Error('unavailable'));
++      });
++    }),
+   );
+ });
+--- a/ios/App/App/public/service-worker.js
++++ b/ios/App/App/public/service-worker.js
+@@ -6,12 +6,12 @@
+   so users should still export JSON backups for long-term records.
+ */
+ 
+-// v89: the packaged repair file is fetched from the network before the cache.
+-// A cache read during install was holding the cache lock and leaving startup unsettled.
+-// An older cache keeps the previous shell until this file changes. Activate deletes every other cache.
++// v90: a controlled page serves the cached shell first, and the repair file falls
++// back to that cache when the network does not answer. An older cache keeps the
++// previous shell until this file changes. Activate deletes every other cache.
+ // iosScheme is https, so this worker registers inside the iOS wrapper (https://localhost).
+ // Precache requests use cache:'reload' so a cached localhost response cannot refill the new cache.
+-const CACHE_NAME = 'boriken-genetics-logbook-app-v89';
++const CACHE_NAME = 'boriken-genetics-logbook-app-v90';
+ const APP_SHELL = [
+   './',
+   './index.html',
+@@ -162,25 +162,46 @@
+   try { return new URL(request.url).pathname.endsWith('/b63-repair.json'); }
+   catch (e) { return false; }
+ }
++function remember(request, response) {
++  if (!response || !response.ok) return;
++  const copy = response.clone();
++  caches.open(CACHE_NAME).then((cache) => cache.put(request, copy)).catch(() => {});
++}
++function cached(request) {
++  return caches.match(request, { ignoreSearch: true }).then((found) => found || caches.match('./b63-repair.json'));
++}
++function repairResponse(request) {
++  return new Promise((resolve, reject) => {
++    let done = false;
++    const finish = (value) => { if (!done && value) { done = true; resolve(value); } };
++    const timer = setTimeout(() => { cached(request).then(finish).catch(() => {}); }, 400);
++    fetch(request).then((response) => {
++      clearTimeout(timer);
++      remember(request, response);
++      if (response && response.ok) finish(response);
++      else cached(request).then((found) => { if (found) finish(found); else finish(response); }).catch(() => finish(response));
++    }).catch(() => {
++      clearTimeout(timer);
++      cached(request).then((found) => { if (found) finish(found); else reject(new Error('repair unavailable')); }).catch(() => reject(new Error('repair unavailable')));
++    });
++  });
++}
+ self.addEventListener('fetch', (event) => {
+   if (event.request.method !== 'GET') return;
+   if (repairRequest(event.request)) {
+-    event.respondWith(fetch(event.request).then((response) => {
+-      const copy = response.clone();
+-      caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy)).catch(() => {});
+-      return response;
+-    }).catch(() => caches.match(event.request).then((cached) => cached || caches.match('./b63-repair.json'))));
++    event.respondWith(repairResponse(event.request));
+     return;
+   }
+-
+   event.respondWith(
+-    caches.match(event.request)
+-      .then((cached) => cached || fetch(event.request)
+-        .then((response) => {
+-          const copy = response.clone();
+-          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
+-          return response;
+-        })
+-        .catch(() => caches.match('./index.html'))),
++    caches.match(event.request, { ignoreSearch: true }).then((found) => {
++      if (found) return found;
++      return fetch(event.request).then((response) => {
++        remember(event.request, response);
++        return response;
++      }).catch(() => {
++        if (event.request.mode === 'navigate') return caches.match('./index.html');
++        return Promise.reject(new Error('unavailable'));
++      });
++    }),
+   );
+ });
+--- a/build49.js
++++ b/build49.js
+@@ -232,7 +232,7 @@
+ <div class="m-h2"><span>${esc(nm)} · cuttings</span></div><div class="m-card b18-list">${d.cuts.map((c) => `<div class="m-row b18-static"><span class="b18-tile b49-cn" aria-hidden="true">${c.name}</span><div class="m-grow"><div class="m-t">${esc(nm)} ${c.name}</div><div class="m-s">${c.date ? `Cut ${esc(fmt(c.date))} · ` : ''}${st(c)}</div></div></div>`).join('') || '<div class="m-row b18-static"><div class="m-grow"><div class="m-s">No cuttings yet.</div></div></div>'}</div>
+ <p class="m-s b49-note">Next cutting from ${esc(nm)} is named ${d.next} automatically.</p>`;
+   }
+-  const _page = b18BrPageHtml;
++  const _page = typeof b18BrPageHtml === 'function' ? b18BrPageHtml : function () { return ''; };
+   b18BrPageHtml = function () {
+     const pg = B18.brPage;
+     if (pg && pg.type === 'b49tree') return treeHtml(pg);
+@@ -331,7 +331,7 @@
+   }
+   // Keep the Patients row even when More is re-rendered by a path that skips switchView (top back button, renderAll).
+   { const mv = document.getElementById('more-view'); if (mv) new MutationObserver(() => { const l = mv.querySelector('.more-list'); if (l && (!l.querySelector('[data-b49="patients"]') || l.querySelector('[data-b48="journal"]:not([hidden])') || l.querySelectorAll('[data-b48="harvest"]').length > 1)) moreRows(); }).observe(mv, { childList: true, subtree: true }); moreRows(); }
+-  const sw = window.switchView;
++  const sw = typeof window.switchView === 'function' ? window.switchView : function () {};
+   window.switchView = switchView = function (v, a) { const r = sw.call(this, v, a); if (v === 'more') moreRows(); return r; };
+ 
+   /* ================= swipe back from the left edge (iPhone; PLAN-NEXT.md §1) ================= */
+--- a/www/build49.js
++++ b/www/build49.js
+@@ -232,7 +232,7 @@
+ <div class="m-h2"><span>${esc(nm)} · cuttings</span></div><div class="m-card b18-list">${d.cuts.map((c) => `<div class="m-row b18-static"><span class="b18-tile b49-cn" aria-hidden="true">${c.name}</span><div class="m-grow"><div class="m-t">${esc(nm)} ${c.name}</div><div class="m-s">${c.date ? `Cut ${esc(fmt(c.date))} · ` : ''}${st(c)}</div></div></div>`).join('') || '<div class="m-row b18-static"><div class="m-grow"><div class="m-s">No cuttings yet.</div></div></div>'}</div>
+ <p class="m-s b49-note">Next cutting from ${esc(nm)} is named ${d.next} automatically.</p>`;
+   }
+-  const _page = b18BrPageHtml;
++  const _page = typeof b18BrPageHtml === 'function' ? b18BrPageHtml : function () { return ''; };
+   b18BrPageHtml = function () {
+     const pg = B18.brPage;
+     if (pg && pg.type === 'b49tree') return treeHtml(pg);
+@@ -331,7 +331,7 @@
+   }
+   // Keep the Patients row even when More is re-rendered by a path that skips switchView (top back button, renderAll).
+   { const mv = document.getElementById('more-view'); if (mv) new MutationObserver(() => { const l = mv.querySelector('.more-list'); if (l && (!l.querySelector('[data-b49="patients"]') || l.querySelector('[data-b48="journal"]:not([hidden])') || l.querySelectorAll('[data-b48="harvest"]').length > 1)) moreRows(); }).observe(mv, { childList: true, subtree: true }); moreRows(); }
+-  const sw = window.switchView;
++  const sw = typeof window.switchView === 'function' ? window.switchView : function () {};
+   window.switchView = switchView = function (v, a) { const r = sw.call(this, v, a); if (v === 'more') moreRows(); return r; };
+ 
+   /* ================= swipe back from the left edge (iPhone; PLAN-NEXT.md §1) ================= */
+--- a/ios/App/App/public/build49.js
++++ b/ios/App/App/public/build49.js
+@@ -232,7 +232,7 @@
+ <div class="m-h2"><span>${esc(nm)} · cuttings</span></div><div class="m-card b18-list">${d.cuts.map((c) => `<div class="m-row b18-static"><span class="b18-tile b49-cn" aria-hidden="true">${c.name}</span><div class="m-grow"><div class="m-t">${esc(nm)} ${c.name}</div><div class="m-s">${c.date ? `Cut ${esc(fmt(c.date))} · ` : ''}${st(c)}</div></div></div>`).join('') || '<div class="m-row b18-static"><div class="m-grow"><div class="m-s">No cuttings yet.</div></div></div>'}</div>
+ <p class="m-s b49-note">Next cutting from ${esc(nm)} is named ${d.next} automatically.</p>`;
+   }
+-  const _page = b18BrPageHtml;
++  const _page = typeof b18BrPageHtml === 'function' ? b18BrPageHtml : function () { return ''; };
+   b18BrPageHtml = function () {
+     const pg = B18.brPage;
+     if (pg && pg.type === 'b49tree') return treeHtml(pg);
+@@ -331,7 +331,7 @@
+   }
+   // Keep the Patients row even when More is re-rendered by a path that skips switchView (top back button, renderAll).
+   { const mv = document.getElementById('more-view'); if (mv) new MutationObserver(() => { const l = mv.querySelector('.more-list'); if (l && (!l.querySelector('[data-b49="patients"]') || l.querySelector('[data-b48="journal"]:not([hidden])') || l.querySelectorAll('[data-b48="harvest"]').length > 1)) moreRows(); }).observe(mv, { childList: true, subtree: true }); moreRows(); }
+-  const sw = window.switchView;
++  const sw = typeof window.switchView === 'function' ? window.switchView : function () {};
+   window.switchView = switchView = function (v, a) { const r = sw.call(this, v, a); if (v === 'more') moreRows(); return r; };
+ 
+   /* ================= swipe back from the left edge (iPhone; PLAN-NEXT.md §1) ================= */
+--- a/build48.js
++++ b/build48.js
+@@ -96,7 +96,7 @@
+   }
+ 
+   /* ---------- navigation ---------- */
+-  const sw = window.switchView;
++  const sw = typeof window.switchView === 'function' ? window.switchView : function () {};
+   window.switchView = switchView = function (v, a) {
+     const r = sw.call(this, v, a);
+     if (v === 'dash') { $('#view-title').textContent = 'Dashboard'; renderDash(); }
+--- a/www/build48.js
++++ b/www/build48.js
+@@ -96,7 +96,7 @@
+   }
+ 
+   /* ---------- navigation ---------- */
+-  const sw = window.switchView;
++  const sw = typeof window.switchView === 'function' ? window.switchView : function () {};
+   window.switchView = switchView = function (v, a) {
+     const r = sw.call(this, v, a);
+     if (v === 'dash') { $('#view-title').textContent = 'Dashboard'; renderDash(); }
+--- a/ios/App/App/public/build48.js
++++ b/ios/App/App/public/build48.js
+@@ -96,7 +96,7 @@
+   }
+ 
+   /* ---------- navigation ---------- */
+-  const sw = window.switchView;
++  const sw = typeof window.switchView === 'function' ? window.switchView : function () {};
+   window.switchView = switchView = function (v, a) {
+     const r = sw.call(this, v, a);
+     if (v === 'dash') { $('#view-title').textContent = 'Dashboard'; renderDash(); }
+--- a/build51.js
++++ b/build51.js
+@@ -162,7 +162,7 @@
+     v.innerHTML = V.page === 'edit' && D ? editPage() : V.page === 'settings' ? settingsPage() : V.page === 'detail' ? detailPage(t) : listPage();
+     setTitle(V.page === 'settings' ? 'Trip ticket settings' : V.page === 'edit' ? (D && D.id ? 'Edit trip ticket' : 'New trip ticket') : V.page === 'detail' ? noOf(t) : 'Trip tickets'); }
+   function open(page, o = {}) { V = { ...V, page, ...o }; if (page !== 'detail') V.copies = 0; if (typeof activeView === 'undefined' || activeView !== 'trip') switchView('trip'); else render(); window.scrollTo(0, 0); }
+-  const sw = window.switchView;
++  const sw = typeof window.switchView === 'function' ? window.switchView : function () {};
+   window.switchView = switchView = function (v, a) { const r = sw.call(this, v, a); if (v === 'trip') render(); if (v === 'more') moreRows(); return r; };
+   function moreRows() { const list = document.querySelector('#more-view .more-list'); if (list && !list.querySelector('[data-b51m="list"]')) list.insertAdjacentHTML('beforeend', '<button type="button" data-b51m="list"><span class="mi" aria-hidden="true">🚗</span><span class="mt"><b>Trip tickets</b><small>OCP Form 004 · print, share, kept 4 years</small></span></button>');
+     const h = document.getElementById('hol-icons-row') || (document.getElementById('b18-haptics') && document.getElementById('b18-haptics').closest('.more-toggle'));
+--- a/www/build51.js
++++ b/www/build51.js
+@@ -162,7 +162,7 @@
+     v.innerHTML = V.page === 'edit' && D ? editPage() : V.page === 'settings' ? settingsPage() : V.page === 'detail' ? detailPage(t) : listPage();
+     setTitle(V.page === 'settings' ? 'Trip ticket settings' : V.page === 'edit' ? (D && D.id ? 'Edit trip ticket' : 'New trip ticket') : V.page === 'detail' ? noOf(t) : 'Trip tickets'); }
+   function open(page, o = {}) { V = { ...V, page, ...o }; if (page !== 'detail') V.copies = 0; if (typeof activeView === 'undefined' || activeView !== 'trip') switchView('trip'); else render(); window.scrollTo(0, 0); }
+-  const sw = window.switchView;
++  const sw = typeof window.switchView === 'function' ? window.switchView : function () {};
+   window.switchView = switchView = function (v, a) { const r = sw.call(this, v, a); if (v === 'trip') render(); if (v === 'more') moreRows(); return r; };
+   function moreRows() { const list = document.querySelector('#more-view .more-list'); if (list && !list.querySelector('[data-b51m="list"]')) list.insertAdjacentHTML('beforeend', '<button type="button" data-b51m="list"><span class="mi" aria-hidden="true">🚗</span><span class="mt"><b>Trip tickets</b><small>OCP Form 004 · print, share, kept 4 years</small></span></button>');
+     const h = document.getElementById('hol-icons-row') || (document.getElementById('b18-haptics') && document.getElementById('b18-haptics').closest('.more-toggle'));
+--- a/ios/App/App/public/build51.js
++++ b/ios/App/App/public/build51.js
+@@ -162,7 +162,7 @@
+     v.innerHTML = V.page === 'edit' && D ? editPage() : V.page === 'settings' ? settingsPage() : V.page === 'detail' ? detailPage(t) : listPage();
+     setTitle(V.page === 'settings' ? 'Trip ticket settings' : V.page === 'edit' ? (D && D.id ? 'Edit trip ticket' : 'New trip ticket') : V.page === 'detail' ? noOf(t) : 'Trip tickets'); }
+   function open(page, o = {}) { V = { ...V, page, ...o }; if (page !== 'detail') V.copies = 0; if (typeof activeView === 'undefined' || activeView !== 'trip') switchView('trip'); else render(); window.scrollTo(0, 0); }
+-  const sw = window.switchView;
++  const sw = typeof window.switchView === 'function' ? window.switchView : function () {};
+   window.switchView = switchView = function (v, a) { const r = sw.call(this, v, a); if (v === 'trip') render(); if (v === 'more') moreRows(); return r; };
+   function moreRows() { const list = document.querySelector('#more-view .more-list'); if (list && !list.querySelector('[data-b51m="list"]')) list.insertAdjacentHTML('beforeend', '<button type="button" data-b51m="list"><span class="mi" aria-hidden="true">🚗</span><span class="mt"><b>Trip tickets</b><small>OCP Form 004 · print, share, kept 4 years</small></span></button>');
+     const h = document.getElementById('hol-icons-row') || (document.getElementById('b18-haptics') && document.getElementById('b18-haptics').closest('.more-toggle'));
+--- a/index.html
++++ b/index.html
+@@ -1338,6 +1338,12 @@
+       </div>
+     </dialog>
+ 
++    <script>
++      window.__b63Errors = [];
++      window.addEventListener('error', function (event) {
++        window.__b63Errors.push(String(event && event.message ? event.message : 'error'));
++      });
++    </script>
+     <script src="media-store.js" defer></script>
+     <script src="app.js" defer></script>
+     <script src="mobile.js" defer></script>
+--- a/www/index.html
++++ b/www/index.html
+@@ -1338,6 +1338,12 @@
+       </div>
+     </dialog>
+ 
++    <script>
++      window.__b63Errors = [];
++      window.addEventListener('error', function (event) {
++        window.__b63Errors.push(String(event && event.message ? event.message : 'error'));
++      });
++    </script>
+     <script src="media-store.js" defer></script>
+     <script src="app.js" defer></script>
+     <script src="mobile.js" defer></script>
+--- a/ios/App/App/public/index.html
++++ b/ios/App/App/public/index.html
+@@ -1338,6 +1338,12 @@
+       </div>
+     </dialog>
+ 
++    <script>
++      window.__b63Errors = [];
++      window.addEventListener('error', function (event) {
++        window.__b63Errors.push(String(event && event.message ? event.message : 'error'));
++      });
++    </script>
+     <script src="media-store.js" defer></script>
+     <script src="app.js" defer></script>
+     <script src="mobile.js" defer></script>
+--- a/scripts/b63-real-mockup.js
++++ b/scripts/b63-real-mockup.js
+@@ -235,7 +235,7 @@
+       await send('Page.navigate', { url: 'http://127.0.0.1:' + port + '/index.html?screen=' + opts.screen });
+       let ready = null;
+       for (let i = 0; i < 40 && !(ready && ready.ok); i++) {
+-        ready = await evaluate('({ readyState: document.readyState, repair: window.__b63RepairReady === true, detail: window.__b63RepairState || null, controller: !!(navigator.serviceWorker && navigator.serviceWorker.controller), rendered: !!document.getElementById("home-view"), ok: document.readyState !== "loading" && window.__b63RepairReady === true && typeof switchView === "function" && typeof B49 !== "undefined" && typeof B57 !== "undefined" && !!document.getElementById("breeding-view") && !!document.getElementById("compliance-view") && !!document.getElementById("home-view") })');
++        ready = await evaluate('(() => { const boot = window.__b63Boot || null; const errors = window.__b63Errors || []; const deps = { switchView: typeof switchView, b18BrPageHtml: typeof b18BrPageHtml, B49: !!(window.B49 && window.B49.openPage), B57: typeof B57 !== "undefined", B63: typeof B63 !== "undefined" }; return { repair: window.__b63RepairReady === true, detail: window.__b63RepairState || null, controller: !!(navigator.serviceWorker && navigator.serviceWorker.controller), boot: boot, deps: deps, errors: errors, ok: !!(boot && boot.ready && window.__b63RepairReady === true && deps.switchView === "function" && deps.b18BrPageHtml === "function" && deps.B49 && deps.B57 && deps.B63 && errors.length === 0) }; })()');
+         if (!ready || !ready.ok) await sleep(50);
+       }
+       if (!ready || !ready.ok) fail('the app did not finish loading ' + JSON.stringify(ready) + ' ' + logs.slice(-6).join(' | '));
+@@ -251,6 +251,8 @@
+         return '';
+       })()`);
+       if (opened !== opts.screen) fail('the ' + opts.screen + ' screen did not open');
++      const thrown = logs.filter((line) => line.indexOf('exception ') === 0);
++      if (thrown.length) fail('uncaught error after the scripts ran ' + thrown.join(' | '));
+       let seen = null;
+       let lastSeen = null;
+       for (let i = 0; i < 40 && !seen; i++) {
+--- a/scripts/b63-r5.test.js
++++ b/scripts/b63-r5.test.js
+@@ -34,7 +34,8 @@
+   if (new Set(hashes).size !== 1) throw new Error(hashes.join(' '));
+   if (hashes[0] === REV4_SW_SHA) throw new Error('script bytes still match revision 4, so an update check would not install a worker');
+   const text = read('service-worker.js').toString('utf8');
+-  if (!text.includes("boriken-genetics-logbook-app-v89")) throw new Error('cache name');
++  if (!text.includes("boriken-genetics-logbook-app-v90")) throw new Error('cache name');
++  if (text.includes("boriken-genetics-logbook-app-v89")) throw new Error('v89 cache name still present');
+   if (text.includes("boriken-genetics-logbook-app-v88")) throw new Error('v88 cache name still present');
+   if (text.includes("boriken-genetics-logbook-app-v87")) throw new Error('v87 cache name still present');
+   if (text.includes("boriken-genetics-logbook-app-v86")) throw new Error('v86 cache name still present');
+@@ -102,6 +103,7 @@
+       const body = cacheMode === 'reload' ? 'BUNDLE-FRESH' : 'HTTP-STALE';
+       return new Response(body, { status: 200, headers: { 'Content-Type': 'application/javascript' } });
+     },
++    setTimeout, clearTimeout,
+     skipWaiting() { scope.skipped = true; return Promise.resolve(); },
+     clients: { claim() { scope.claimed = true; return Promise.resolve(); } },
+     addEventListener(type, fn) { (listeners[type] = listeners[type] || []).push(fn); },
+@@ -169,6 +171,8 @@
+   await v87.put('https://localhost/build63.js', new Response('V87-STALE-BUILD63', { status: 200 }));
+   const v88 = await scope.caches.open('boriken-genetics-logbook-app-v88');
+   await v88.put('https://localhost/b63-repair.json', new Response('V88-STALE-REPAIR', { status: 200 }));
++  const v89 = await scope.caches.open('boriken-genetics-logbook-app-v89');
++  await v89.put('https://localhost/b63-repair.json', new Response('V89-STALE-REPAIR', { status: 200 }));
+ 
+   const held = await scope.caches.match('https://localhost/build57.js');
+   if (!held || await held.text() !== 'REV2-STALE') throw new Error('seed failed');
+@@ -192,7 +196,8 @@
+   if (names.includes('boriken-genetics-logbook-app-v86')) throw new Error('v86 cache kept ' + names.join(','));
+   if (names.includes('boriken-genetics-logbook-app-v87')) throw new Error('v87 cache kept ' + names.join(','));
+   if (names.includes('boriken-genetics-logbook-app-v88')) throw new Error('v88 cache kept ' + names.join(','));
+-  if (!names.includes('boriken-genetics-logbook-app-v89')) throw new Error('new cache missing ' + names.join(','));
++  if (names.includes('boriken-genetics-logbook-app-v89')) throw new Error('v89 cache kept ' + names.join(','));
++  if (!names.includes('boriken-genetics-logbook-app-v90')) throw new Error('new cache missing ' + names.join(','));
+ 
+   const precached = await scope.caches.match('https://localhost/build57.js');
+   const precachedBody = await precached.text();
+@@ -207,6 +212,20 @@
+   const offlineBody = await offline.response.text();
+   if (offlineBody !== 'BUNDLE-FRESH') throw new Error('offline body ' + offlineBody);
+   if (stores.size !== 1) throw new Error('cache count ' + stores.size);
++  const repairOffline = await fire(listeners, 'fetch', { request: new Request('https://localhost/b63-repair.json'), method: 'GET' });
++  if (!repairOffline.response || await repairOffline.response.text() !== 'BUNDLE-FRESH') throw new Error('offline repair was not the cached file');
++  scope.fetch = () => new Promise(() => {});
++  const hungAt = Date.now();
++  const hung = await fire(listeners, 'fetch', { request: new Request('https://localhost/b63-repair.json'), method: 'GET' });
++  if (Date.now() - hungAt > 1500) throw new Error('a hung repair fetch blocked the worker');
++  if (!hung.response || await hung.response.text() !== 'BUNDLE-FRESH') throw new Error('a hung repair fetch did not use the cache');
++  scope.fetch = async () => { throw new Error('offline'); };
++  let scriptMissed = false;
++  try { await fire(listeners, 'fetch', { request: new Request('https://localhost/missing-script.js'), method: 'GET' }); }
++  catch (e) { scriptMissed = true; }
++  if (!scriptMissed) throw new Error('a missing script was answered');
++  const nav = await fire(listeners, 'fetch', { request: { url: 'https://localhost/nowhere', method: 'GET', mode: 'navigate' }, method: 'GET' });
++  if (!nav.response || await nav.response.text() !== 'BUNDLE-FRESH') throw new Error('navigation did not fall back to the shell');
+ }
+ 
+ swUpdatePath().then(() => {
+--- a/scripts/b63-photo-missing.test.js
++++ b/scripts/b63-photo-missing.test.js
+@@ -184,7 +184,7 @@
+   });
+   const sw = fs.readFileSync(path.join(ROOT, 'service-worker.js'), 'utf8');
+   check('revision 5 cache name does not change this export path', () => {
+-    if (!sw.includes("boriken-genetics-logbook-app-v89")) throw new Error('worker');
++    if (!sw.includes("boriken-genetics-logbook-app-v90")) throw new Error('worker');
+     const fn = fs.readFileSync(path.join(ROOT, 'app.js'), 'utf8');
+     const start = fn.indexOf('async function buildFullBackupPayload');
+     const body = fn.slice(start, fn.indexOf('function snapshotCounts'));
+--- a/scripts/b63-sw-browser.test.js
++++ b/scripts/b63-sw-browser.test.js
+@@ -144,10 +144,10 @@
+       const out = await send('Runtime.evaluate', { expression: READ, awaitPromise: true, returnByValue: true });
+       updated = out.result && out.result.value;
+       const fresh = updated && updated.build13 && updated.build13.sum === EXPECT['build13.js'] && updated.build58.sum === EXPECT['build58.js'] && updated.build63 && updated.build63.sum === EXPECT['build63.js'];
+-      if (fresh && updated.keys.includes('boriken-genetics-logbook-app-v89') && !updated.keys.includes(cacheName)) break;
++      if (fresh && updated.keys.includes('boriken-genetics-logbook-app-v90') && !updated.keys.includes(cacheName)) break;
+       await sleep(250);
+     }
+-    if (!updated || updated.build13.sum !== EXPECT['build13.js'] || updated.build58.sum !== EXPECT['build58.js'] || !updated.build63 || updated.build63.sum !== EXPECT['build63.js'] || updated.keys.includes(cacheName) || !updated.keys.includes('boriken-genetics-logbook-app-v89')) {
++    if (!updated || updated.build13.sum !== EXPECT['build13.js'] || updated.build58.sum !== EXPECT['build58.js'] || !updated.build63 || updated.build63.sum !== EXPECT['build63.js'] || updated.keys.includes(cacheName) || !updated.keys.includes('boriken-genetics-logbook-app-v90')) {
+       throw new Error(cacheName + ' did not install the current worker ' + JSON.stringify(updated) + ' ' + logs.join(' | '));
+     }
+     console.log('PASS real Chrome replaced ' + cacheName + ' and served the current build13.js, build58.js, and build63.js');
+@@ -175,7 +175,8 @@
+     await chromeCase('boriken-genetics-logbook-app-v86', 9347);
+     await chromeCase('boriken-genetics-logbook-app-v87', 9348);
+     await chromeCase('boriken-genetics-logbook-app-v88', 9349);
+-    console.log('b63 sw browser: v81 through v88 update paths passed');
++    await chromeCase('boriken-genetics-logbook-app-v89', 9350);
++    console.log('b63 sw browser: v81 through v89 update paths passed');
+   } finally {
+     server.close();
+   }
+--- a/scripts/b63-repair-startup.test.js
++++ b/scripts/b63-repair-startup.test.js
+@@ -18,6 +18,8 @@
+ const repair = JSON.stringify({ repairs: [{ recordId: 'p-target', collection: 'plants', field: 'b49Father', expect: 'dx:FixtureFather' }], undos: [] });
+ const empty = '{"repairs":[],"undos":[]}\n';
+ let repairBody = repair;
++let repairMode = 'body';
++let repairDelay = 0;
+ function sleep(ms) { return new Promise((r) => setTimeout(r, ms)); }
+ function fail(message) { console.error('FAIL ' + message); process.exit(1); }
+ 
+@@ -28,9 +30,16 @@
+   const server = http.createServer((req, res) => {
+     let rel = decodeURIComponent(new URL(req.url, 'http://127.0.0.1').pathname);
+     if (rel === '/b63-repair.json') {
+-      res.setHeader('Content-Type', 'application/json');
+-      res.setHeader('Cache-Control', 'no-store');
+-      res.end(repairBody);
++      const send = () => {
++        if (repairMode === 'hang') return;
++        if (repairMode === 'missing') { res.statusCode = 404; res.setHeader('Content-Type', 'text/plain'); res.end('missing'); return; }
++        if (repairMode === 'fail') { res.statusCode = 500; res.setHeader('Content-Type', 'text/plain'); res.end('fail'); return; }
++        res.setHeader('Content-Type', 'application/json');
++        res.setHeader('Cache-Control', 'no-store');
++        res.end(repairBody);
++      };
++      if (repairDelay) setTimeout(send, repairDelay);
++      else send();
+       return;
+     }
+     if (rel === '/') rel = '/index.html';
+@@ -74,15 +83,22 @@
+       return out.result && out.result.value;
+     }
+     async function launch(label) {
++      const started = Date.now();
+       await send('Page.navigate', { url: 'http://127.0.0.1:' + port + '/index.html?' + label });
+       let snap = null;
+-      for (let i = 0; i < 40 && !(snap && snap.repair); i++) {
+-        snap = await evaluate('(() => { let father = ""; try { father = (state.plants.find((r) => r.id === "p-target") || {}).b49Father || ""; } catch (e) { father = ""; } return { readyState: document.readyState, repair: window.__b63RepairReady === true, detail: window.__b63RepairState || null, controller: !!(navigator.serviceWorker && navigator.serviceWorker.controller), father }; })()');
+-        if (!snap || !snap.repair) await sleep(50);
++      for (let i = 0; i < 40 && !(snap && snap.repair && snap.boot && snap.boot.ready); i++) {
++        snap = await evaluate('(() => { let father = ""; try { father = (state.plants.find((r) => r.id === "p-target") || {}).b49Father || ""; } catch (e) { father = ""; } return { repair: window.__b63RepairReady === true, detail: window.__b63RepairState || null, boot: window.__b63Boot || null, errors: window.__b63Errors || [], controller: !!(navigator.serviceWorker && navigator.serviceWorker.controller), online: navigator.onLine, father, deps: { switchView: typeof switchView, b18BrPageHtml: typeof b18BrPageHtml, B49: !!(window.B49 && window.B49.openPage), B57: typeof B57 !== "undefined" } }; })()');
++        if (!snap || !snap.repair || !snap.boot || !snap.boot.ready) await sleep(50);
+       }
+-      if (!snap || !snap.repair) fail(label + ' repair did not settle ' + JSON.stringify(snap));
++      if (!snap || !snap.repair) fail(label + ' repair did not settle ' + JSON.stringify(snap) + ' ' + logs.slice(-4).join(' | '));
++      snap.elapsed = Date.now() - started;
++      if (snap.elapsed >= 2000) fail(label + ' blocked startup for ' + snap.elapsed + 'ms ' + JSON.stringify(snap.detail));
++      if (!snap.boot || !snap.boot.ready) fail(label + ' scripts were not ready ' + JSON.stringify(snap));
+       return snap;
+     }
++    async function cacheProof() {
++      return evaluate('(async () => { const names = await caches.keys(); const urls = []; for (const name of names) { const cache = await caches.open(name); (await cache.keys()).forEach((req) => urls.push(req.url)); } const repairRes = await caches.match("./b63-repair.json"); return { names, urls, repair: repairRes ? await repairRes.text() : "" }; })()');
++    }
+     await send('Runtime.enable');
+     await send('Page.enable');
+     await send('Network.enable');
+@@ -104,16 +120,44 @@
+     if (second.father !== '-' || !second.controller) fail('controlled reload left ' + JSON.stringify(second));
+     if (second.detail.via !== 'fetch') fail('controlled reload did not read the network repair file ' + JSON.stringify(second.detail));
+     console.log('PASS controlled reload settled via ' + second.detail.via);
++    const walked = await evaluate('(() => { const steps = []; function go(name, fn) { try { fn(); steps.push(name); } catch (e) { steps.push(name + " " + (e && e.message || e)); } } go("plants", () => switchView("home")); go("breeding", () => switchView("breeding")); go("tree", () => B49.openPage({ type: "b49tree", key: "pl:p-target", forceStyle: 2 })); go("compliance", () => switchView("compliance")); go("inspection", () => { switchView("compliance"); const tab = document.getElementById("compliance-subtab-inspection"); if (tab) tab.click(); }); go("mf", () => { switchView("breeding"); if (window.B41 && B41.mfpOpen) B41.mfpOpen(); }); return { steps, errors: window.__b63Errors || [] }; })()');
++    const badStep = (walked.steps || []).find((step) => step.indexOf(' ') >= 0);
++    const thrown = logs.filter((line) => /ReferenceError|is not defined|exception/i.test(line));
++    if (badStep || (walked.errors || []).length || thrown.length) fail('screen walk ' + JSON.stringify(walked) + ' ' + thrown.join(' | '));
++    console.log('PASS screens after the scripts ran: ' + walked.steps.join(', '));
+     await send('Network.emulateNetworkConditions', { offline: true, latency: 0, downloadThroughput: -1, uploadThroughput: -1 });
+     const offline = await launch('offline');
+-    if (offline.father !== '-') fail('offline reload left ' + JSON.stringify(offline));
+-    console.log('PASS offline reload settled via ' + offline.detail.via + ' bytes=' + offline.detail.bytes);
++    if (offline.father !== '-' || offline.detail.bytes < 1) fail('offline reload left ' + JSON.stringify(offline));
++    const cached = await cacheProof();
++    const joined = (cached.urls || []).join(' ');
++    if (!cached.names.includes('boriken-genetics-logbook-app-v90') || joined.indexOf('build63.js') < 0 || joined.indexOf('b63-repair.json') < 0 || cached.repair !== repair) fail('offline cache was not the installed shell ' + JSON.stringify(cached));
++    console.log('PASS offline reload settled via ' + offline.detail.via + ' bytes=' + offline.detail.bytes + ' in ' + offline.elapsed + 'ms');
+     await send('Network.emulateNetworkConditions', { offline: false, latency: 0, downloadThroughput: -1, uploadThroughput: -1 });
++    repairDelay = 3000;
++    const slow = await launch('slow');
++    if (slow.father !== '-') fail('slow repair left ' + JSON.stringify(slow));
++    console.log('PASS slow repair settled via ' + slow.detail.via + ' in ' + slow.elapsed + 'ms');
++    repairDelay = 0;
++    repairMode = 'hang';
++    const hung = await launch('hang');
++    if (hung.father !== '-') fail('hung repair left ' + JSON.stringify(hung));
++    console.log('PASS hung repair settled via ' + hung.detail.via + ' in ' + hung.elapsed + 'ms');
++    repairMode = 'body';
+     repairBody = empty;
+     const blank = await launch('empty');
+     if (!blank.repair || blank.father !== 'dx:FixtureFather') fail('empty file changed the father ' + JSON.stringify(blank));
+     console.log('PASS empty file settled via ' + blank.detail.via + ' and left the father');
+-    console.log('b63 repair startup: first, controlled, offline, and empty launches settled');
++    await evaluate('caches.keys().then((names) => Promise.all(names.map((name) => caches.delete(name))))');
++    repairMode = 'missing';
++    const missing = await launch('missing');
++    if (!missing.repair || missing.father !== 'dx:FixtureFather') fail('missing file changed the father ' + JSON.stringify(missing));
++    console.log('PASS missing file settled via ' + missing.detail.via);
++    await evaluate('caches.keys().then((names) => Promise.all(names.map((name) => caches.delete(name))))');
++    repairMode = 'fail';
++    const failed = await launch('fail');
++    if (!failed.repair || failed.father !== 'dx:FixtureFather') fail('failed read changed the father ' + JSON.stringify(failed));
++    console.log('PASS failed read settled via ' + failed.detail.via);
++    console.log('b63 repair startup: first, controlled, offline, slow, hung, empty, missing, and failed launches settled');
+   } finally {
+     proc.kill('SIGKILL');
+     server.close();
