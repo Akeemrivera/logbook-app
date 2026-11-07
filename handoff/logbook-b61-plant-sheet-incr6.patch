@@ -1,0 +1,76 @@
+--- a/build59.css
++++ b/build59.css
+@@ -27,6 +27,27 @@
+ html.b59-locked, html.b59-locked body { overscroll-behavior: none; }
+ dialog.modal, .b58-card, .b49-full[open] { overscroll-behavior: contain; -webkit-overflow-scrolling: touch; overflow-y: auto; }
+ dialog.modal { max-height: calc(var(--b59-vvh, 100dvh) - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 16px); }
++/* The dialog box itself must not grow past the window. A too-tall centered dialog clips
++   its header above the window and its Save row below it, and scrolling inside that box
++   never brings either end on screen. Cap the box at the viewport, and scroll the card. */
++dialog.modal {
++  box-sizing: border-box;
++  height: fit-content;
++  max-height: min(
++    calc(var(--b59-vvh, 100%) - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 16px),
++    calc(100% - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 16px)
++  );
++  display: flex;
++  flex-direction: column;
++  overflow: hidden;
++}
++dialog.modal > .modal-card {
++  box-sizing: border-box;
++  min-height: 0;
++  overflow-y: auto;
++  overscroll-behavior: contain;
++  -webkit-overflow-scrolling: touch;
++}
+ dialog.sheet { max-height: calc(var(--b59-vvh, 100dvh) - env(safe-area-inset-top) - 12px); }
+ .b58-card { max-height: calc(var(--b59-vvh, 100dvh) - env(safe-area-inset-top) - 12px); touch-action: pan-y; }
+ dialog.modal::backdrop { overscroll-behavior: contain; touch-action: none; }
+--- a/build59.js
++++ b/build59.js
+@@ -57,7 +57,7 @@
+   /* keyboard: the sheet's max height follows the visible viewport; a focused field scrolls into view */
+   const vv = window.visualViewport; const setVh = () => { const h = vv ? vv.height : window.innerHeight; document.documentElement.style.setProperty('--b59-vvh', `${Math.round(h)}px`); };
+   setVh(); if (vv) { vv.addEventListener('resize', setVh); vv.addEventListener('scroll', setVh); } window.addEventListener('resize', setVh);
+-  document.addEventListener('focusin', (e) => { const t = e.target; if (!locked || !t || !t.matches || !t.matches('input, select, textarea')) return; const s = top(); if (!s || !s.contains(t)) return; setTimeout(() => { try { t.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch (err) { /* */ } }, 320); });
++  document.addEventListener('focusin', (e) => { const t = e.target; if (!locked || !t || !t.matches || !t.matches('input, select, textarea, button')) return; const s = top(); if (!s || !s.contains(t)) return; setTimeout(() => { try { t.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch (err) { /* */ } }, 320); });
+   sync();
+ 
+   /* ---------- 6. tab bar: new Lineage icon drawn to the same 32-unit box as the other tab icons ---------- */
+--- /dev/null
++++ b/scripts/plant-sheet-scroll.test.js
+@@ -0,0 +1,32 @@
++'use strict';
++
++const fs = require('fs');
++const path = require('path');
++
++const ROOT = process.env.LOGBOOK_ROOT || path.join(__dirname, '..');
++const FAIL = [];
++function check(name, ok, detail) {
++  if (ok) console.log('PASS', name);
++  else {
++    FAIL.push(name);
++    console.error('FAIL', name, detail || '');
++  }
++}
++
++const html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
++const css = fs.readFileSync(path.join(ROOT, 'build59.css'), 'utf8');
++const js = fs.readFileSync(path.join(ROOT, 'build59.js'), 'utf8');
++const form = html.slice(html.indexOf('id="plant-modal"'), html.indexOf('id="sync-recovered-modal"'));
++
++check('Save plant is inside the plant dialog after Notes', form.indexOf('id="plant-notes"') < form.indexOf('>Save plant<') && form.includes('class="button-row modal-actions"'));
++check('the sheet box is capped at the viewport, not only the visual-viewport variable', /dialog\.modal \{[\s\S]*max-height: min\(/.test(css) && css.includes('calc(100% - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 16px)'));
++check('the dialog box does not scroll itself', /dialog\.modal \{[\s\S]*overflow: hidden;/.test(css));
++check('the card inside the dialog is the scroller', /dialog\.modal > \.modal-card \{[\s\S]*min-height: 0;[\s\S]*overflow-y: auto;/.test(css));
++check('the page lock is unchanged', js.includes("b.style.position = 'fixed'") && js.includes("classList.add('b59-locked')") && js.includes('window.scrollTo = function'));
++check('focus brings a button into the sheet, not only text fields', js.includes("t.matches('input, select, textarea, button')"));
++
++if (FAIL.length) {
++  console.error(FAIL.length + ' failed');
++  process.exit(1);
++}
++console.log('plant sheet scroll checks passed');
