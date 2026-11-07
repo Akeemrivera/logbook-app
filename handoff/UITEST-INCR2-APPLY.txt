@@ -1,0 +1,12 @@
+Apply on the phase 1 tree after logbook-b61-qa-uitest.patch and logbook-b61-prevention-tests.patch are already applied. Do not reapply those patches.
+
+  patch -p1 --dry-run < logbook-b61-qa-uitest-incr2.patch
+  patch -p1 < logbook-b61-qa-uitest-incr2.patch
+  node scripts/qa-uitest-harness.test.js
+  node scripts/archive-signature-regression.test.js
+
+The UI-test target no longer sets TEST_HOST. Xcode sets USES_XCTRUNNER for this bundle, and the two settings together make xcodebuild exit 70 before the build. TEST_TARGET_NAME stays App. Scheme App-QA and configuration QA are unchanged. This does not launch the production bundle.
+
+The archive test now requires build61.js SHA-256 3c79681a21769cac2aa0abb4ba065827f887182f92ac936e9b9892dad3549fb7. That shipped file is the landrace-origin migration and contains no isFx and no capacitor/ionic gate. The protocol-gate claim prints UNSUPPORTED. It is not a pass. A longer build61.js that does contain isFx fails the hash check.
+
+No xcresult is produced here. xcodebuild still has to be run on the Mac after this patch.
