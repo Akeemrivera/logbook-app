@@ -23,7 +23,32 @@ const state = {
   cloneRuns: [],
 };
 function sleep(ms) { return new Promise((r) => setTimeout(r, ms)); }
+function allowlist() {
+  const api = require('./b63-real-mockup');
+  const os = require('os');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'b63-style-allow-'));
+  const file = path.join(dir, 'fixture.json');
+  const base = { plants: [{ id: 'p-child', name: 'Fixture Child', status: 'active', count: 1, treeStyle: 4, b49Mother: 'mf:m-mom', b49Father: 'mf:f-dad', b58Manual: { m: true, f: true } }], motherFatherPlants: [{ id: 'm-mom', name: 'Fixture Mother', role: 'mother', status: 'Active', treeStyle: 2 }] };
+  fs.writeFileSync(file, JSON.stringify(base));
+  const read = api.readFixture(file);
+  if (read.plants[0].treeStyle !== 4 || read.motherFatherPlants[0].treeStyle !== 2) throw new Error('treeStyle was not kept ' + JSON.stringify(read));
+  [0, 9, 1.5, '4', true].forEach((bad) => {
+    const copy = JSON.parse(JSON.stringify(base));
+    copy.plants[0].treeStyle = bad;
+    fs.writeFileSync(file, JSON.stringify(copy));
+    try { api.readFixture(file); throw new Error('accepted treeStyle ' + JSON.stringify(bad)); }
+    catch (e) { if (!String(e.message || e).includes('treeStyle must be an integer')) throw e; }
+  });
+  const extra = JSON.parse(JSON.stringify(base));
+  extra.plants[0].treeTheme = 'new';
+  fs.writeFileSync(file, JSON.stringify(extra));
+  try { api.readFixture(file); throw new Error('accepted an unknown field'); }
+  catch (e) { if (!String(e.message || e).includes('outside the relationship list')) throw e; }
+  fs.rmSync(dir, { recursive: true, force: true });
+  console.log('PASS treeStyle 1-8 is kept and other values are rejected');
+}
 async function main() {
+  allowlist();
   if (!fs.existsSync(CHROME)) { console.error('FAIL chrome missing'); process.exit(1); }
   const probe = http.createServer();
   const port = await new Promise((resolve) => probe.listen(0, '127.0.0.1', () => { const p = probe.address().port; probe.close(() => resolve(p)); }));
@@ -81,7 +106,7 @@ async function main() {
     const saved = await evaluate('(() => { switchView("breeding"); B49.openPage({ type: "b49tree", key: "pl:p-child" }); const root = document.querySelector("#breeding-view .b57"); const child = (state.plants || []).find((r) => r.id === "p-child"); return { shown: root && root.getAttribute("data-b57s"), saved: child && child.treeStyle, text: (root && root.innerText || "").slice(0, 500) }; })()');
     if (!saved || saved.shown !== '4' || saved.saved !== 4) fails.push('saved style changed ' + JSON.stringify(saved));
     if (!saved || saved.text.indexOf('Not recorded') < 0) fails.push('missing truthful unknown ' + JSON.stringify(saved && saved.text));
-    const check = '(() => { const root = document.querySelector("#breeding-view .b57"); const k = root && root.getAttribute("data-b57k"); const ring = !!(root && root.querySelector(".b57-svg path")); const cert = !!(root && root.querySelector(".b57-ped, .b57-cg")); const pane = !!(root && root.querySelector(".b57-pane")); const d = ((root && root.querySelector(".b57-canvas > svg.b60-lines path")) || {}).getAttribute ? root.querySelector(".b57-canvas > svg.b60-lines path").getAttribute("d") || "" : ""; const branches = d.indexOf("M") >= 0; const de = document.documentElement; const text = (root && root.innerText) || ""; return { k, ring, cert, pane, branches, pan: de.scrollWidth > de.clientWidth + 2, family: text.indexOf("Family tree") >= 0, unknown: /not recorded|unknown/i.test(text), mother: text.indexOf("Fixture Mother") >= 0 }; })()';
+    const check = '(() => { const root = document.querySelector("#breeding-view .b57"); const k = root && root.getAttribute("data-b57k"); const ring = !!(root && root.querySelector(".b57-svg path")); const cert = !!(root && root.querySelector(".b57-ped, .b57-cg")); const pane = !!(root && root.querySelector(".b57-pane")); const path = root && root.querySelector(".b57-canvas > svg.b60-lines path.branch"); const d = path ? (path.getAttribute("d") || "") : ""; const curved = d.indexOf("C") >= 0; const arc = !!(root && root.querySelector(".b57-canvas > svg.b60-lines path.arc")); const mobile = !!(root && root.querySelector(".b57-bar")); const de = document.documentElement; const text = (root && root.innerText) || ""; return { k, ring, cert, pane, curved, arc, mobile, pan: de.scrollWidth > de.clientWidth + 2, family: text.indexOf("Family tree") >= 0, unknown: /not recorded|unknown/i.test(text), mother: text.indexOf("Fixture Mother") >= 0 }; })()';
     for (const [w, h] of [[390, 844], [1024, 768]]) {
       await send('Emulation.setDeviceMetricsOverride', { width: w, height: h, deviceScaleFactor: 1, mobile: w < 900 });
       for (let style = 1; style <= 8; style++) {
@@ -89,8 +114,8 @@ async function main() {
         await evaluate('new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(() => r(true))))');
         await sleep(50);
         const row = await evaluate(check);
-        const linked = row && (row.ring || row.cert || row.branches || (row.k === 'window' && row.pane));
-        if (!row || row.k == null || !linked || row.pan || !row.family || !row.unknown || !row.mother) fails.push(w + 'x' + h + ' style ' + style + ' ' + JSON.stringify(row));
+        const shape = row && ((row.k === 'walnut' || row.k === 'azulejo') ? row.ring && !row.curved : (row.k === 'ceiba' || row.k === 'roots' || row.k === 'river') ? row.curved && (row.k !== 'ceiba' || row.arc) : row.k === 'mobile' ? row.mobile && !row.curved : row.k === 'cert' ? row.cert && !row.curved : row.k === 'window' ? row.pane && !row.curved : false);
+        if (!row || !shape || row.pan || !row.family || !row.unknown || !row.mother) fails.push(w + 'x' + h + ' style ' + style + ' ' + JSON.stringify(row));
         else console.log('PASS style ' + style + ' ' + row.k + ' ' + w + 'x' + h);
       }
     }

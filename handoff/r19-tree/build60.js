@@ -111,13 +111,21 @@
         const R = cells.map((c) => c.getBoundingClientRect()); const below = R[0].top > T.bottom; const tx = T.left + T.width / 2 - F.left;
         const py = below ? Math.min(...R.map((r) => r.top)) - F.top : Math.max(...R.map((r) => r.bottom)) - F.top; const ty = below ? T.bottom - F.top : T.top - F.top; const my = (py + ty) / 2;
         links.push([up, cells.length, Math.round(tx), Math.round(ty), xs0(R, cx)]);
-        const xs = R.map(cx); R.forEach((r, i) => { d += `M${xs[i]} ${(below ? r.top : r.bottom) - F.top}V${my}`; });
-        const lo = Math.min(...xs, tx), hi = Math.max(...xs, tx); if (hi - lo > 0.5) d += `M${lo} ${my}H${hi}`; d += `M${tx} ${my}V${ty}`; });
+        const xs = R.map(cx);
+        const kind = ((fam.closest('.b57') || {}).getAttribute && fam.closest('.b57').getAttribute('data-b57k')) || '';
+        if (kind === 'ceiba' || kind === 'roots' || kind === 'river') {
+          R.forEach((r, i) => { const y1 = (below ? r.top : r.bottom) - F.top; d += `M${xs[i]} ${y1}C${xs[i]} ${my} ${tx} ${my} ${tx} ${ty}`; });
+        } else {
+          R.forEach((r, i) => { d += `M${xs[i]} ${(below ? r.top : r.bottom) - F.top}V${my}`; });
+          const lo = Math.min(...xs, tx), hi = Math.max(...xs, tx); if (hi - lo > 0.5) d += `M${lo} ${my}H${hi}`; d += `M${tx} ${my}V${ty}`;
+        } });
       let path = svg.querySelector('path'); if (!path) { path = document.createElementNS('http://www.w3.org/2000/svg', 'path'); svg.appendChild(path); } path.setAttribute('d', d); fam.dataset.b60links = JSON.stringify(links); });
   }
   function drawStack() {
     document.querySelectorAll('#breeding-view .b57-canvas').forEach((canvas) => {
-      const cards = [...canvas.querySelectorAll('.b57-row [data-of]')].filter((el) => !el.closest('.b59-fam'));
+      const kind = ((canvas.closest('.b57') || {}).getAttribute && canvas.closest('.b57').getAttribute('data-b57k')) || '';
+      const curved = kind === 'ceiba' || kind === 'roots' || kind === 'river';
+      const cards = curved ? [...canvas.querySelectorAll('.b57-row [data-of]')].filter((el) => !el.closest('.b59-fam')) : [];
       let svg = canvas.querySelector(':scope > svg.b60-lines');
       if (!cards.length) { if (svg) svg.remove(); return; }
       if (!svg) { svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); svg.setAttribute('class', 'b60-lines'); svg.setAttribute('aria-hidden', 'true'); canvas.prepend(svg); }
@@ -125,18 +133,29 @@
       svg.setAttribute('width', F.width / z); svg.setAttribute('height', F.height / z); svg.setAttribute('viewBox', `0 0 ${F.width} ${F.height}`);
       const groups = new Map();
       cards.forEach((c) => { const u = c.dataset.of; if (!u) return; if (!groups.has(u)) groups.set(u, []); groups.get(u).push(c); });
-      let d = '';
+      let d = ''; let arc = '';
+      const tops = [];
       groups.forEach((cells, up) => {
         const t = [...canvas.querySelectorAll('[data-node], [data-k]')].find((n) => !cells.includes(n) && !n.closest('.b59-fam') && (n.dataset.node === up || n.dataset.k === up));
         if (!t) return;
         const T = t.getBoundingClientRect(); const R = cells.map((c) => c.getBoundingClientRect());
         const cx = (r) => r.left + r.width / 2 - F.left; const below = R[0].top > T.bottom; const tx = cx(T);
-        const py = below ? Math.min(...R.map((r) => r.top)) - F.top : Math.max(...R.map((r) => r.bottom)) - F.top;
-        const ty = below ? T.bottom - F.top : T.top - F.top; const my = (py + ty) / 2; const xs = R.map(cx);
-        R.forEach((r, i) => { d += `M${xs[i]} ${(below ? r.top : r.bottom) - F.top}V${my}`; });
-        const lo = Math.min(...xs, tx), hi = Math.max(...xs, tx); if (hi - lo > 0.5) d += `M${lo} ${my}H${hi}`; d += `M${tx} ${my}V${ty}`;
+        const ty = below ? T.bottom - F.top : T.top - F.top;
+        R.forEach((r) => {
+          const x1 = cx(r); const y1 = (below ? r.top : r.bottom) - F.top; const my = (y1 + ty) / 2;
+          d += `M${x1} ${y1}C${x1} ${my} ${tx} ${my} ${tx} ${ty}`;
+          tops.push(r);
+        });
       });
-      let path = svg.querySelector('path'); if (!path) { path = document.createElementNS('http://www.w3.org/2000/svg', 'path'); svg.appendChild(path); } path.setAttribute('d', d);
+      if (kind === 'ceiba' && tops.length) {
+        const left = Math.min(...tops.map((r) => r.left)) - F.left; const right = Math.max(...tops.map((r) => r.right)) - F.left;
+        const y = Math.min(...tops.map((r) => r.top)) - F.top - 10; const rx = Math.max(12, (right - left) / 2);
+        arc = `M${left} ${y}A${rx} 16 0 0 1 ${right} ${y}`;
+      }
+      let path = svg.querySelector('path.branch'); if (!path) { path = document.createElementNS('http://www.w3.org/2000/svg', 'path'); path.setAttribute('class', 'branch'); svg.appendChild(path); } path.setAttribute('d', d);
+      let arcPath = svg.querySelector('path.arc');
+      if (arc) { if (!arcPath) { arcPath = document.createElementNS('http://www.w3.org/2000/svg', 'path'); arcPath.setAttribute('class', 'arc'); svg.appendChild(arcPath); } arcPath.setAttribute('d', arc); }
+      else if (arcPath) arcPath.remove();
     });
   }
   let dq = 0; const redraw = () => { cancelAnimationFrame(dq); dq = requestAnimationFrame(() => { try { draw(); drawStack(); } catch (e) { console.warn('b60 lines', e); } }); };

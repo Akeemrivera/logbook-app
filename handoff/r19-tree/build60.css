@@ -25,6 +25,7 @@
 .b57-canvas { position: relative; }
 .b57-canvas > svg.b60-lines { position: absolute; left: 0; top: 0; pointer-events: none; overflow: visible; z-index: 0; }
 .b57-canvas > svg.b60-lines path { fill: none; stroke: var(--acc); stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.b57[data-b57k="ceiba"] .b57-canvas > svg.b60-lines path.arc { stroke-dasharray: 1.5 3; }
 .b57-canvas > :not(svg) { position: relative; z-index: 1; }
 .b59-fam > :not(svg) { position: relative; z-index: 1; }
 .b59-fam > .b59-brk { z-index: 1; }

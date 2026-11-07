@@ -1,11 +1,19 @@
-Copy onto the app tree, same bytes in all three places:
-  build57.js, build60.js, build60.css
-  www/build57.js, www/build60.js, www/build60.css
-  ios/App/App/public/build57.js, ios/App/App/public/build60.js, ios/App/App/public/build60.css
-Copy scripts/b63-tree-branches.test.js to scripts/b63-tree-branches.test.js.
-Do not change build63.css or service-worker.js. Do not change a record's treeStyle.
+The eight PNGs under logbook-v2/mockups/2026-11-02_family-tree are the premade references.
+This patch does not approve them and does not claim the phone's current theme.
 
-Generic check, cloud or box, no real records:
+Copy:
+  build57.js, build60.js, build60.css
+  into the app root, www/, and ios/App/App/public/
+  scripts/b63-real-mockup.js onto scripts/b63-real-mockup.js
+  scripts/b63-tree-branches.test.js onto scripts/b63-tree-branches.test.js
+
+Do not change build63.css or service-worker.js.
+treeStyle on a fixture record must be an integer 1 through 8. Other keys are still rejected.
+The renderer does not rewrite saved styles.
+
+Generic check only:
   node scripts/b63-tree-branches.test.js
 
-Real-record preview stays on the box. This does not approve a mockup.
+Ceiba, Roots, and River use a curve into the parent. Walnut and Azulejo stay rings and fan.
+Mobile keeps its hanging strings. The certificate keeps its pedigree frame. The window keeps its panes.
+A real-record preview still belongs on the box. Do not treat a passing generic check as mockup approval.
