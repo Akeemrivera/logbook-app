@@ -1,0 +1,139 @@
+--- a/scripts/rig-guard-running.js
++++ b/scripts/rig-guard-running.js
+@@ -49,26 +49,44 @@
+ }
+ 
+ function decide(obs) {
+-  if (!sourceOk(obs && obs.lsappinfo) || !sourceOk(obs && obs.systemEvents)) {
+-    return { ok: false, reason: 'running-app identity uncertain' };
++  const sources = [
++    ['lsappinfo', obs && obs.lsappinfo],
++    ['system-events', obs && obs.systemEvents],
++  ];
++  const apps = [];
++  const uncertain = [];
++  sources.forEach(([name, source]) => {
++    if (source && Array.isArray(source.apps)) apps.push(...source.apps);
++    if (!sourceOk(source)) uncertain.push(name);
++  });
++  // A parsed production bundle id blocks even when another row or the other query is incomplete.
++  for (const app of apps) {
++    if (idsOf(app).some(isProd)) return { ok: false, reason: 'production Logbook is running' };
+   }
+-  const apps = obs.lsappinfo.apps.concat(obs.systemEvents.apps);
+   for (const app of apps) {
+-    const ids = idsOf(app);
+-    if (ids.some(isProd)) return { ok: false, reason: 'production Logbook is running' };
+-    if (suspect(app) && ids.length === 0) {
++    if (suspect(app) && idsOf(app).length === 0) {
+       return { ok: false, reason: 'a Logbook-like app has no readable bundle id' };
+     }
+   }
++  if (uncertain.length) return { ok: false, reason: 'running-app identity uncertain: ' + uncertain.join(', ') };
+   return { ok: true, reason: 'no production Logbook identified' };
+ }
+ 
++function quotedBundleIds(text) {
++  const ids = [];
++  const re = /(?:bundleID|CFBundleIdentifier)="([^"]*)"/g;
++  let match;
++  const body = String(text || '');
++  while ((match = re.exec(body))) ids.push(match[1]);
++  return ids;
++}
++
+ function parseLsappinfo(text) {
+   const apps = [];
+   let cur = null;
+   for (const line of String(text || '').split(/\r?\n/)) {
+     const named = line.match(/"([^"]*)"/);
+-    const bid = line.match(/bundleID="([^"]*)"/);
++    const bid = line.match(/(?:bundleID|CFBundleIdentifier)="([^"]*)"/);
+     const bpath = line.match(/bundle path="([^"]*)"/);
+     const epath = line.match(/executable path="([^"]*)"/);
+     if (/ASN:/.test(line)) {
+@@ -76,11 +94,18 @@
+       apps.push(cur);
+     }
+     if (!cur) continue;
+-    if (bid) cur.bundleId = bid[1];
++    if (bid && !cur.bundleId) cur.bundleId = bid[1];
+     if (bpath) cur.path = bpath[1];
+     else if (epath && !cur.path) cur.path = epath[1];
+   }
+-  const complete = apps.length > 0 && apps.every((app) => app.bundleId || app.path || app.name);
++  const seen = new Set(apps.map((app) => normId(app.bundleId)).filter(Boolean));
++  quotedBundleIds(text).forEach((id) => {
++    if (seen.has(normId(id))) return;
++    seen.add(normId(id));
++    apps.push({ name: '', bundleId: id, path: '', bundleIds: [] });
++  });
++  // One nameless helper row must not hide a bundle id parsed from another row.
++  const complete = quotedBundleIds(text).some((id) => normId(id));
+   return { ok: true, complete, apps };
+ }
+ 
+@@ -88,12 +113,14 @@
+   const apps = [];
+   const lines = String(text || '').split(/\r?\n/).filter((line) => line.trim() !== '');
+   if (!lines.length) return { ok: true, complete: false, apps: [] };
++  let bad = 0;
+   for (const line of lines) {
+     const parts = line.split('\t');
+-    if (parts.length < 3) return { ok: false, complete: false, apps: [], error: 'system events row was not identity, path, and name' };
++    if (parts.length < 3) { bad += 1; continue; }
+     apps.push({ bundleId: parts[0], path: parts[1], name: parts.slice(2).join('\t'), bundleIds: [] });
+   }
+-  return { ok: true, complete: true, apps };
++  if (!apps.length) return { ok: false, complete: false, apps: [], error: 'system events rows were not identity, path, and name' };
++  return { ok: true, complete: bad === 0, apps };
+ }
+ 
+ function readXmlBundleId(file) {
+@@ -125,7 +152,7 @@
+ }
+ 
+ function run(cmd, args) {
+-  const result = spawnSync(cmd, args, { encoding: 'utf8', timeout: 8000 });
++  const result = spawnSync(cmd, args, { encoding: 'utf8', timeout: 20000, maxBuffer: 32 * 1024 * 1024 });
+   if (!result || result.error || result.status !== 0) {
+     return { ok: false, complete: false, apps: [], error: (result && result.error && result.error.message) || cmd + ' failed' };
+   }
+--- a/scripts/rig-guard-running.test.js
++++ b/scripts/rig-guard-running.test.js
+@@ -44,9 +44,32 @@
+ check('the production container path blocks', guard.decide(obs([], [{ name: 'App', bundleId: '', path: '/Users/a/Library/Containers/' + guard.PROD + '/Data' }])).ok === false);
+ check('the QA container path does not block by itself', guard.decide(obs([], [{ name: 'App', bundleId: guard.QA, path: '/Users/a/Library/Containers/' + guard.QA + '/Data' }])).ok === true);
+ check('production id in only one of the two lists blocks', guard.decide(obs([{ name: 'App', bundleId: guard.PROD, path: wrapper }], [])).ok === false);
+-check('a failed lsappinfo query blocks', guard.decide({ lsappinfo: { ok: false, complete: false, apps: [] }, systemEvents: obs().systemEvents }).reason === 'running-app identity uncertain');
+-check('a failed System Events query blocks', guard.decide({ lsappinfo: obs().lsappinfo, systemEvents: { ok: false, complete: false, apps: [] } }).ok === false);
+-check('an empty successful-looking query is still uncertain', guard.decide({ lsappinfo: { ok: true, complete: false, apps: [] }, systemEvents: obs().systemEvents }).ok === false);
++check('a failed lsappinfo query blocks', guard.decide({ lsappinfo: { ok: false, complete: false, apps: [] }, systemEvents: obs().systemEvents }).reason === 'running-app identity uncertain: lsappinfo');
++check('a failed System Events query blocks', guard.decide({ lsappinfo: obs().lsappinfo, systemEvents: { ok: false, complete: false, apps: [] } }).reason === 'running-app identity uncertain: system-events');
++check('an empty successful-looking query is still uncertain', guard.decide({ lsappinfo: { ok: true, complete: false, apps: [] }, systemEvents: obs().systemEvents }).reason === 'running-app identity uncertain: lsappinfo');
++
++const wrapperPath = '/private/var/folders/x/d/Wrapper/App.app/App';
++const listed = [
++  '90) ASN:0x0-0x10:',
++  '    pid = 10',
++  '91) "App" ASN:0x0-0x20:',
++  '    bundleID="' + guard.PROD + '"',
++  '    executable path="' + wrapperPath + '"',
++  '92) "com.apple.WebKit.WebContent" ASN:0x0-0x30:',
++].join('\n');
++const parsedLive = guard.parseLsappinfo(listed);
++check('a nameless lsappinfo row does not hide a parsed production bundle id', parsedLive.complete === true && parsedLive.apps.some((app) => app.bundleId === guard.PROD));
++check('production id plus an incomplete System Events query still blocks as production', guard.decide({
++  lsappinfo: parsedLive,
++  systemEvents: { ok: false, complete: false, apps: [], error: 'osascript failed' },
++}).reason === 'production Logbook is running');
++check('the iOS-on-Mac var/folders wrapper blocks when the bundle id is production', guard.decide(obs([{ name: 'App', bundleId: guard.PROD, path: wrapperPath }])).reason === 'production Logbook is running');
++check('AutoFill helper name with the Safari helper bundle id does not block', guard.decide(obs([], [{
++  name: 'AutoFill (Borikèn Logbook)',
++  bundleId: 'com.apple.SafariPlatformSupport.Helper',
++  path: '/System/Library/PrivateFrameworks/SafariPlatformSupport.framework/Versions/A/XPCServices/com.apple.SafariPlatformSupport.Helper.xpc',
++}])).ok === true);
++check('that helper name is not the Logbook name heuristic', guard.suspect({ name: 'AutoFill (Borikèn Logbook)', path: '', bundleId: '' }) === false);
+ check('uppercase production id blocks', guard.decide(obs([], [{ name: 'App', bundleId: guard.PROD.toUpperCase(), path: '/tmp/App' }])).ok === false);
+ 
+ const parsed = guard.parseLsappinfo([

@@ -1,0 +1,8 @@
+Apply after logbook-b61-rig-guard-incr3.patch. Do not reapply earlier patches. This changes only scripts/rig-guard-running.js and its test. It does not launch QA or quit production.
+
+  patch -p1 --dry-run < logbook-b61-rig-guard-incr4.patch
+  patch -p1 < logbook-b61-rig-guard-incr4.patch
+  node scripts/rig-guard-running.test.js
+  zsh rig-guard.sh <QA App.app> mac
+
+With production Logbook running, the mac check should exit 4 and print "production Logbook is running". It should not print only "running-app identity uncertain". Close production yourself before any QA launch. This patch does not close it.
