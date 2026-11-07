@@ -256,6 +256,48 @@ check('no App scheme is written when the saved schemes have no App target id', (
   if (!msg.includes('none was invented')) throw new Error(msg || 'no error');
   if (fs.existsSync(path.join(dir, 'App.xcscheme'))) throw new Error('scheme was invented');
 });
+check('empty Cordova stubs are allowed and any other extra is not', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'cordova-'));
+  fs.mkdirSync(path.join(root, 'scripts'), { recursive: true });
+  fs.writeFileSync(path.join(root, 'scripts/build-www.js'), "const files = ['app.js'];\n");
+  fs.writeFileSync(path.join(root, 'app.js'), 'app');
+  const pub = path.join(root, 'ios/App/App/public');
+  fs.mkdirSync(pub, { recursive: true });
+  fs.writeFileSync(path.join(pub, 'cordova.js'), '');
+  fs.writeFileSync(path.join(pub, 'cordova_plugins.js'), '');
+  fs.writeFileSync(path.join(pub, 'b59shots.js'), 'not-the-helper');
+  fs.writeFileSync(path.join(pub, 'other.js'), 'x');
+  const issues = prep.webTreeIssues(root);
+  if (issues.some((s) => s.includes('cordova.js') || s.includes('cordova_plugins.js'))) throw new Error(issues.join(' | '));
+  if (!issues.some((s) => s.includes('not the Nov 3 screenshot helper'))) throw new Error(issues.join(' | '));
+  if (!issues.some((s) => s.includes('other.js'))) throw new Error(issues.join(' | '));
+  fs.writeFileSync(path.join(pub, 'cordova.js'), 'plugin');
+  const nonempty = prep.webTreeIssues(root);
+  if (!nonempty.some((s) => s.includes('not the empty Capacitor file'))) throw new Error(nonempty.join(' | '));
+  if (prep.EMPTY_SHA256 !== 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855') throw new Error('empty hash');
+  if (prep.SHOTS_SIZE !== 120061 || prep.SHOTS_PREFIX !== '1b7735fb296fefd5') throw new Error('shots identity');
+});
+check('the screenshot helper is quarantined only when it matches and is unreferenced', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'shots-'));
+  const pub = path.join(root, 'ios/App/App/public');
+  fs.mkdirSync(pub, { recursive: true });
+  const src = path.join(pub, 'b59shots.js');
+  fs.writeFileSync(src, 'placeholder');
+  fs.writeFileSync(path.join(root, 'index.html'), '<script src="b59shots.js"></script>');
+  const referenced = throws(() => prep.quarantineShots(root));
+  if (!referenced.includes('left in public') || !fs.existsSync(src)) throw new Error(referenced || 'referenced file moved');
+  fs.writeFileSync(path.join(root, 'index.html'), '<script src="app.js"></script>');
+  const wrong = throws(() => prep.quarantineShots(root));
+  if (!wrong.includes('left in place') || !fs.existsSync(src)) throw new Error(wrong || 'wrong helper moved');
+});
+check('an archived screenshot helper is rejected', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'shots-app-'));
+  fs.writeFileSync(path.join(dir, 'Info.plist'), '<key>CFBundleIdentifier</key><string>com.borikengenetics.logbookapp</string><key>CFBundleShortVersionString</key><string>1.0</string><key>CFBundleVersion</key><string>62</string><key>CFBundleDisplayName</key><string>Borikèn Logbook</string>');
+  fs.writeFileSync(path.join(dir, 'archived-expanded-entitlements.xcent'), '<string>iCloud.com.borikengenetics.logbookapp</string>');
+  fs.writeFileSync(path.join(dir, 'b59shots.js'), 'x');
+  const msg = throws(() => prep.inspectAppDir(dir));
+  if (!msg.includes('b59shots.js')) throw new Error(msg || 'no error');
+});
 check('public files outside build-www are reported and kept', () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'public-extra-'));
   fs.mkdirSync(path.join(root, 'scripts'), { recursive: true });

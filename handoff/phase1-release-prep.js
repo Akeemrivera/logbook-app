@@ -25,6 +25,10 @@ const QA_ID = 'com.borikengenetics.logbookapp.qa';
 const TEAM = '2Z94YL957X';
 const CACHE = 'boriken-genetics-logbook-app-v80';
 const CONTAINER = 'iCloud.com.borikengenetics.logbookapp';
+const EMPTY_SHA256 = 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855';
+const SHOTS_REL = 'b59shots.js';
+const SHOTS_SIZE = 120061;
+const SHOTS_PREFIX = '1b7735fb296fefd5';
 const APP_JS_AT_61 = '3c949b1a8b34d6f20590ac690de430e5aa53384b7c891008a80fd1ae3e97d399';
 
 const EXPECTED = {
@@ -174,8 +178,54 @@ function webTreeIssues(root) {
     }
   };
   walk(pub, '');
-  if (extras.length) issues.push(`ios/App/App/public has files build-www.js will not refresh, and prep will not delete them: ${extras.join(', ')}`);
+  for (const rel of extras) {
+    const found = extraClass(path.join(pub, rel), rel);
+    if (found.kind === 'bad') issues.push(found.why);
+  }
   return issues;
+}
+
+function extraClass(absFile, rel) {
+  const buf = read(absFile);
+  const hash = sha256(buf);
+  if (rel === 'cordova.js' || rel === 'cordova_plugins.js') {
+    if (buf.length === 0 && hash === EMPTY_SHA256) return { kind: 'cordova', hash };
+    return { kind: 'bad', why: `${rel} is ${buf.length} bytes ${hash}, not the empty Capacitor file. It was not replaced.` };
+  }
+  if (rel === SHOTS_REL) {
+    if (buf.length === SHOTS_SIZE && hash.startsWith(SHOTS_PREFIX)) return { kind: 'shots', hash };
+    return { kind: 'bad', why: `${SHOTS_REL} is ${buf.length} bytes ${hash}, not the Nov 3 screenshot helper. It was left in place.` };
+  }
+  return { kind: 'bad', why: `ios/App/App/public/${rel} is not copied by build-www.js and is not an allowed exclusion` };
+}
+
+function shotsReferenced(root) {
+  const hits = [];
+  for (const rel of ['index.html', 'service-worker.js']) {
+    const file = path.join(root, rel);
+    if (fs.existsSync(file) && fs.readFileSync(file, 'utf8').includes(SHOTS_REL)) hits.push(rel);
+  }
+  return hits;
+}
+
+function quarantineShots(root) {
+  const src = path.join(root, 'ios/App/App/public', SHOTS_REL);
+  if (!fs.existsSync(src)) return '';
+  const refs = shotsReferenced(root);
+  if (refs.length) fail(`${refs.join(' and ')} reference ${SHOTS_REL}. It was left in public.`);
+  const found = extraClass(src, SHOTS_REL);
+  if (found.kind !== 'shots') fail(found.why);
+  const destDir = path.join(root, 'build/release/quarantine');
+  const dest = path.join(destDir, SHOTS_REL);
+  fs.mkdirSync(destDir, { recursive: true });
+  if (fs.existsSync(dest) && sha256(read(dest)) !== found.hash) {
+    fail(`build/release/quarantine/${SHOTS_REL} is a different file. public/${SHOTS_REL} was left in place.`);
+  }
+  if (!fs.existsSync(dest)) fs.copyFileSync(src, dest);
+  if (sha256(read(dest)) !== found.hash) fail(`Quarantine copy of ${SHOTS_REL} did not match. public/${SHOTS_REL} was left in place.`);
+  fs.writeFileSync(path.join(destDir, 'b59shots-location.txt'), `original ios/App/App/public/${SHOTS_REL}\nsha256 ${found.hash}\nbytes ${SHOTS_SIZE}\n`);
+  fs.unlinkSync(src);
+  return dest;
 }
 
 function schemeFiles(root) {
@@ -448,7 +498,14 @@ function copyPublic(root) {
   if (fs.existsSync(pub)) walk(pub, '', pubFiles);
   const wwwSet = new Set(wwwFiles);
   for (const rel of pubFiles) if (!wwwSet.has(rel)) extras.push(rel);
-  if (extras.length) fail(`ios/App/App/public has files that are not in www/: ${extras.join(', ')}. This script does not delete them.`);
+  const blocked = [];
+  for (const rel of extras) {
+    const found = extraClass(path.join(pub, rel), rel);
+    if (found.kind === 'cordova') continue;
+    if (found.kind === 'shots') blocked.push(`${rel} is still in public. Quarantine it before copying.`);
+    else blocked.push(found.why);
+  }
+  if (blocked.length) fail(blocked.join('\n'));
   for (const rel of wwwFiles) {
     const from = path.join(www, rel);
     const to = path.join(pub, rel);
@@ -519,6 +576,7 @@ function inspectAppDir(appDir) {
       const p = path.join(dir, name);
       const rel = path.relative(appDir, p);
       hits.push(...forbiddenHits(rel).map((s) => `${rel}: ${s}`));
+      if (rel.split(path.sep).pop() === SHOTS_REL) hits.push(`${rel}: ${SHOTS_REL}`);
       if (fs.statSync(p).isDirectory()) walk(p);
       else hits.push(...forbiddenHits(read(p)).map((s) => `${rel}: ${s}`));
     }
@@ -550,6 +608,7 @@ function prep(opts) {
   bump(tree.root, build);
   assertTree(tree.root);
   rebuildWeb(tree.root);
+  quarantineShots(tree.root);
   copyPublic(tree.root);
   const plist = exportPlist();
   assertInternalPlist(plist);
@@ -722,6 +781,7 @@ function main(argv) {
 module.exports = {
   EXPECTED, UPLOADED_BUILD, RELEASE_BUILD, ASC_APP, CACHE, PROD_ID, CONTAINER, exportPlist, assertInternalPlist,
   assertTree, bump, prep, inspectAppDir, parseArgs, requireBuild, forbiddenHits, findReleaseScheme, webTreeIssues,
+  extraClass, quarantineShots, copyPublic, EMPTY_SHA256, SHOTS_REL, SHOTS_SIZE, SHOTS_PREFIX,
   archivesRoot, planArchive, writeArchiveRecord, readArchivePath,
 };
 
