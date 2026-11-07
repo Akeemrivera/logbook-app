@@ -1,0 +1,27 @@
+Phase 1 production package. Internal TestFlight only. Build 62.
+
+App Store Connect app 6820774919, bundle com.borikengenetics.logbookapp, train 1.0: latest Complete upload is build 61, and the expanded rows have no build 62. Marketing stays 1.0. APP_BUILD and every CURRENT_PROJECT_VERSION become 62. The service-worker cache stays boriken-genetics-logbook-app-v80, which build 61 did not ship.
+
+Run this on the phase 1 tree that already has the phase 1 patch, incr6b, and the mother-list refresh. Do not run Builds/b61-ship.sh. That script points at logbook-b61rel. Do not use logbook-b61-ExportOptions.plist. Its testFlightInternalTestingOnly value is false.
+
+From the directory that contains this script:
+
+  node phase1-release-prep.js --root "$HOME/Documents/Apps/Logbook/Builds/logbook-b61-phase1" check
+  node phase1-release-prep.js --root "$HOME/Documents/Apps/Logbook/Builds/logbook-b61-phase1" --build 62 --confirm-unused prep
+  node phase1-release-prep.js --root "$HOME/Documents/Apps/Logbook/Builds/logbook-b61-phase1" --build 62 --confirm-unused archive
+  node phase1-release-prep.js --root "$HOME/Documents/Apps/Logbook/Builds/logbook-b61-phase1" --build 62 --confirm-unused export
+  node phase1-release-prep.js --root "$HOME/Documents/Apps/Logbook/Builds/logbook-b61-phase1" inspect
+
+check must pass before prep. prep rewrites app.js and the project version, runs scripts/build-www.js, and copies that www into ios/App/App/public. The archive uses scheme App, configuration Release, destination generic/platform=iOS. It does not use scheme App-QA. The export plist is build/release/Logbook-Internal-ExportOptions.plist: method app-store-connect, destination export, signingStyle automatic, team 2Z94YL957X, testFlightInternalTestingOnly true. The script does not upload and does not launch.
+
+-allowProvisioningUpdates may download the existing App Store profile for com.borikengenetics.logbookapp. Stop if Xcode asks to register a device.
+
+inspect must show bundle com.borikengenetics.logbookapp, marketing 1.0, build 62, display name Borikèn Logbook, and entitlements containing iCloud.com.borikengenetics.logbookapp. It fails if the payload contains the QA bundle, the QA display name, QA_ISOLATION, LogbookQAUITests, or a test script. Release keeps App/App.entitlements. The QA configuration and the UI-test target stay in the project and are not the archived product.
+
+The content hashes before the build number changes are the check's expected files: media-store.js, styles.css, service-worker.js, build59.css, build59.js, and build13.js. app.js must match the build 61 source except for the APP_BUILD line. After prep, build/release/content-manifest.txt lists the public files that were copied. Read that file before upload.
+
+Upload the exported ipa only after inspect passes, from Xcode Organizer or Transporter. Do not launch the production app. The live container and backups stay untouched by archive and export.
+
+Mac QA already showed a synthetic grow photo and a synthetic mother photo still present after quit and relaunch, long tag names wrapping on whole words in wide and narrow layouts, notes refreshing immediately, and plant Save. Live photo recovery and an iPhone check are not part of this package. Inspection-table wrapping is unchanged. Tree, retirement, and archive-prevention work are not in this package.
+
+node phase1-release-prep.test.js passed against the patched file bytes. It is not a Mac archive.
