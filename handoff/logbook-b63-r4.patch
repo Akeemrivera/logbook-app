@@ -1,0 +1,145 @@
+diff -ruN -U3 --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b63-r3snap/build63.css b62-app/build63.css
+--- a/build63.css	2026-11-07 15:24:58.874270900 +0000
++++ b/build63.css	2026-11-07 15:29:41.279270243 +0000
+@@ -71,12 +71,11 @@
+ }
+ .b60-full, .b60-cols { width: 100%; max-width: 100%; }
+ .b60-col { flex: 1 1 0; min-width: 0; }
+-.b60-col > .b60-c { flex: 1 1 calc(50% - 8px); width: auto; min-width: 0; max-width: 100%; box-sizing: border-box; }
++.b60-col > .b60-c { flex: 1 1 calc(50% - 8px); width: auto; min-width: 0; max-width: 100%; min-height: 110px; box-sizing: border-box; }
++.b60-col > .b60-c.slot { min-height: 60px; }
+ .b60-col > .b60-c:only-child { flex: 1 1 100%; }
+ .b57 .b18-h1, .b57-subt, .b57-tools { max-width: 100%; overflow-wrap: break-word; word-break: normal; }
+ @media (max-width: 720px) {
+-  .b60-cols { gap: 8px; }
+-  .b60-c { min-height: 72px; }
+   .b57-n { flex: 1 1 calc(50% - 8px); }
+ }
+ .w-side, nav.w-side, .mfx-list, .w-list { min-width: 0; max-width: 100%; overflow: visible; }
+diff -ruN -U3 --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b63-r3snap/ios/App/App/public/build63.css b62-app/ios/App/App/public/build63.css
+--- a/ios/App/App/public/build63.css	2026-11-07 15:25:22.482337013 +0000
++++ b/ios/App/App/public/build63.css	2026-11-07 15:30:37.839515065 +0000
+@@ -71,12 +71,11 @@
+ }
+ .b60-full, .b60-cols { width: 100%; max-width: 100%; }
+ .b60-col { flex: 1 1 0; min-width: 0; }
+-.b60-col > .b60-c { flex: 1 1 calc(50% - 8px); width: auto; min-width: 0; max-width: 100%; box-sizing: border-box; }
++.b60-col > .b60-c { flex: 1 1 calc(50% - 8px); width: auto; min-width: 0; max-width: 100%; min-height: 110px; box-sizing: border-box; }
++.b60-col > .b60-c.slot { min-height: 60px; }
+ .b60-col > .b60-c:only-child { flex: 1 1 100%; }
+ .b57 .b18-h1, .b57-subt, .b57-tools { max-width: 100%; overflow-wrap: break-word; word-break: normal; }
+ @media (max-width: 720px) {
+-  .b60-cols { gap: 8px; }
+-  .b60-c { min-height: 72px; }
+   .b57-n { flex: 1 1 calc(50% - 8px); }
+ }
+ .w-side, nav.w-side, .mfx-list, .w-list { min-width: 0; max-width: 100%; overflow: visible; }
+diff -ruN -U3 --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b63-r3snap/scripts/b63-r3.test.js b62-app/scripts/b63-r3.test.js
+--- a/scripts/b63-r3.test.js	2026-11-07 15:25:38.390383648 +0000
++++ b/scripts/b63-r3.test.js	2026-11-07 15:30:32.867493073 +0000
+@@ -83,7 +83,7 @@
+       const cols = [...document.querySelectorAll('.b60-col')].map((c) => {
+         const r = c.getBoundingClientRect();
+         const cards = [...c.querySelectorAll('.b60-c')].map((el) => el.getBoundingClientRect());
+-        return { w: r.width, left: r.left, right: r.right, scroll: c.scrollWidth > c.clientWidth + 1, cards: cards.map((x) => ({ l: x.left, r: x.right, w: x.width, t: x.top })) };
++        return { w: r.width, left: r.left, right: r.right, scroll: c.scrollWidth > c.clientWidth + 1, cards: cards.map((x) => ({ l: x.left, r: x.right, w: x.width, t: x.top, h: x.height })) };
+       });
+       return { view, doc: document.documentElement.scrollWidth, cols };
+     })()`, returnByValue: true });
+@@ -101,9 +101,75 @@
+   if (left.cards[0].r > left.right + 1 || left.cards[1].r > left.right + 1) throw new Error('left overflow');
+   if (right.cards[0].w < right.w * 0.9) throw new Error('right card is not the wide card ' + JSON.stringify(right));
+   if (right.cards[0].r > 390.5) throw new Error('right past viewport');
+-  console.log('PASS equal halves at 390', JSON.stringify({ left: Math.round(left.w), right: Math.round(right.w), wide: Math.round(right.cards[0].w), doc: d.doc }));
+-  console.log('b63 r3: all checks passed');
++  if (right.cards[0].h < 110) throw new Error('card shorter than the reference 110px ' + JSON.stringify(right.cards[0]));
++  console.log('PASS equal halves at 390', JSON.stringify({ left: Math.round(left.w), right: Math.round(right.w), wide: Math.round(right.cards[0].w), h: Math.round(right.cards[0].h), doc: d.doc }));
++  return ipadTree();
++}).then((d) => {
++  if (d.view !== 1024 || d.doc > 1024) throw new Error('ipad page ' + JSON.stringify(d));
++  if (Math.round(d.side) !== 248) throw new Error('sidebar ' + JSON.stringify(d));
++  if (d.tree <= 560) throw new Error('tree still capped at 560 ' + JSON.stringify(d));
++  if (d.treeLeft < 248 - 1 || d.treeRight > 1024.5) throw new Error('tree overlaps the sidebar or the viewport ' + JSON.stringify(d));
++  console.log('PASS ipad sidebar and full-width tree', JSON.stringify({ side: Math.round(d.side), tree: Math.round(d.tree), left: Math.round(d.treeLeft), doc: d.doc }));
++  console.log('b63 r4: layout checks passed');
+ }).catch((e) => {
+-  console.error('FAIL equal halves', e && e.stack || e);
++  console.error('FAIL layout', e && e.stack || e);
+   process.exit(1);
+ });
++async function ipadTree() {
++  const html = '/tmp/b63-r4-ipad.html';
++  const css = ['wide.css', 'build60.css', 'build63.css'].map((f) => '<link rel="stylesheet" href="file://' + path.join(ROOT, f) + '">').join('');
++  fs.writeFileSync(html, '<!doctype html><html data-layout="wide"><head><meta name="viewport" content="width=device-width, initial-scale=1">' + css + '</head><body style="margin:0">'
++    + '<nav class="w-side" data-wide="sidebar"><div class="w-foot">Saved on this device</div></nav>'
++    + '<div class="b60-full"><div class="b60-cols"><div class="b60-col l"><button class="b60-c">Left</button></div><div class="b60-col r"><button class="b60-c">Right</button></div></div></div>'
++    + '</body></html>');
++  const port = 9335;
++  const dir = '/tmp/b63-r4-chrome';
++  fs.rmSync(dir, { recursive: true, force: true });
++  const proc = require('child_process').spawn('/opt/google/chrome/chrome', [
++    '--headless=new', '--disable-gpu', '--no-sandbox', '--disable-dev-shm-usage',
++    '--user-data-dir=' + dir, '--remote-debugging-port=' + port, 'about:blank',
++  ], { stdio: 'ignore' });
++  const pending = new Map();
++  let n = 0;
++  try {
++    let page = null;
++    for (let i = 0; i < 50 && !page; i++) {
++      try {
++        const list = await (await fetch('http://127.0.0.1:' + port + '/json/list')).json();
++        page = list.find((t) => t.type === 'page' && t.webSocketDebuggerUrl);
++      } catch (e) { await sleep(100); }
++    }
++    if (!page) throw new Error('chrome did not open');
++    const ws = new WebSocket(page.webSocketDebuggerUrl);
++    await new Promise((resolve, reject) => { ws.addEventListener('open', resolve); ws.addEventListener('error', reject); });
++    ws.addEventListener('message', (ev) => {
++      const msg = JSON.parse(ev.data);
++      if (msg.id && pending.has(msg.id)) { const done = pending.get(msg.id); pending.delete(msg.id); done(msg); }
++    });
++    function send(method, params) {
++      const id = ++n;
++      return new Promise((resolve, reject) => {
++        const timer = setTimeout(() => reject(new Error('timeout ' + method)), 8000);
++        pending.set(id, (msg) => { clearTimeout(timer); if (msg.error) reject(new Error(JSON.stringify(msg.error))); else resolve(msg.result); });
++        ws.send(JSON.stringify({ id, method, params: params || {} }));
++      });
++    }
++    await send('Emulation.setDeviceMetricsOverride', { width: 1024, height: 768, deviceScaleFactor: 1, mobile: false, scale: 1 });
++    await send('Page.enable');
++    await send('Page.navigate', { url: 'file://' + html });
++    for (let i = 0; i < 80; i++) {
++      const ready = await send('Runtime.evaluate', { expression: 'document.querySelectorAll(".b60-c").length', returnByValue: true });
++      if (ready.result && ready.result.value === 2) break;
++      await sleep(50);
++    }
++    await send('Emulation.setDeviceMetricsOverride', { width: 1024, height: 768, deviceScaleFactor: 1, mobile: false, scale: 1 });
++    const measured = await send('Runtime.evaluate', { expression: `(() => {
++      const view = window.innerWidth;
++      const side = document.querySelector('.w-side').getBoundingClientRect();
++      const tree = document.querySelector('.b60-full').getBoundingClientRect();
++      const doc = document.documentElement.scrollWidth;
++      return { view, doc, side: side.width, tree: tree.width, treeRight: tree.right, treeLeft: tree.left };
++    })()`, returnByValue: true });
++    return measured.result.value;
++  } finally { proc.kill('SIGKILL'); }
++}
+diff -ruN -U3 --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b63-r3snap/www/build63.css b62-app/www/build63.css
+--- a/www/build63.css	2026-11-07 15:25:22.482337013 +0000
++++ b/www/build63.css	2026-11-07 15:30:37.839515065 +0000
+@@ -71,12 +71,11 @@
+ }
+ .b60-full, .b60-cols { width: 100%; max-width: 100%; }
+ .b60-col { flex: 1 1 0; min-width: 0; }
+-.b60-col > .b60-c { flex: 1 1 calc(50% - 8px); width: auto; min-width: 0; max-width: 100%; box-sizing: border-box; }
++.b60-col > .b60-c { flex: 1 1 calc(50% - 8px); width: auto; min-width: 0; max-width: 100%; min-height: 110px; box-sizing: border-box; }
++.b60-col > .b60-c.slot { min-height: 60px; }
+ .b60-col > .b60-c:only-child { flex: 1 1 100%; }
+ .b57 .b18-h1, .b57-subt, .b57-tools { max-width: 100%; overflow-wrap: break-word; word-break: normal; }
+ @media (max-width: 720px) {
+-  .b60-cols { gap: 8px; }
+-  .b60-c { min-height: 72px; }
+   .b57-n { flex: 1 1 calc(50% - 8px); }
+ }
+ .w-side, nav.w-side, .mfx-list, .w-list { min-width: 0; max-width: 100%; overflow: visible; }

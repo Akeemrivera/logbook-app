@@ -1,0 +1,5 @@
+PASS qa config accepts build 63 and still isolates QA
+PASS documented sidebar is 248px with the device footer and Lineage loads after it
+PASS equal halves at 390 {"left":187,"right":187,"wide":187,"h":110,"doc":390}
+PASS ipad sidebar and full-width tree {"side":248,"tree":776,"left":248,"doc":1024}
+b63 r4: layout checks passed
