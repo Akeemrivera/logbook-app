@@ -1,0 +1,18 @@
+CSS-SHA256 8582bbaa8737fe73cf4833f37088b3032bf6fd19401d4e9f755f7138c3382d71
+PASS the three stylesheets are the same bytes
+PASS a missing date is not filled in
+PASS a required package with no file fails
+PASS packaging does not print the record id
+PASS the committed repair file is empty
+PASS a tree screen shows the fixture record
+PASS a child timestamp does not label a name-only parent deleted
+PASS a parent-specific deletion record still says deleted
+PASS the packaged repair clears only that plant father
+PASS dated plants still say not recorded after the repair
+PASS plants renders
+PASS mf renders
+PASS compliance renders
+PASS inspection renders
+PASS a second before and after pass stays clear
+PASS a missing record fails instead of drawing another page
+b63 real mockup: screens and packaging held
