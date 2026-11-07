@@ -223,6 +223,53 @@ check('the script no longer archives under the project or deletes an xcarchive',
   if (src.includes('rmSync(archivePath')) throw new Error('archive delete remains');
 });
 
+check('a shared App scheme is created from the App target id already saved in App-QA', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'scheme-'));
+  const dir = path.join(root, 'ios/App/App.xcodeproj/xcshareddata/xcschemes');
+  fs.mkdirSync(dir, { recursive: true });
+  const id = '504EC3031FED79650016851F';
+  const qaPath = path.join(dir, 'App-QA.xcscheme');
+  fs.writeFileSync(qaPath, `<?xml version="1.0" encoding="UTF-8"?>
+<Scheme LastUpgradeVersion = "1600" version = "1.7">
+   <BuildAction><BuildActionEntries><BuildActionEntry buildForArchiving = "NO">
+      <BuildableReference BuildableIdentifier = "primary" BlueprintIdentifier = "${id}" BuildableName = "App.app" BlueprintName = "App" ReferencedContainer = "container:App.xcodeproj">
+      </BuildableReference>
+   </BuildActionEntry></BuildActionEntries></BuildAction>
+   <ArchiveAction buildConfiguration = "QA" revealArchiveInOrganizer = "YES"></ArchiveAction>
+</Scheme>
+`);
+  const qa = fs.readFileSync(qaPath, 'utf8');
+  const pbx = `${id} /* App */ = {\n\t\t\tisa = PBXNativeTarget;\n`;
+  const scheme = prep.findReleaseScheme(root, pbx);
+  const written = fs.readFileSync(path.join(dir, 'App.xcscheme'), 'utf8');
+  if (scheme.name !== 'App' || scheme.archive !== 'Release') throw new Error(JSON.stringify(scheme));
+  if (!written.includes(`BlueprintIdentifier = "${id}"`) || !written.includes('buildForArchiving = "YES"')) throw new Error(written);
+  if (!written.includes('<ArchiveAction\n      buildConfiguration = "Release"')) throw new Error('archive config');
+  if (fs.readFileSync(qaPath, 'utf8') !== qa) throw new Error('App-QA changed');
+});
+check('no App scheme is written when the saved schemes have no App target id', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'scheme-missing-'));
+  const dir = path.join(root, 'ios/App/App.xcodeproj/xcshareddata/xcschemes');
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(path.join(dir, 'App-QA.xcscheme'), '<ArchiveAction buildConfiguration = "QA"></ArchiveAction>');
+  const msg = throws(() => prep.findReleaseScheme(root, ''));
+  if (!msg.includes('none was invented')) throw new Error(msg || 'no error');
+  if (fs.existsSync(path.join(dir, 'App.xcscheme'))) throw new Error('scheme was invented');
+});
+check('public files outside build-www are reported and kept', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'public-extra-'));
+  fs.mkdirSync(path.join(root, 'scripts'), { recursive: true });
+  fs.writeFileSync(path.join(root, 'scripts/build-www.js'), "const files = ['app.js'];\ncopyDir('assets');\n");
+  fs.writeFileSync(path.join(root, 'app.js'), 'app');
+  fs.mkdirSync(path.join(root, 'assets'));
+  const extra = path.join(root, 'ios/App/App/public/stray.txt');
+  fs.mkdirSync(path.dirname(extra), { recursive: true });
+  fs.writeFileSync(extra, 'x');
+  const issues = prep.webTreeIssues(root);
+  if (!issues.some((s) => s.includes('stray.txt'))) throw new Error(issues.join(' | ') || 'no issue');
+  if (!fs.existsSync(extra)) throw new Error('extra file was deleted');
+});
+
 if (FAIL.length) {
   console.error('FAILED', FAIL.length);
   process.exit(1);
