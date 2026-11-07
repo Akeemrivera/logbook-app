@@ -1,0 +1,14 @@
+TRACE startup harness cpu=4
+TRACE cpu-rate=4 accepted Emulation.setCPUThrottlingRate
+PASS first launch settled via sync controller=false
+PASS second navigation settled via fetch controller=true
+PASS controlled reload settled via fetch
+PASS screens after the scripts ran: plants, breeding, tree, compliance, inspection, mf
+PASS offline reload settled via cache bytes=118 in 456ms
+PASS slow repair settled via fetch in 869ms
+PASS hung repair settled via fetch in 794ms
+PASS empty file settled via fetch and left the father
+PASS missing file settled via empty
+PASS failed read settled via empty
+b63 repair startup: first, controlled, offline, slow, hung, empty, missing, and failed launches settled
+CPU4:0

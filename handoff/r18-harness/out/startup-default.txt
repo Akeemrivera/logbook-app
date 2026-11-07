@@ -1,0 +1,12 @@
+PASS first launch settled via sync controller=false
+PASS second navigation settled via sync controller=false
+PASS controlled reload settled via fetch
+PASS screens after the scripts ran: plants, breeding, tree, compliance, inspection, mf
+PASS offline reload settled via cache bytes=118 in 188ms
+PASS slow repair settled via fetch in 556ms
+PASS hung repair settled via fetch in 571ms
+PASS empty file settled via fetch and left the father
+PASS missing file settled via empty
+PASS failed read settled via empty
+b63 repair startup: first, controlled, offline, slow, hung, empty, missing, and failed launches settled
+DEFAULT:0
