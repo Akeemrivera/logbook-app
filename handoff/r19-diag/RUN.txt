@@ -11,3 +11,5 @@ Keep the failure. Do not rerun it.
 TRACE sw-mem is the worker's own array, read with Runtime.evaluate on the worker target after the failure. The first record for a request is written synchronously when the fetch event arrives, before any cache read. Later records are the lookup and, if respondWith rejects, the rejection text. TRACE targets lists worker attach, detach, and destroy across the viewport change.
 
 If TRACE sw-mem says the worker target could not be read, or sessions=0, the worker was gone and this diagnostic cannot supply the rejection reason. Page-level net::ERR_FAILED still does not include that reason. Chrome process stderr does not include it either.
+
+TRACE sw-mem now includes registration (controller, active, installing, waiting), the worker href, diag=mem-v2 when the evaluated script is this copy, and every event URL. The previous focus=[] line hid the three URLs it had.

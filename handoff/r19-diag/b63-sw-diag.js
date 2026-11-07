@@ -1,4 +1,5 @@
-/* DIAG ONLY. Served in place of /service-worker.js when the original renderer is started with --sw-diag. Fetch decisions match the production worker. Each script or document fetch also POSTs its lookup result to /__swdiag. Not shipped in the app bundle. */
+/* DIAG ONLY. Served in place of /service-worker.js when the original renderer is started with --sw-diag. Fetch decisions match the production worker. Each fetch event is appended to self.__b63SwLog before any await. Not shipped in the app bundle. */
+self.__b63Diag = 'mem-v2';
 /*
   Borikèn Genetics Logbook service worker
   ------------------------------------------------------------

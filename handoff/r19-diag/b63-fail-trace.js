@@ -182,14 +182,12 @@ function dump(label) {
 }
 function summarizeMemory(memory) {
   if (!memory) return '(not read)';
-  const interesting = /build18\.js|build49\.js|build57\.js|build63\.js|\/app\.js|respond-reject|deliver-error|unhandled|phase":"error/;
-  const parts = ['sessions=' + memory.sessions, 'targets=' + JSON.stringify(memory.targets)];
+  const parts = ['sessions=' + memory.sessions, 'registration=' + JSON.stringify(memory.registration), 'targets=' + JSON.stringify(memory.targets)];
   (memory.logs || []).forEach((item) => {
     if (item.error) { parts.push('read-error ' + item.error); return; }
-    const rows = Array.isArray(item.log) ? item.log : [];
-    const events = rows.filter((row) => row && row.phase === 'event').length;
-    const focus = rows.filter((row) => interesting.test(JSON.stringify(row)));
-    parts.push('events=' + events + ' focus=' + JSON.stringify(focus));
+    const info = item.info || {};
+    const urls = (info.events || []).map((url) => { try { return new URL(url).pathname; } catch (e) { return url; } });
+    parts.push('session=' + item.session + ' diag=' + info.diag + ' href=' + info.href + ' events=' + urls.length + ' urls=' + urls.join(',') + ' rejects=' + JSON.stringify(info.rejects || []));
   });
   return parts.join(' ');
 }
@@ -204,16 +202,22 @@ async function readWorkerMemory(send) {
       }
     });
   } catch (e) { targets.push({ error: String(e && e.message || e) }); }
+  let registration = null;
+  try {
+    const page = await send('Runtime.evaluate', { expression: 'navigator.serviceWorker.getRegistration().then((reg) => ({ controller: navigator.serviceWorker.controller && navigator.serviceWorker.controller.scriptURL, active: reg && reg.active && { state: reg.active.state, script: reg.active.scriptURL }, installing: reg && reg.installing && reg.installing.state, waiting: reg && reg.waiting && reg.waiting.state }))', awaitPromise: true, returnByValue: true }, '', 3000);
+    registration = page && page.result ? page.result.value : null;
+  } catch (e) { registration = { error: String(e && e.message || e) }; }
   const logs = [];
   if (!workers.size) logs.push({ error: 'no worker target session was attached' });
+  const expr = 'JSON.stringify({ diag: self.__b63Diag || null, href: self.location.href, events: (self.__b63SwLog || []).filter((row) => row && row.phase === "event").map((row) => row.url), rejects: (self.__b63SwLog || []).filter((row) => row && (row.phase === "reject" || row.phase === "respond-reject" || row.phase === "deliver-error" || row.phase === "error" || row.phase === "unhandledrejection")) })';
   for (const sid of workers) {
     try {
-      const res = await send('Runtime.evaluate', { expression: 'JSON.stringify(self.__b63SwLog||null)', returnByValue: true }, sid, 3000);
+      const res = await send('Runtime.evaluate', { expression: expr, returnByValue: true }, sid, 3000);
       const raw = res && res.result ? res.result.value : null;
-      logs.push({ session: sid.slice(0, 8), log: raw ? JSON.parse(raw) : null, exception: !!(res && res.exceptionDetails) });
+      logs.push({ session: sid.slice(0, 8), info: raw ? JSON.parse(raw) : null, exception: !!(res && res.exceptionDetails) });
     } catch (e) { logs.push({ session: sid.slice(0, 8), error: String(e && e.message || e) }); }
   }
-  workerMemory = { targets: targets, sessions: workers.size, logs: logs };
+  workerMemory = { targets: targets, sessions: workers.size, registration: registration, logs: logs };
 }
 function noteSw(body) { if (swPosts.length < 200) swPosts.push(String(body).slice(0, 900)); }
 function noteChrome(text) { const line = String(text).replace(/\s+/g, ' ').trim(); if (line && chromeErr.length < 40) chromeErr.push(line.slice(0, 400)); }
