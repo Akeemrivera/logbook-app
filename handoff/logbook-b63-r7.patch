@@ -1,0 +1,441 @@
+--- a/build13.js	2026-11-07 14:55:15.156943191 +0000
++++ b/build13.js	2026-11-07 16:27:27.855197445 +0000
+@@ -168,9 +168,9 @@
+ /* ---------- Mothers & Fathers ---------- */
+ let mfDetailId = '';
+ let mfShowArchived = false;
+-/* Build 14: no built-in starter plants ship. A developer can supply starters (array of {name, role}) as window.__BORIKEN_DEV_SEED
+-   before the app loads (tests only; never set in a build). */
+-const MF_STARTERS = Array.isArray(window.__BORIKEN_DEV_SEED) ? window.__BORIKEN_DEV_SEED : [];
++/* Build 14 removed the built-in starter names. The released app does not read
++   window.__BORIKEN_DEV_SEED and does not insert sample mothers or fathers. */
++const MF_STARTERS = [];
+ 
+ function mfList() { if (!Array.isArray(state.motherFatherPlants)) state.motherFatherPlants = []; return state.motherFatherPlants; }
+ function mfById(id) { return mfList().find((m) => m.id === id) || null; }
+@@ -184,11 +184,7 @@
+ function mfTotal(arr) { return (arr || []).reduce((n, e) => n + (Number(e.count) || 0), 0); }
+ function mfDateLabel(d) { return d ? (typeof formatDate === 'function' ? formatDate(parseDate(d) || d) : d) : ''; }
+ 
+-function mfHelperVisible() {
+-  if (state.settings && state.settings.mfHelperDismissed) return false;
+-  const names = new Set(mfList().map((m) => m.name.trim().toLowerCase()));
+-  return MF_STARTERS.some((s) => !names.has(s.name.toLowerCase()));
+-}
++function mfHelperVisible() { return false; }
+ 
+ function mfSectionHtml() {
+   const all = mfList();
+@@ -361,26 +357,7 @@
+ }
+ 
+ function mfSeedStarters() {
+-  const names = new Set(mfList().map((m) => m.name.trim().toLowerCase()));
+-  const added = [];
+-  MF_STARTERS.forEach((s) => {
+-    if (names.has(s.name.toLowerCase())) return;
+-    const rec = normalizeMotherFather({ id: freshId(), name: s.name, role: s.role, status: 'Active', createdAt: new Date().toISOString() });
+-    mfList().push(rec);
+-    added.push(rec);
+-  });
+-  const prevDismissed = !!state.settings.mfHelperDismissed;
+-  state.settings.mfHelperDismissed = true;
+-  saveState();
+-  mfRefresh();
+-  if (added.length) {
+-    showToast(`Added ${added.length} plant${added.length === 1 ? '' : 's'}`, () => {
+-      added.forEach((r) => { const at = mfList().indexOf(r); if (at >= 0) mfList().splice(at, 1); });
+-      state.settings.mfHelperDismissed = prevDismissed;
+-      saveState();
+-      mfRefresh();
+-    }, 8000);
+-  }
++  /* No sample row is created. Records already saved by the user stay put. */
+ }
+ 
+ function mfDelEntry(id, kind, entryId) {
+--- a/www/build13.js	2026-11-07 15:15:46.766330696 +0000
++++ b/www/build13.js	2026-11-07 16:27:32.731234089 +0000
+@@ -168,9 +168,9 @@
+ /* ---------- Mothers & Fathers ---------- */
+ let mfDetailId = '';
+ let mfShowArchived = false;
+-/* Build 14: no built-in starter plants ship. A developer can supply starters (array of {name, role}) as window.__BORIKEN_DEV_SEED
+-   before the app loads (tests only; never set in a build). */
+-const MF_STARTERS = Array.isArray(window.__BORIKEN_DEV_SEED) ? window.__BORIKEN_DEV_SEED : [];
++/* Build 14 removed the built-in starter names. The released app does not read
++   window.__BORIKEN_DEV_SEED and does not insert sample mothers or fathers. */
++const MF_STARTERS = [];
+ 
+ function mfList() { if (!Array.isArray(state.motherFatherPlants)) state.motherFatherPlants = []; return state.motherFatherPlants; }
+ function mfById(id) { return mfList().find((m) => m.id === id) || null; }
+@@ -184,11 +184,7 @@
+ function mfTotal(arr) { return (arr || []).reduce((n, e) => n + (Number(e.count) || 0), 0); }
+ function mfDateLabel(d) { return d ? (typeof formatDate === 'function' ? formatDate(parseDate(d) || d) : d) : ''; }
+ 
+-function mfHelperVisible() {
+-  if (state.settings && state.settings.mfHelperDismissed) return false;
+-  const names = new Set(mfList().map((m) => m.name.trim().toLowerCase()));
+-  return MF_STARTERS.some((s) => !names.has(s.name.toLowerCase()));
+-}
++function mfHelperVisible() { return false; }
+ 
+ function mfSectionHtml() {
+   const all = mfList();
+@@ -361,26 +357,7 @@
+ }
+ 
+ function mfSeedStarters() {
+-  const names = new Set(mfList().map((m) => m.name.trim().toLowerCase()));
+-  const added = [];
+-  MF_STARTERS.forEach((s) => {
+-    if (names.has(s.name.toLowerCase())) return;
+-    const rec = normalizeMotherFather({ id: freshId(), name: s.name, role: s.role, status: 'Active', createdAt: new Date().toISOString() });
+-    mfList().push(rec);
+-    added.push(rec);
+-  });
+-  const prevDismissed = !!state.settings.mfHelperDismissed;
+-  state.settings.mfHelperDismissed = true;
+-  saveState();
+-  mfRefresh();
+-  if (added.length) {
+-    showToast(`Added ${added.length} plant${added.length === 1 ? '' : 's'}`, () => {
+-      added.forEach((r) => { const at = mfList().indexOf(r); if (at >= 0) mfList().splice(at, 1); });
+-      state.settings.mfHelperDismissed = prevDismissed;
+-      saveState();
+-      mfRefresh();
+-    }, 8000);
+-  }
++  /* No sample row is created. Records already saved by the user stay put. */
+ }
+ 
+ function mfDelEntry(id, kind, entryId) {
+--- a/ios/App/App/public/build13.js	2026-11-07 15:15:46.770330679 +0000
++++ b/ios/App/App/public/build13.js	2026-11-07 16:27:32.731234089 +0000
+@@ -168,9 +168,9 @@
+ /* ---------- Mothers & Fathers ---------- */
+ let mfDetailId = '';
+ let mfShowArchived = false;
+-/* Build 14: no built-in starter plants ship. A developer can supply starters (array of {name, role}) as window.__BORIKEN_DEV_SEED
+-   before the app loads (tests only; never set in a build). */
+-const MF_STARTERS = Array.isArray(window.__BORIKEN_DEV_SEED) ? window.__BORIKEN_DEV_SEED : [];
++/* Build 14 removed the built-in starter names. The released app does not read
++   window.__BORIKEN_DEV_SEED and does not insert sample mothers or fathers. */
++const MF_STARTERS = [];
+ 
+ function mfList() { if (!Array.isArray(state.motherFatherPlants)) state.motherFatherPlants = []; return state.motherFatherPlants; }
+ function mfById(id) { return mfList().find((m) => m.id === id) || null; }
+@@ -184,11 +184,7 @@
+ function mfTotal(arr) { return (arr || []).reduce((n, e) => n + (Number(e.count) || 0), 0); }
+ function mfDateLabel(d) { return d ? (typeof formatDate === 'function' ? formatDate(parseDate(d) || d) : d) : ''; }
+ 
+-function mfHelperVisible() {
+-  if (state.settings && state.settings.mfHelperDismissed) return false;
+-  const names = new Set(mfList().map((m) => m.name.trim().toLowerCase()));
+-  return MF_STARTERS.some((s) => !names.has(s.name.toLowerCase()));
+-}
++function mfHelperVisible() { return false; }
+ 
+ function mfSectionHtml() {
+   const all = mfList();
+@@ -361,26 +357,7 @@
+ }
+ 
+ function mfSeedStarters() {
+-  const names = new Set(mfList().map((m) => m.name.trim().toLowerCase()));
+-  const added = [];
+-  MF_STARTERS.forEach((s) => {
+-    if (names.has(s.name.toLowerCase())) return;
+-    const rec = normalizeMotherFather({ id: freshId(), name: s.name, role: s.role, status: 'Active', createdAt: new Date().toISOString() });
+-    mfList().push(rec);
+-    added.push(rec);
+-  });
+-  const prevDismissed = !!state.settings.mfHelperDismissed;
+-  state.settings.mfHelperDismissed = true;
+-  saveState();
+-  mfRefresh();
+-  if (added.length) {
+-    showToast(`Added ${added.length} plant${added.length === 1 ? '' : 's'}`, () => {
+-      added.forEach((r) => { const at = mfList().indexOf(r); if (at >= 0) mfList().splice(at, 1); });
+-      state.settings.mfHelperDismissed = prevDismissed;
+-      saveState();
+-      mfRefresh();
+-    }, 8000);
+-  }
++  /* No sample row is created. Records already saved by the user stay put. */
+ }
+ 
+ function mfDelEntry(id, kind, entryId) {
+--- a/scripts/b63-r3.test.js	2026-11-07 15:30:32.867493073 +0000
++++ b/scripts/b63-r3.test.js	2026-11-07 16:23:25.922029892 +0000
+@@ -31,6 +31,47 @@
+   if (!tree.includes('Bred with')) throw new Error('partner label');
+ });
+ function sleep(ms) { return new Promise((r) => setTimeout(r, ms)); }
++/* The old gate treated the buttons as ready as soon as they existed in the HTML.
++   Those nodes are in the first parse, before the file:// stylesheets apply, so a
++   fast run measured the unstyled page: the sidebar was the full 1024px viewport
++   and the right card was the text width (about 76px). Readiness is the applied
++   rule, not a retry of the width assertion. */
++const STYLE_WAIT = `(() => {
++  const links = [...document.querySelectorAll('link[rel="stylesheet"]')];
++  const sheets = links.map((l) => ({ ok: !!l.sheet }));
++  const card = document.querySelector('.b60-col > .b60-c');
++  const cardCs = card ? getComputedStyle(card) : null;
++  const side = document.querySelector('.w-side');
++  const sideCs = side ? getComputedStyle(side) : null;
++  const cardReady = !!(cardCs && cardCs.minHeight === '110px' && cardCs.boxSizing === 'border-box');
++  const sideReady = !side || !!(sideCs && sideCs.position === 'fixed' && sideCs.width === '248px');
++  return {
++    ok: document.readyState === 'complete' && sheets.length > 0 && sheets.every((s) => s.ok) && cardReady && sideReady,
++    ready: document.readyState,
++    inner: window.innerWidth,
++    sheets,
++    minHeight: cardCs && cardCs.minHeight,
++    sidePosition: sideCs && sideCs.position,
++    sideWidth: sideCs && sideCs.width,
++  };
++})()`;
++async function flush(send) {
++  await send('Runtime.evaluate', {
++    expression: 'new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve(true))))',
++    awaitPromise: true,
++    returnByValue: true,
++  });
++}
++async function waitForAppliedStyles(send, expectWidth) {
++  let last = null;
++  for (let i = 0; i < 100; i++) {
++    const out = await send('Runtime.evaluate', { expression: STYLE_WAIT, returnByValue: true });
++    last = out.result && out.result.value;
++    if (last && last.ok && last.inner === expectWidth) return last;
++    await sleep(50);
++  }
++  throw new Error('stylesheets were not applied at ' + expectWidth + ' ' + JSON.stringify(last));
++}
+ async function halves() {
+   const html = '/tmp/b63-r3-halves.html';
+   const css = ['build57.css', 'build60.css', 'build63.css'].map((f) => '<link rel="stylesheet" href="file://' + path.join(ROOT, f) + '">').join('');
+@@ -72,13 +113,14 @@
+     await send('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: true, scale: 1 });
+     await send('Page.enable');
+     await send('Page.navigate', { url: 'file://' + html });
+-    for (let i = 0; i < 80; i++) {
+-      const ready = await send('Runtime.evaluate', { expression: 'document.querySelectorAll(".b60-c").length', returnByValue: true });
+-      if (ready.result && ready.result.value === 3) break;
+-      await sleep(50);
+-    }
++    await waitForAppliedStyles(send, 390);
+     await send('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: true, scale: 1 });
+-    const measured = await send('Runtime.evaluate', { expression: `(() => {
++    await waitForAppliedStyles(send, 390);
++    await flush(send);
++    const samples = [];
++    for (let pass = 0; pass < 5; pass++) {
++      if (pass) await flush(send);
++      const measured = await send('Runtime.evaluate', { expression: `(() => {
+       const view = window.innerWidth;
+       const cols = [...document.querySelectorAll('.b60-col')].map((c) => {
+         const r = c.getBoundingClientRect();
+@@ -87,10 +129,12 @@
+       });
+       return { view, doc: document.documentElement.scrollWidth, cols };
+     })()`, returnByValue: true });
+-    return measured.result.value;
++      samples.push(measured.result.value);
++    }
++    return samples;
+   } finally { proc.kill('SIGKILL'); }
+ }
+-halves().then((d) => {
++function assertHalves(d) {
+   if (d.view !== 390 || d.doc > 390) throw new Error('page ' + JSON.stringify(d));
+   const [left, right] = d.cols;
+   if (!left || !right) throw new Error('columns');
+@@ -102,14 +146,27 @@
+   if (right.cards[0].w < right.w * 0.9) throw new Error('right card is not the wide card ' + JSON.stringify(right));
+   if (right.cards[0].r > 390.5) throw new Error('right past viewport');
+   if (right.cards[0].h < 110) throw new Error('card shorter than the reference 110px ' + JSON.stringify(right.cards[0]));
+-  console.log('PASS equal halves at 390', JSON.stringify({ left: Math.round(left.w), right: Math.round(right.w), wide: Math.round(right.cards[0].w), h: Math.round(right.cards[0].h), doc: d.doc }));
+-  return ipadTree();
+-}).then((d) => {
++}
++function assertIpad(d) {
+   if (d.view !== 1024 || d.doc > 1024) throw new Error('ipad page ' + JSON.stringify(d));
+   if (Math.round(d.side) !== 248) throw new Error('sidebar ' + JSON.stringify(d));
+   if (d.tree <= 560) throw new Error('tree still capped at 560 ' + JSON.stringify(d));
+   if (d.treeLeft < 248 - 1 || d.treeRight > 1024.5) throw new Error('tree overlaps the sidebar or the viewport ' + JSON.stringify(d));
+-  console.log('PASS ipad sidebar and full-width tree', JSON.stringify({ side: Math.round(d.side), tree: Math.round(d.tree), left: Math.round(d.treeLeft), doc: d.doc }));
++}
++halves().then((samples) => {
++  if (!samples || samples.length !== 5) throw new Error('halves samples ' + (samples && samples.length));
++  samples.forEach(assertHalves);
++  const d = samples[0];
++  const [left, right] = d.cols;
++  const summary = samples.map((s) => ({ left: Math.round(s.cols[0].w), right: Math.round(s.cols[1].w), wide: Math.round(s.cols[1].cards[0].w), h: Math.round(s.cols[1].cards[0].h), doc: s.doc }));
++  console.log('PASS equal halves at 390', JSON.stringify({ left: Math.round(left.w), right: Math.round(right.w), wide: Math.round(right.cards[0].w), h: Math.round(right.cards[0].h), doc: d.doc, repeats: summary }));
++  return ipadTree();
++}).then((samples) => {
++  if (!samples || samples.length !== 5) throw new Error('ipad samples ' + (samples && samples.length));
++  samples.forEach(assertIpad);
++  const d = samples[0];
++  const summary = samples.map((s) => ({ side: Math.round(s.side), tree: Math.round(s.tree), left: Math.round(s.treeLeft), doc: s.doc }));
++  console.log('PASS ipad sidebar and full-width tree', JSON.stringify({ side: Math.round(d.side), tree: Math.round(d.tree), left: Math.round(d.treeLeft), doc: d.doc, repeats: summary }));
+   console.log('b63 r4: layout checks passed');
+ }).catch((e) => {
+   console.error('FAIL layout', e && e.stack || e);
+@@ -157,19 +214,22 @@
+     await send('Emulation.setDeviceMetricsOverride', { width: 1024, height: 768, deviceScaleFactor: 1, mobile: false, scale: 1 });
+     await send('Page.enable');
+     await send('Page.navigate', { url: 'file://' + html });
+-    for (let i = 0; i < 80; i++) {
+-      const ready = await send('Runtime.evaluate', { expression: 'document.querySelectorAll(".b60-c").length', returnByValue: true });
+-      if (ready.result && ready.result.value === 2) break;
+-      await sleep(50);
+-    }
++    await waitForAppliedStyles(send, 1024);
+     await send('Emulation.setDeviceMetricsOverride', { width: 1024, height: 768, deviceScaleFactor: 1, mobile: false, scale: 1 });
+-    const measured = await send('Runtime.evaluate', { expression: `(() => {
++    await waitForAppliedStyles(send, 1024);
++    await flush(send);
++    const samples = [];
++    for (let pass = 0; pass < 5; pass++) {
++      if (pass) await flush(send);
++      const measured = await send('Runtime.evaluate', { expression: `(() => {
+       const view = window.innerWidth;
+       const side = document.querySelector('.w-side').getBoundingClientRect();
+       const tree = document.querySelector('.b60-full').getBoundingClientRect();
+       const doc = document.documentElement.scrollWidth;
+       return { view, doc, side: side.width, tree: tree.width, treeRight: tree.right, treeLeft: tree.left };
+     })()`, returnByValue: true });
+-    return measured.result.value;
++      samples.push(measured.result.value);
++    }
++    return samples;
+   } finally { proc.kill('SIGKILL'); }
+ }
+--- a/scripts/b63-no-sample.test.js	1970-01-01 00:00:00.000000000 +0000
++++ b/scripts/b63-no-sample.test.js	2026-11-07 16:28:58.299930537 +0000
+@@ -0,0 +1,122 @@
++'use strict';
++/*
++  Released app must not create sample plants. Synthetic ids only.
++  A same-name user record stays. The developer seed global is ignored.
++*/
++const fs = require('fs');
++const path = require('path');
++const vm = require('vm');
++const ROOT = path.join(__dirname, '..');
++const FAIL = [];
++function check(name, fn) {
++  try { fn(); console.log('PASS', name); }
++  catch (e) { FAIL.push(name); console.error('FAIL', name, e && e.stack || e); process.exit(1); }
++}
++function element(id) {
++  return {
++    id: id || '', innerHTML: '', textContent: '', value: '', hidden: false, dataset: {}, style: {},
++    classList: { add() {}, remove() {}, toggle() {}, contains() { return false; } },
++    setAttribute() {}, getAttribute() { return ''; }, addEventListener() {},
++    querySelector() { return null; }, querySelectorAll() { return []; },
++  };
++}
++const byId = {};
++function remember(id) { if (!byId[id]) byId[id] = element(id); return byId[id]; }
++const document = {
++  readyState: 'complete', body: element('body'), documentElement: element('html'),
++  addEventListener() {}, createElement() { return element(''); },
++  getElementById(id) { return remember(id); },
++  querySelector(sel) { const m = /^#([\w-]+)$/.exec(sel || ''); return m ? remember(m[1]) : null; },
++  querySelectorAll() { return []; },
++};
++const store = new Map();
++const g = {
++  console, document,
++  localStorage: { getItem(k) { return store.has(k) ? store.get(k) : null; }, setItem(k, v) { store.set(k, String(v)); }, removeItem(k) { store.delete(k); } },
++  setInterval() { return 0; }, setTimeout() { return 0; }, clearInterval() {}, clearTimeout() {},
++  requestAnimationFrame() { return 0; },
++  matchMedia() { return { matches: false, addEventListener() {}, removeEventListener() {} }; },
++  MutationObserver: class { observe() {} disconnect() {} },
++  navigator: { storage: { persist() { return Promise.resolve(false); } } },
++  crypto: { randomUUID: () => 'syn-uuid' },
++  URL, Blob, Map, Date, JSON, Math, Number, String, Array, Object, RegExp, Promise, Set,
++  location: { hash: '', protocol: 'https:' },
++  addEventListener() {},
++  __BORIKEN_DEV_SEED: [
++    { name: 'Synthetic Sample Mother', role: 'mother' },
++    { name: 'Synthetic Sample Father', role: 'father' },
++  ],
++};
++g.window = g;
++g.globalThis = g;
++vm.createContext(g);
++vm.runInContext(fs.readFileSync(path.join(ROOT, 'app.js'), 'utf8'), g, { filename: 'app.js' });
++vm.runInContext(fs.readFileSync(path.join(ROOT, 'build13.js'), 'utf8'), g, { filename: 'build13.js' });
++vm.runInContext(fs.readFileSync(path.join(ROOT, 'build63.js'), 'utf8'), g, { filename: 'build63.js' });
++const state = vm.runInContext('state', g);
++
++check('a clean startup has no plants and ignores the developer seed list', () => {
++  if (state.plants.length || state.motherFatherPlants.length) throw new Error('startup not empty');
++  const starters = vm.runInContext('MF_STARTERS', g);
++  if (!Array.isArray(starters) || starters.length) throw new Error('starter list ' + JSON.stringify(starters));
++  g.mfSeedStarters();
++  if (state.plants.length || state.motherFatherPlants.length) throw new Error('seed inserted ' + state.motherFatherPlants.map((m) => m.name).join(','));
++  const html = g.mfSectionHtml();
++  if (html.includes('Add your plants') || html.includes('Synthetic Sample')) throw new Error(html);
++});
++
++state.motherFatherPlants.push(
++  { id: 'user-same-name', name: 'Rocco', role: 'father', status: 'Active', archived: false, cuttings: [], pollen: [] },
++  { id: 'user-live', name: 'Kept Mother', role: 'mother', status: 'Active', archived: false, cuttings: [], pollen: [] },
++);
++state.plants.push({ id: 'user-plant', name: 'Kept Grow', status: 'active', count: 1, logs: [], harvestDate: '' });
++const before = JSON.stringify(state);
++g.mfSeedStarters();
++const saved = JSON.stringify(state);
++vm.runInContext('state = normalizeState(JSON.parse(' + JSON.stringify(saved) + '))', g);
++g.mfSeedStarters();
++const reloaded = vm.runInContext('state', g);
++
++check('reload does not insert a sample and the same-name user record stays', () => {
++  const names = reloaded.motherFatherPlants.map((m) => m.id + ':' + m.name).sort();
++  if (JSON.stringify(names) !== JSON.stringify(['user-live:Kept Mother', 'user-same-name:Rocco'])) throw new Error(names.join(','));
++  if (reloaded.plants.length !== 1 || reloaded.plants[0].id !== 'user-plant') throw new Error('grow changed');
++  if (reloaded.motherFatherPlants.some((m) => String(m.id).startsWith('syn-') || /sample/i.test(m.name))) throw new Error('sample row');
++});
++
++check('active list, count, and search still show the user records only', () => {
++  const html = g.mfSectionHtml();
++  if (!html.includes('user-same-name') || !html.includes('user-live')) throw new Error(html);
++  if (html.includes('Synthetic Sample')) throw new Error('sample visible');
++  const moms = reloaded.motherFatherPlants.filter((m) => g.B63.showMother(m) && m.role !== 'father');
++  const dads = reloaded.motherFatherPlants.filter((m) => g.B63.showMother(m) && m.role === 'father');
++  if (moms.length !== 1 || dads.length !== 1 || dads[0].id !== 'user-same-name') throw new Error('counts');
++  const active = g.activeStrains().map((p) => p.id);
++  if (!active.includes('user-plant') || active.length !== 1) throw new Error(active.join(','));
++});
++
++g.b18BrPageHtml = function () { return ''; };
++g.B18 = g.B18 || { brPage: null };
++g.renderBreeding = g.renderBreeding || function () {};
++['build49.js', 'build57.js'].forEach((rel) => {
++  vm.runInContext(fs.readFileSync(path.join(ROOT, rel), 'utf8'), g, { filename: rel });
++});
++check('tree and partner views do not add a sample or drop the same-name user record', () => {
++  const ids = reloaded.motherFatherPlants.map((m) => m.id).sort();
++  if (JSON.stringify(ids) !== JSON.stringify(['user-live', 'user-same-name'])) throw new Error('load changed mothers ' + ids.join(','));
++  const kids = g.B49.children('mf:user-live');
++  if (kids.some((k) => /sample|syn-sample/i.test(String(k)))) throw new Error(kids.join(','));
++  const partners = g.B57.partners('mf:user-live', kids.map((k) => ({ k })));
++  const blob = JSON.stringify(partners || []);
++  if (/Synthetic Sample/.test(blob)) throw new Error(blob);
++  if (!reloaded.motherFatherPlants.some((m) => m.id === 'user-same-name' && m.name === 'Rocco')) throw new Error('same-name record missing');
++});
++
++check('shipped pages do not load the test fixture or the name-matched migration file', () => {
++  const index = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
++  ['b57-fixture.js', 'build61.js', 'qa-b13.js'].forEach((name) => {
++    if (index.includes(name)) throw new Error(name + ' is loaded');
++  });
++});
++
++console.log('b63 no sample: clean startup and user records held');

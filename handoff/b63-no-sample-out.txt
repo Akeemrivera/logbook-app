@@ -1,0 +1,6 @@
+PASS a clean startup has no plants and ignores the developer seed list
+PASS reload does not insert a sample and the same-name user record stays
+PASS active list, count, and search still show the user records only
+PASS tree and partner views do not add a sample or drop the same-name user record
+PASS shipped pages do not load the test fixture or the name-matched migration file
+b63 no sample: clean startup and user records held
