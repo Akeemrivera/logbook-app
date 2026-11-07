@@ -1,0 +1,944 @@
+diff -ruN --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/app.js b62-app/app.js
+--- a/app.js	2026-11-07 02:47:28.000000000 +0000
++++ b/app.js	2026-11-07 14:43:16.494706046 +0000
+@@ -24,7 +24,7 @@
+ const DRAFT_STORAGE_KEY = 'boriken-genetics-logbook-drafts-v1';
+ const BACKUP_STORAGE_KEY = 'boriken-genetics-logbook-backups-v1';
+ const APP_VERSION = '1.0';
+-const APP_BUILD = '62'; // must equal CURRENT_PROJECT_VERSION in the Xcode project (scripts/build-www.js checks this)
++const APP_BUILD = '63'; // must equal CURRENT_PROJECT_VERSION in the Xcode project (scripts/build-www.js checks this)
+ const SCHEMA_VERSION = 2;
+ const MAX_SNAPSHOTS = 3; // keep only the latest few so history does not crowd live data in localStorage
+ const DAY_MS = 1000 * 60 * 60 * 24;
+diff -ruN --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/build63.css b62-app/build63.css
+--- a/build63.css	1970-01-01 00:00:00.000000000 +0000
++++ b/build63.css	2026-11-07 14:45:30.930963267 +0000
+@@ -0,0 +1,67 @@
++/* Build 63. Narrow layouts reflow. They do not add a horizontal scroll port. */
++#compliance-panel-inspection .table-wrap {
++  overflow: visible;
++  max-width: 100%;
++}
++#compliance-panel-inspection table.compliance-table {
++  min-width: 0;
++  width: 100%;
++  table-layout: fixed;
++}
++#compliance-panel-inspection .compliance-table th,
++#compliance-panel-inspection .compliance-table td {
++  overflow-wrap: normal;
++  word-break: normal;
++  hyphens: manual;
++  white-space: normal;
++  overflow: visible;
++  text-overflow: clip;
++  vertical-align: top;
++}
++@media (max-width: 720px) {
++  #compliance-panel-inspection table.compliance-table,
++  #compliance-panel-inspection .compliance-table tbody,
++  #compliance-panel-inspection .compliance-table tr,
++  #compliance-panel-inspection .compliance-table td {
++    display: block;
++    width: 100%;
++  }
++  #compliance-panel-inspection .compliance-table thead {
++    position: absolute;
++    width: 1px;
++    height: 1px;
++    overflow: hidden;
++    clip: rect(0, 0, 0, 0);
++  }
++  #compliance-panel-inspection .compliance-table td {
++    display: grid;
++    grid-template-columns: minmax(0, 7.5rem) minmax(0, 1fr);
++    gap: 0.35rem;
++  }
++  #compliance-panel-inspection .compliance-table td:nth-child(1)::before { content: "Plant code"; }
++  #compliance-panel-inspection .compliance-table td:nth-child(2)::before { content: "Patient alias"; }
++  #compliance-panel-inspection .compliance-table td:nth-child(3)::before { content: "Cert ID"; }
++  #compliance-panel-inspection .compliance-table td:nth-child(4)::before { content: "Cultivar"; }
++  #compliance-panel-inspection .compliance-table td:nth-child(5)::before { content: "Stage"; }
++  #compliance-panel-inspection .compliance-table td:nth-child(6)::before { content: "Area"; }
++  #compliance-panel-inspection .compliance-table td:nth-child(7)::before { content: "Tag status"; }
++  #compliance-panel-inspection .compliance-table td:nth-child(8)::before { content: "Last updated"; }
++}
++.b57-scroll, .b57-row.scroll, .b59-kids {
++  overflow-x: clip;
++  max-width: 100%;
++  touch-action: pan-y;
++}
++.b57-row, .b59-kids { flex-wrap: wrap; max-width: 100%; }
++.b57-n { flex: 1 1 8rem; width: auto; max-width: 100%; min-width: 0; }
++.b57-n b, .b57-n small {
++  white-space: normal;
++  overflow-wrap: break-word;
++  word-break: normal;
++  hyphens: manual;
++  max-width: 100%;
++}
++@media (min-width: 1024px) {
++  .w-side { min-width: 0; overflow-x: clip; }
++  .w-side .w-li-t, .w-side .w-li-t b { min-width: 0; overflow-wrap: break-word; word-break: normal; }
++}
+diff -ruN --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/build63.js b62-app/build63.js
+--- a/build63.js	1970-01-01 00:00:00.000000000 +0000
++++ b/build63.js	2026-11-07 14:45:55.770912801 +0000
+@@ -0,0 +1,129 @@
++/* Build 63. View projections only. Nothing here writes state, merges records, or deletes history.
++   Hidden ids start empty. A record is hidden only when its id is passed to configure.
++   Names, sample flags, and descendant links are not used. */
++(function () {
++  'use strict';
++  const hiddenIds = new Set();
++  function configure(opts) {
++    hiddenIds.clear();
++    const ids = opts && Array.isArray(opts.hideIds) ? opts.hideIds : [];
++    ids.forEach((id) => { if (typeof id === 'string' && id) hiddenIds.add(id); });
++    return { hideIds: [...hiddenIds] };
++  }
++  function retiredMf(r) {
++    return !!(r && (r.status === 'Retired' || r.archived));
++  }
++  function explicitId(r) {
++    return !!(r && r.id && hiddenIds.has(r.id));
++  }
++  function explicitKey(k) {
++    if (!k || k === '?') return false;
++    const text = String(k);
++    if (hiddenIds.has(text)) return true;
++    const id = text.split(':').slice(1).join(':');
++    return !!(id && hiddenIds.has(id));
++  }
++  function projectActiveMothers(list) {
++    return (list || []).filter((r) => r && !retiredMf(r) && !explicitId(r));
++  }
++  function projectVisible(list) {
++    return (list || []).filter((r) => r && !explicitId(r));
++  }
++  function sameRecord(a, b) {
++    if (!a || !b) return false;
++    if (a === b) return true;
++    const as = String(a); const bs = String(b);
++    const ai = as.split(':').slice(1).join(':');
++    const bi = bs.split(':').slice(1).join(':');
++    return as.split(':')[0] === bs.split(':')[0] && ai && ai === bi;
++  }
++  function keepChild(parentKey, childKey) {
++    if (!childKey || childKey === parentKey || sameRecord(parentKey, childKey)) return false;
++    if (explicitKey(childKey)) return false;
++    return true;
++  }
++  function allowArchive(shownId, requestedId) {
++    if (!requestedId) return false;
++    if (shownId && shownId !== requestedId) return false;
++    return true;
++  }
++  function pendingMetadata() {
++    return [
++      'Sample record stable id, and any verified sample-only link ids. hideIds is empty, so nothing is hidden.',
++      'Duplicate parent record ids and the grow-plant ids for the missing crosses. No merge and no partner rewrite.',
++      'The one parent record id for the origin text. No name-matched write.',
++      'The retired mother id from the reported count. Every Retired mother or father leaves active lists. That count is not verified here.',
++      'The grow-plant id and the archive event. No date or status rewrite.',
++    ];
++  }
++  function projectMotherDom(doc) {
++    if (!doc || typeof doc.querySelectorAll !== 'function') return;
++    doc.querySelectorAll('#mfp-mc [data-id], #mfp-fc [data-id], #mfp-entry [data-id], .mfx-list [data-id]').forEach((el) => {
++      if (el.closest && el.closest('.b57, .b59-fam')) return;
++      const id = el.getAttribute('data-id');
++      const status = el.querySelector ? (el.querySelector('.m-s') || {}).textContent || '' : '';
++      if (hiddenIds.has(id) || /^Retired\b/.test(String(status).trim())) el.remove();
++    });
++    const setCount = (sel, tab, label) => {
++      const n = doc.querySelectorAll(sel).length;
++      doc.querySelectorAll('[data-mfp="tab"][data-t="' + tab + '"]').forEach((b) => { b.textContent = label + n; });
++    };
++    setCount('#mfp-mc .mfp-row', 'm', 'Mothers · ');
++    setCount('#mfp-fc .mfp-row', 'f', 'Fathers · ');
++  }
++  function install() {
++    if (window.B49 && typeof B49.children === 'function' && !B49.children.b63) {
++      const orig = B49.children;
++      const wrapped = function (key) { return orig.apply(this, arguments).filter((k) => keepChild(key, k)); };
++      wrapped.b63 = true;
++      B49.children = wrapped;
++    }
++    if (window.B57 && typeof B57.partners === 'function' && !B57.partners.b63) {
++      const orig = B57.partners;
++      const wrapped = function () {
++        return orig.apply(this, arguments).filter((g) => !g || !g.key || g.key === '?' || !explicitKey(g.key));
++      };
++      wrapped.b63 = true;
++      B57.partners = wrapped;
++    }
++    if (window.B57 && typeof B57.lineageList === 'function' && !B57.lineageList.b63) {
++      const orig = B57.lineageList;
++      const wrapped = function () { return orig.apply(this, arguments).filter((x) => x && !explicitId(x.r)); };
++      wrapped.b63 = true;
++      B57.lineageList = wrapped;
++    }
++    if (window.B41 && typeof B41.mfpOpen === 'function' && !B41.mfpOpen.b63) {
++      const orig = B41.mfpOpen;
++      const wrapped = function () {
++        const result = orig.apply(this, arguments);
++        projectMotherDom(typeof document !== 'undefined' ? document : null);
++        return result;
++      };
++      wrapped.b63 = true;
++      B41.mfpOpen = wrapped;
++    }
++    ['activeStrains', 'sortedActiveStrains'].forEach((name) => {
++      const orig = window[name];
++      if (typeof orig !== 'function' || orig.b63) return;
++      const wrapped = function () { return projectVisible(orig.apply(this, arguments)); };
++      wrapped.b63 = true;
++      window[name] = wrapped;
++    });
++    if (typeof window.archivePlant === 'function' && !window.archivePlant.b63) {
++      const orig = window.archivePlant;
++      const wrapped = function (id) {
++        const shown = typeof detailPlantId === 'function' ? detailPlantId() : '';
++        if (!allowArchive(shown, id)) return;
++        return orig.apply(this, arguments);
++      };
++      wrapped.b63 = true;
++      window.archivePlant = wrapped;
++    }
++  }
++  window.B63 = {
++    configure, retiredMf, explicitId, explicitKey, projectActiveMothers, projectVisible,
++    sameRecord, keepChild, allowArchive, pendingMetadata, projectMotherDom, install,
++    hiddenIds: () => [...hiddenIds],
++  };
++  install();
++})();
+diff -ruN --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/index.html b62-app/index.html
+--- a/index.html	2026-11-03 15:11:42.000000000 +0000
++++ b/index.html	2026-11-07 14:43:16.502706148 +0000
+@@ -60,6 +60,7 @@
+     <link rel="stylesheet" href="build58.css" />
+     <link rel="stylesheet" href="build59.css" />
+     <link rel="stylesheet" href="build60.css" />
++    <link rel="stylesheet" href="build63.css" />
+   </head>
+   <body>
+     <a class="skip-link" href="#main">Skip to tracker</a>
+@@ -1376,5 +1377,6 @@
+     <script src="build58.js" defer></script>
+     <script src="build59.js" defer></script>
+     <script src="build60.js" defer></script>
++    <script src="build63.js" defer></script>
+   </body>
+ </html>
+diff -ruN --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/ios/App/App/public/app.js b62-app/ios/App/App/public/app.js
+--- a/ios/App/App/public/app.js	2026-11-07 02:47:38.000000000 +0000
++++ b/ios/App/App/public/app.js	2026-11-07 14:43:16.498706097 +0000
+@@ -24,7 +24,7 @@
+ const DRAFT_STORAGE_KEY = 'boriken-genetics-logbook-drafts-v1';
+ const BACKUP_STORAGE_KEY = 'boriken-genetics-logbook-backups-v1';
+ const APP_VERSION = '1.0';
+-const APP_BUILD = '62'; // must equal CURRENT_PROJECT_VERSION in the Xcode project (scripts/build-www.js checks this)
++const APP_BUILD = '63'; // must equal CURRENT_PROJECT_VERSION in the Xcode project (scripts/build-www.js checks this)
+ const SCHEMA_VERSION = 2;
+ const MAX_SNAPSHOTS = 3; // keep only the latest few so history does not crowd live data in localStorage
+ const DAY_MS = 1000 * 60 * 60 * 24;
+diff -ruN --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/ios/App/App/public/build63.css b62-app/ios/App/App/public/build63.css
+--- a/ios/App/App/public/build63.css	1970-01-01 00:00:00.000000000 +0000
++++ b/ios/App/App/public/build63.css	2026-11-07 14:46:00.774910370 +0000
+@@ -0,0 +1,67 @@
++/* Build 63. Narrow layouts reflow. They do not add a horizontal scroll port. */
++#compliance-panel-inspection .table-wrap {
++  overflow: visible;
++  max-width: 100%;
++}
++#compliance-panel-inspection table.compliance-table {
++  min-width: 0;
++  width: 100%;
++  table-layout: fixed;
++}
++#compliance-panel-inspection .compliance-table th,
++#compliance-panel-inspection .compliance-table td {
++  overflow-wrap: normal;
++  word-break: normal;
++  hyphens: manual;
++  white-space: normal;
++  overflow: visible;
++  text-overflow: clip;
++  vertical-align: top;
++}
++@media (max-width: 720px) {
++  #compliance-panel-inspection table.compliance-table,
++  #compliance-panel-inspection .compliance-table tbody,
++  #compliance-panel-inspection .compliance-table tr,
++  #compliance-panel-inspection .compliance-table td {
++    display: block;
++    width: 100%;
++  }
++  #compliance-panel-inspection .compliance-table thead {
++    position: absolute;
++    width: 1px;
++    height: 1px;
++    overflow: hidden;
++    clip: rect(0, 0, 0, 0);
++  }
++  #compliance-panel-inspection .compliance-table td {
++    display: grid;
++    grid-template-columns: minmax(0, 7.5rem) minmax(0, 1fr);
++    gap: 0.35rem;
++  }
++  #compliance-panel-inspection .compliance-table td:nth-child(1)::before { content: "Plant code"; }
++  #compliance-panel-inspection .compliance-table td:nth-child(2)::before { content: "Patient alias"; }
++  #compliance-panel-inspection .compliance-table td:nth-child(3)::before { content: "Cert ID"; }
++  #compliance-panel-inspection .compliance-table td:nth-child(4)::before { content: "Cultivar"; }
++  #compliance-panel-inspection .compliance-table td:nth-child(5)::before { content: "Stage"; }
++  #compliance-panel-inspection .compliance-table td:nth-child(6)::before { content: "Area"; }
++  #compliance-panel-inspection .compliance-table td:nth-child(7)::before { content: "Tag status"; }
++  #compliance-panel-inspection .compliance-table td:nth-child(8)::before { content: "Last updated"; }
++}
++.b57-scroll, .b57-row.scroll, .b59-kids {
++  overflow-x: clip;
++  max-width: 100%;
++  touch-action: pan-y;
++}
++.b57-row, .b59-kids { flex-wrap: wrap; max-width: 100%; }
++.b57-n { flex: 1 1 8rem; width: auto; max-width: 100%; min-width: 0; }
++.b57-n b, .b57-n small {
++  white-space: normal;
++  overflow-wrap: break-word;
++  word-break: normal;
++  hyphens: manual;
++  max-width: 100%;
++}
++@media (min-width: 1024px) {
++  .w-side { min-width: 0; overflow-x: clip; }
++  .w-side .w-li-t, .w-side .w-li-t b { min-width: 0; overflow-wrap: break-word; word-break: normal; }
++}
+diff -ruN --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/ios/App/App/public/build63.js b62-app/ios/App/App/public/build63.js
+--- a/ios/App/App/public/build63.js	1970-01-01 00:00:00.000000000 +0000
++++ b/ios/App/App/public/build63.js	2026-11-07 14:46:00.774910370 +0000
+@@ -0,0 +1,129 @@
++/* Build 63. View projections only. Nothing here writes state, merges records, or deletes history.
++   Hidden ids start empty. A record is hidden only when its id is passed to configure.
++   Names, sample flags, and descendant links are not used. */
++(function () {
++  'use strict';
++  const hiddenIds = new Set();
++  function configure(opts) {
++    hiddenIds.clear();
++    const ids = opts && Array.isArray(opts.hideIds) ? opts.hideIds : [];
++    ids.forEach((id) => { if (typeof id === 'string' && id) hiddenIds.add(id); });
++    return { hideIds: [...hiddenIds] };
++  }
++  function retiredMf(r) {
++    return !!(r && (r.status === 'Retired' || r.archived));
++  }
++  function explicitId(r) {
++    return !!(r && r.id && hiddenIds.has(r.id));
++  }
++  function explicitKey(k) {
++    if (!k || k === '?') return false;
++    const text = String(k);
++    if (hiddenIds.has(text)) return true;
++    const id = text.split(':').slice(1).join(':');
++    return !!(id && hiddenIds.has(id));
++  }
++  function projectActiveMothers(list) {
++    return (list || []).filter((r) => r && !retiredMf(r) && !explicitId(r));
++  }
++  function projectVisible(list) {
++    return (list || []).filter((r) => r && !explicitId(r));
++  }
++  function sameRecord(a, b) {
++    if (!a || !b) return false;
++    if (a === b) return true;
++    const as = String(a); const bs = String(b);
++    const ai = as.split(':').slice(1).join(':');
++    const bi = bs.split(':').slice(1).join(':');
++    return as.split(':')[0] === bs.split(':')[0] && ai && ai === bi;
++  }
++  function keepChild(parentKey, childKey) {
++    if (!childKey || childKey === parentKey || sameRecord(parentKey, childKey)) return false;
++    if (explicitKey(childKey)) return false;
++    return true;
++  }
++  function allowArchive(shownId, requestedId) {
++    if (!requestedId) return false;
++    if (shownId && shownId !== requestedId) return false;
++    return true;
++  }
++  function pendingMetadata() {
++    return [
++      'Sample record stable id, and any verified sample-only link ids. hideIds is empty, so nothing is hidden.',
++      'Duplicate parent record ids and the grow-plant ids for the missing crosses. No merge and no partner rewrite.',
++      'The one parent record id for the origin text. No name-matched write.',
++      'The retired mother id from the reported count. Every Retired mother or father leaves active lists. That count is not verified here.',
++      'The grow-plant id and the archive event. No date or status rewrite.',
++    ];
++  }
++  function projectMotherDom(doc) {
++    if (!doc || typeof doc.querySelectorAll !== 'function') return;
++    doc.querySelectorAll('#mfp-mc [data-id], #mfp-fc [data-id], #mfp-entry [data-id], .mfx-list [data-id]').forEach((el) => {
++      if (el.closest && el.closest('.b57, .b59-fam')) return;
++      const id = el.getAttribute('data-id');
++      const status = el.querySelector ? (el.querySelector('.m-s') || {}).textContent || '' : '';
++      if (hiddenIds.has(id) || /^Retired\b/.test(String(status).trim())) el.remove();
++    });
++    const setCount = (sel, tab, label) => {
++      const n = doc.querySelectorAll(sel).length;
++      doc.querySelectorAll('[data-mfp="tab"][data-t="' + tab + '"]').forEach((b) => { b.textContent = label + n; });
++    };
++    setCount('#mfp-mc .mfp-row', 'm', 'Mothers · ');
++    setCount('#mfp-fc .mfp-row', 'f', 'Fathers · ');
++  }
++  function install() {
++    if (window.B49 && typeof B49.children === 'function' && !B49.children.b63) {
++      const orig = B49.children;
++      const wrapped = function (key) { return orig.apply(this, arguments).filter((k) => keepChild(key, k)); };
++      wrapped.b63 = true;
++      B49.children = wrapped;
++    }
++    if (window.B57 && typeof B57.partners === 'function' && !B57.partners.b63) {
++      const orig = B57.partners;
++      const wrapped = function () {
++        return orig.apply(this, arguments).filter((g) => !g || !g.key || g.key === '?' || !explicitKey(g.key));
++      };
++      wrapped.b63 = true;
++      B57.partners = wrapped;
++    }
++    if (window.B57 && typeof B57.lineageList === 'function' && !B57.lineageList.b63) {
++      const orig = B57.lineageList;
++      const wrapped = function () { return orig.apply(this, arguments).filter((x) => x && !explicitId(x.r)); };
++      wrapped.b63 = true;
++      B57.lineageList = wrapped;
++    }
++    if (window.B41 && typeof B41.mfpOpen === 'function' && !B41.mfpOpen.b63) {
++      const orig = B41.mfpOpen;
++      const wrapped = function () {
++        const result = orig.apply(this, arguments);
++        projectMotherDom(typeof document !== 'undefined' ? document : null);
++        return result;
++      };
++      wrapped.b63 = true;
++      B41.mfpOpen = wrapped;
++    }
++    ['activeStrains', 'sortedActiveStrains'].forEach((name) => {
++      const orig = window[name];
++      if (typeof orig !== 'function' || orig.b63) return;
++      const wrapped = function () { return projectVisible(orig.apply(this, arguments)); };
++      wrapped.b63 = true;
++      window[name] = wrapped;
++    });
++    if (typeof window.archivePlant === 'function' && !window.archivePlant.b63) {
++      const orig = window.archivePlant;
++      const wrapped = function (id) {
++        const shown = typeof detailPlantId === 'function' ? detailPlantId() : '';
++        if (!allowArchive(shown, id)) return;
++        return orig.apply(this, arguments);
++      };
++      wrapped.b63 = true;
++      window.archivePlant = wrapped;
++    }
++  }
++  window.B63 = {
++    configure, retiredMf, explicitId, explicitKey, projectActiveMothers, projectVisible,
++    sameRecord, keepChild, allowArchive, pendingMetadata, projectMotherDom, install,
++    hiddenIds: () => [...hiddenIds],
++  };
++  install();
++})();
+diff -ruN --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/ios/App/App/public/index.html b62-app/ios/App/App/public/index.html
+--- a/ios/App/App/public/index.html	2026-11-07 02:47:38.000000000 +0000
++++ b/ios/App/App/public/index.html	2026-11-07 14:43:16.502706148 +0000
+@@ -60,6 +60,7 @@
+     <link rel="stylesheet" href="build58.css" />
+     <link rel="stylesheet" href="build59.css" />
+     <link rel="stylesheet" href="build60.css" />
++    <link rel="stylesheet" href="build63.css" />
+   </head>
+   <body>
+     <a class="skip-link" href="#main">Skip to tracker</a>
+@@ -1376,5 +1377,6 @@
+     <script src="build58.js" defer></script>
+     <script src="build59.js" defer></script>
+     <script src="build60.js" defer></script>
++    <script src="build63.js" defer></script>
+   </body>
+ </html>
+diff -ruN --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/ios/App/App/public/service-worker.js b62-app/ios/App/App/public/service-worker.js
+--- a/ios/App/App/public/service-worker.js	2026-11-07 02:47:38.000000000 +0000
++++ b/ios/App/App/public/service-worker.js	2026-11-07 14:43:16.502706148 +0000
+@@ -6,7 +6,7 @@
+   so users should still export JSON backups for long-term records.
+ */
+ 
+-const CACHE_NAME = 'boriken-genetics-logbook-app-v80';
++const CACHE_NAME = 'boriken-genetics-logbook-app-v81';
+ const APP_SHELL = [
+   './',
+   './index.html',
+@@ -68,6 +68,8 @@
+   './build59.css',
+   './build60.js',
+   './build60.css',
++  './build63.js',
++  './build63.css',
+   './build53.js',
+   './build53.css',
+   './assets/looks/pr01.jpg',
+diff -ruN --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/ios/App/App.xcodeproj/project.pbxproj b62-app/ios/App/App.xcodeproj/project.pbxproj
+--- a/ios/App/App.xcodeproj/project.pbxproj	2026-11-07 02:47:28.000000000 +0000
++++ b/ios/App/App.xcodeproj/project.pbxproj	2026-11-07 14:43:16.498706097 +0000
+@@ -412,7 +412,7 @@
+ 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
+ 				CODE_SIGN_ENTITLEMENTS = App/App.entitlements;
+ 				CODE_SIGN_STYLE = Automatic;
+-				CURRENT_PROJECT_VERSION = 62;
++				CURRENT_PROJECT_VERSION = 63;
+ 				DEVELOPMENT_TEAM = 2Z94YL957X;
+ 				INFOPLIST_FILE = App/Info.plist;
+ 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+@@ -438,7 +438,7 @@
+ 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
+ 				CODE_SIGN_ENTITLEMENTS = App/App.entitlements;
+ 				CODE_SIGN_STYLE = Automatic;
+-				CURRENT_PROJECT_VERSION = 62;
++				CURRENT_PROJECT_VERSION = 63;
+ 				DEVELOPMENT_TEAM = 2Z94YL957X;
+ 				INFOPLIST_FILE = App/Info.plist;
+ 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+@@ -522,7 +522,7 @@
+ 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
+ 				CODE_SIGN_ENTITLEMENTS = App/App.qa.entitlements;
+ 				CODE_SIGN_STYLE = Automatic;
+-				CURRENT_PROJECT_VERSION = 62;
++				CURRENT_PROJECT_VERSION = 63;
+ 				DEVELOPMENT_TEAM = 2Z94YL957X;
+ 				INFOPLIST_FILE = App/Info.qa.plist;
+ 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+@@ -567,7 +567,7 @@
+ 			isa = XCBuildConfiguration;
+ 			buildSettings = {
+ 				CODE_SIGN_STYLE = Automatic;
+-				CURRENT_PROJECT_VERSION = 62;
++				CURRENT_PROJECT_VERSION = 63;
+ 				DEVELOPMENT_TEAM = 2Z94YL957X;
+ 				GENERATE_INFOPLIST_FILE = NO;
+ 				INFOPLIST_FILE = LogbookQAUITests/Info.plist;
+@@ -590,7 +590,7 @@
+ 			isa = XCBuildConfiguration;
+ 			buildSettings = {
+ 				CODE_SIGN_STYLE = Automatic;
+-				CURRENT_PROJECT_VERSION = 62;
++				CURRENT_PROJECT_VERSION = 63;
+ 				DEVELOPMENT_TEAM = 2Z94YL957X;
+ 				GENERATE_INFOPLIST_FILE = NO;
+ 				INFOPLIST_FILE = LogbookQAUITests/Info.plist;
+@@ -613,7 +613,7 @@
+ 			isa = XCBuildConfiguration;
+ 			buildSettings = {
+ 				CODE_SIGN_STYLE = Automatic;
+-				CURRENT_PROJECT_VERSION = 62;
++				CURRENT_PROJECT_VERSION = 63;
+ 				DEVELOPMENT_TEAM = 2Z94YL957X;
+ 				GENERATE_INFOPLIST_FILE = NO;
+ 				INFOPLIST_FILE = LogbookQAUITests/Info.plist;
+diff -ruN --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/scripts/b63-remaining.test.js b62-app/scripts/b63-remaining.test.js
+--- a/scripts/b63-remaining.test.js	1970-01-01 00:00:00.000000000 +0000
++++ b/scripts/b63-remaining.test.js	2026-11-07 14:45:56.162912521 +0000
+@@ -0,0 +1,106 @@
++'use strict';
++const fs = require('fs');
++const path = require('path');
++const vm = require('vm');
++const ROOT = path.join(__dirname, '..');
++const FAIL = [];
++function check(name, fn) {
++  try { fn(); console.log('PASS', name); }
++  catch (e) { FAIL.push(name); console.error('FAIL', name, e.message); console.error('FAILED', FAIL.length); process.exit(1); }
++}
++const src = fs.readFileSync(path.join(ROOT, 'build63.js'), 'utf8');
++const css = fs.readFileSync(path.join(ROOT, 'build63.css'), 'utf8');
++const app = fs.readFileSync(path.join(ROOT, 'app.js'), 'utf8');
++const b59 = fs.readFileSync(path.join(ROOT, 'build59.css'), 'utf8');
++const tags = fs.readFileSync(path.join(ROOT, 'styles.css'), 'utf8');
++
++function boot(state) {
++  const recs = {};
++  (state.motherFatherPlants || []).forEach((r) => { recs['mf:' + r.id] = r; });
++  (state.plants || []).forEach((r) => { recs['pl:' + r.id] = r; });
++  (state.breedingProjects || []).forEach((r) => { recs['pr:' + r.id] = r; });
++  const g = {
++    state,
++    console,
++    document: { readyState: 'complete', addEventListener() {} },
++    B57: { rec: (k) => recs[k] || null },
++    B49: { children(key) { return state._kids[key] || []; } },
++    B41: { mfpOpen() { g.seen = (state.motherFatherPlants || []).map((m) => m.id); } },
++    B42: { listHtml() { g.listed = (state.motherFatherPlants || []).map((m) => m.id); return ''; } },
++    activeStrains() { return (state.plants || []).filter((p) => p.status === 'active'); },
++    sortedActiveStrains() { return g.activeStrains(); },
++    archivePlant(id) { const p = state.plants.find((x) => x.id === id); if (p) p.archivedByTest = true; },
++    detailPlantId() { return state.shown || ''; },
++  };
++  g.window = g;
++  vm.createContext(g);
++  vm.runInContext(src, g, { filename: 'build63.js' });
++  return g;
++}
++
++check('an unset id list hides no Rocco and no descendant', () => {
++  const named = { id: 'r1', name: 'Rocco', sample: true, provenance: 'sample', status: 'Active' };
++  const child = { id: 'low', name: 'Lower cross', b49Father: 'mf:r1', status: 'active' };
++  const g = boot({ motherFatherPlants: [named], plants: [child], breedingProjects: [], _kids: {} });
++  if (g.B63.explicitId(named) || g.B63.projectVisible([named, child]).length !== 2) throw new Error('default hid a record');
++  if (g.B63.pendingMetadata().join(' ').indexOf('hideIds is empty') < 0) throw new Error('pending metadata');
++  const before = JSON.stringify(g.state.motherFatherPlants);
++  g.B41.mfpOpen();
++  if (JSON.stringify(g.state.motherFatherPlants) !== before) throw new Error('state changed');
++});
++check('only the configured id is hidden and its child stays', () => {
++  const named = { id: 'r1', name: 'Rocco', status: 'Active' };
++  const child = { id: 'low', name: 'Lower cross', b49Father: 'mf:r1', status: 'active' };
++  const g = boot({
++    motherFatherPlants: [named],
++    plants: [child],
++    breedingProjects: [],
++    _kids: { 'pr:me': ['pr:me', 'mf:r1', 'pl:low'] },
++  });
++  g.B63.configure({ hideIds: ['r1'] });
++  if (!g.B63.explicitId(named) || g.B63.explicitId(child)) throw new Error('id scope');
++  const kids = g.B49.children('pr:me');
++  if (kids.includes('pr:me') || kids.includes('mf:r1')) throw new Error(kids.join(','));
++  if (!kids.includes('pl:low')) throw new Error('descendant hidden');
++  if (JSON.stringify(g.state.motherFatherPlants) !== JSON.stringify([named])) throw new Error('state written');
++});
++check('a retired mother leaves the active projection and stays in the record array', () => {
++  const retired = { id: 'nl', name: 'Northern lights #5', status: 'Retired' };
++  const live = { id: 'c', name: 'Cannalien', status: 'Active' };
++  const rows = [retired, live];
++  const g = boot({ motherFatherPlants: rows, plants: [], breedingProjects: [], _kids: {} });
++  const active = g.B63.projectActiveMothers(rows);
++  if (active.some((m) => m.id === 'nl') || !active.some((m) => m.id === 'c')) throw new Error('active projection');
++  if (g.B63.projectVisible(rows).length !== 2) throw new Error('retired removed from history projection');
++  g.B41.mfpOpen();
++  if (g.state.motherFatherPlants !== rows) throw new Error('array replaced');
++});
++check('archive refuses a stale shown id and keeps the plant', () => {
++  const plant = { id: 'p2', name: 'Other', status: 'active' };
++  const g = boot({ motherFatherPlants: [], plants: [plant], breedingProjects: [], _kids: {}, shown: 'p1' });
++  g.archivePlant('p2');
++  if (plant.archivedByTest) throw new Error('stale id archived');
++  g.state.shown = 'p2';
++  g.archivePlant('p2');
++  if (!plant.archivedByTest) throw new Error('explicit id blocked');
++});
++check('build 62 flower guard and tag wrap and sheet lock are still present', () => {
++  if (!app.includes("const APP_BUILD = '63';")) throw new Error('build');
++  if (!app.includes('if (legacyFlip <= todayKey) p.flowerStartDate = legacyFlip;')) throw new Error('future flip guard missing');
++  if (!app.includes('else p.plannedFlipDate = legacyFlip;')) throw new Error('planned flip missing');
++  if (!tags.includes('.tag-top .m-t') || !tags.includes('word-break: normal')) throw new Error('tag wrap');
++  if (!b59.includes('dialog.modal[open]')) throw new Error('sheet lock selector');
++});
++check('inspection and tree reflow without a horizontal scroll port', () => {
++  if (!css.includes('#compliance-panel-inspection .compliance-table th')) throw new Error('table');
++  if (!css.includes('word-break: normal') || !css.includes('overflow: visible')) throw new Error('clip');
++  if (!css.includes('grid-template-columns')) throw new Error('reflow');
++  if (/overflow-x:\s*auto/.test(css) || /overflow-x:\s*hidden/.test(css)) throw new Error('horizontal scroll');
++  if (!css.includes('overflow-x: clip')) throw new Error('tree clip');
++});
++check('no production id is hardcoded', () => {
++  const bad = ['Rocco', 'Arghandab', 'Romscotti', 'Northern lights'];
++  bad.forEach((s) => { if (src.includes(s) || css.includes(s)) throw new Error('name ' + s); });
++});
++
++console.log('b63 remaining: all checks passed');
+diff -ruN --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/scripts/build-www.js b62-app/scripts/build-www.js
+--- a/scripts/build-www.js	2026-11-07 00:14:38.000000000 +0000
++++ b/scripts/build-www.js	2026-11-07 14:43:16.502706148 +0000
+@@ -49,7 +49,7 @@
+   'build45.css',
+   'build46.js',
+   'build46.css',
+-  'build46-black.css', 'build47.css', 'build48.js', 'build48.css', 'build49.js', 'build49.css', 'build49-sales.js', 'build49-sales.css', 'build50.js', 'build50.css', 'holiday-icons.js', 'build51.js', 'build51.css', 'build53.js', 'build53.css', 'build56.css', 'build57.js', 'build57.css', 'build58.js', 'build59.js', 'build60.js', 'build58.css', 'build59.css', 'build60.css', 'build61.js', 'build61.css', 'vendor/pdf-lib.min.js',
++  'build46-black.css', 'build47.css', 'build48.js', 'build48.css', 'build49.js', 'build49.css', 'build49-sales.js', 'build49-sales.css', 'build50.js', 'build50.css', 'holiday-icons.js', 'build51.js', 'build51.css', 'build53.js', 'build53.css', 'build56.css', 'build57.js', 'build57.css', 'build58.js', 'build59.js', 'build60.js', 'build58.css', 'build59.css', 'build60.css', 'build61.js', 'build61.css', 'build63.js', 'build63.css', 'vendor/pdf-lib.min.js',
+   'build32.css',
+   'wide.js',
+   'wide.css',
+diff -ruN --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/service-worker.js b62-app/service-worker.js
+--- a/service-worker.js	2026-11-06 23:56:01.000000000 +0000
++++ b/service-worker.js	2026-11-07 14:43:16.502706148 +0000
+@@ -6,7 +6,7 @@
+   so users should still export JSON backups for long-term records.
+ */
+ 
+-const CACHE_NAME = 'boriken-genetics-logbook-app-v80';
++const CACHE_NAME = 'boriken-genetics-logbook-app-v81';
+ const APP_SHELL = [
+   './',
+   './index.html',
+@@ -68,6 +68,8 @@
+   './build59.css',
+   './build60.js',
+   './build60.css',
++  './build63.js',
++  './build63.css',
+   './build53.js',
+   './build53.css',
+   './assets/looks/pr01.jpg',
+diff -ruN --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/www/app.js b62-app/www/app.js
+--- a/www/app.js	2026-11-07 02:47:38.000000000 +0000
++++ b/www/app.js	2026-11-07 14:43:16.494706046 +0000
+@@ -24,7 +24,7 @@
+ const DRAFT_STORAGE_KEY = 'boriken-genetics-logbook-drafts-v1';
+ const BACKUP_STORAGE_KEY = 'boriken-genetics-logbook-backups-v1';
+ const APP_VERSION = '1.0';
+-const APP_BUILD = '62'; // must equal CURRENT_PROJECT_VERSION in the Xcode project (scripts/build-www.js checks this)
++const APP_BUILD = '63'; // must equal CURRENT_PROJECT_VERSION in the Xcode project (scripts/build-www.js checks this)
+ const SCHEMA_VERSION = 2;
+ const MAX_SNAPSHOTS = 3; // keep only the latest few so history does not crowd live data in localStorage
+ const DAY_MS = 1000 * 60 * 60 * 24;
+diff -ruN --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/www/build63.css b62-app/www/build63.css
+--- a/www/build63.css	1970-01-01 00:00:00.000000000 +0000
++++ b/www/build63.css	2026-11-07 14:46:00.774910370 +0000
+@@ -0,0 +1,67 @@
++/* Build 63. Narrow layouts reflow. They do not add a horizontal scroll port. */
++#compliance-panel-inspection .table-wrap {
++  overflow: visible;
++  max-width: 100%;
++}
++#compliance-panel-inspection table.compliance-table {
++  min-width: 0;
++  width: 100%;
++  table-layout: fixed;
++}
++#compliance-panel-inspection .compliance-table th,
++#compliance-panel-inspection .compliance-table td {
++  overflow-wrap: normal;
++  word-break: normal;
++  hyphens: manual;
++  white-space: normal;
++  overflow: visible;
++  text-overflow: clip;
++  vertical-align: top;
++}
++@media (max-width: 720px) {
++  #compliance-panel-inspection table.compliance-table,
++  #compliance-panel-inspection .compliance-table tbody,
++  #compliance-panel-inspection .compliance-table tr,
++  #compliance-panel-inspection .compliance-table td {
++    display: block;
++    width: 100%;
++  }
++  #compliance-panel-inspection .compliance-table thead {
++    position: absolute;
++    width: 1px;
++    height: 1px;
++    overflow: hidden;
++    clip: rect(0, 0, 0, 0);
++  }
++  #compliance-panel-inspection .compliance-table td {
++    display: grid;
++    grid-template-columns: minmax(0, 7.5rem) minmax(0, 1fr);
++    gap: 0.35rem;
++  }
++  #compliance-panel-inspection .compliance-table td:nth-child(1)::before { content: "Plant code"; }
++  #compliance-panel-inspection .compliance-table td:nth-child(2)::before { content: "Patient alias"; }
++  #compliance-panel-inspection .compliance-table td:nth-child(3)::before { content: "Cert ID"; }
++  #compliance-panel-inspection .compliance-table td:nth-child(4)::before { content: "Cultivar"; }
++  #compliance-panel-inspection .compliance-table td:nth-child(5)::before { content: "Stage"; }
++  #compliance-panel-inspection .compliance-table td:nth-child(6)::before { content: "Area"; }
++  #compliance-panel-inspection .compliance-table td:nth-child(7)::before { content: "Tag status"; }
++  #compliance-panel-inspection .compliance-table td:nth-child(8)::before { content: "Last updated"; }
++}
++.b57-scroll, .b57-row.scroll, .b59-kids {
++  overflow-x: clip;
++  max-width: 100%;
++  touch-action: pan-y;
++}
++.b57-row, .b59-kids { flex-wrap: wrap; max-width: 100%; }
++.b57-n { flex: 1 1 8rem; width: auto; max-width: 100%; min-width: 0; }
++.b57-n b, .b57-n small {
++  white-space: normal;
++  overflow-wrap: break-word;
++  word-break: normal;
++  hyphens: manual;
++  max-width: 100%;
++}
++@media (min-width: 1024px) {
++  .w-side { min-width: 0; overflow-x: clip; }
++  .w-side .w-li-t, .w-side .w-li-t b { min-width: 0; overflow-wrap: break-word; word-break: normal; }
++}
+diff -ruN --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/www/build63.js b62-app/www/build63.js
+--- a/www/build63.js	1970-01-01 00:00:00.000000000 +0000
++++ b/www/build63.js	2026-11-07 14:46:00.770910372 +0000
+@@ -0,0 +1,129 @@
++/* Build 63. View projections only. Nothing here writes state, merges records, or deletes history.
++   Hidden ids start empty. A record is hidden only when its id is passed to configure.
++   Names, sample flags, and descendant links are not used. */
++(function () {
++  'use strict';
++  const hiddenIds = new Set();
++  function configure(opts) {
++    hiddenIds.clear();
++    const ids = opts && Array.isArray(opts.hideIds) ? opts.hideIds : [];
++    ids.forEach((id) => { if (typeof id === 'string' && id) hiddenIds.add(id); });
++    return { hideIds: [...hiddenIds] };
++  }
++  function retiredMf(r) {
++    return !!(r && (r.status === 'Retired' || r.archived));
++  }
++  function explicitId(r) {
++    return !!(r && r.id && hiddenIds.has(r.id));
++  }
++  function explicitKey(k) {
++    if (!k || k === '?') return false;
++    const text = String(k);
++    if (hiddenIds.has(text)) return true;
++    const id = text.split(':').slice(1).join(':');
++    return !!(id && hiddenIds.has(id));
++  }
++  function projectActiveMothers(list) {
++    return (list || []).filter((r) => r && !retiredMf(r) && !explicitId(r));
++  }
++  function projectVisible(list) {
++    return (list || []).filter((r) => r && !explicitId(r));
++  }
++  function sameRecord(a, b) {
++    if (!a || !b) return false;
++    if (a === b) return true;
++    const as = String(a); const bs = String(b);
++    const ai = as.split(':').slice(1).join(':');
++    const bi = bs.split(':').slice(1).join(':');
++    return as.split(':')[0] === bs.split(':')[0] && ai && ai === bi;
++  }
++  function keepChild(parentKey, childKey) {
++    if (!childKey || childKey === parentKey || sameRecord(parentKey, childKey)) return false;
++    if (explicitKey(childKey)) return false;
++    return true;
++  }
++  function allowArchive(shownId, requestedId) {
++    if (!requestedId) return false;
++    if (shownId && shownId !== requestedId) return false;
++    return true;
++  }
++  function pendingMetadata() {
++    return [
++      'Sample record stable id, and any verified sample-only link ids. hideIds is empty, so nothing is hidden.',
++      'Duplicate parent record ids and the grow-plant ids for the missing crosses. No merge and no partner rewrite.',
++      'The one parent record id for the origin text. No name-matched write.',
++      'The retired mother id from the reported count. Every Retired mother or father leaves active lists. That count is not verified here.',
++      'The grow-plant id and the archive event. No date or status rewrite.',
++    ];
++  }
++  function projectMotherDom(doc) {
++    if (!doc || typeof doc.querySelectorAll !== 'function') return;
++    doc.querySelectorAll('#mfp-mc [data-id], #mfp-fc [data-id], #mfp-entry [data-id], .mfx-list [data-id]').forEach((el) => {
++      if (el.closest && el.closest('.b57, .b59-fam')) return;
++      const id = el.getAttribute('data-id');
++      const status = el.querySelector ? (el.querySelector('.m-s') || {}).textContent || '' : '';
++      if (hiddenIds.has(id) || /^Retired\b/.test(String(status).trim())) el.remove();
++    });
++    const setCount = (sel, tab, label) => {
++      const n = doc.querySelectorAll(sel).length;
++      doc.querySelectorAll('[data-mfp="tab"][data-t="' + tab + '"]').forEach((b) => { b.textContent = label + n; });
++    };
++    setCount('#mfp-mc .mfp-row', 'm', 'Mothers · ');
++    setCount('#mfp-fc .mfp-row', 'f', 'Fathers · ');
++  }
++  function install() {
++    if (window.B49 && typeof B49.children === 'function' && !B49.children.b63) {
++      const orig = B49.children;
++      const wrapped = function (key) { return orig.apply(this, arguments).filter((k) => keepChild(key, k)); };
++      wrapped.b63 = true;
++      B49.children = wrapped;
++    }
++    if (window.B57 && typeof B57.partners === 'function' && !B57.partners.b63) {
++      const orig = B57.partners;
++      const wrapped = function () {
++        return orig.apply(this, arguments).filter((g) => !g || !g.key || g.key === '?' || !explicitKey(g.key));
++      };
++      wrapped.b63 = true;
++      B57.partners = wrapped;
++    }
++    if (window.B57 && typeof B57.lineageList === 'function' && !B57.lineageList.b63) {
++      const orig = B57.lineageList;
++      const wrapped = function () { return orig.apply(this, arguments).filter((x) => x && !explicitId(x.r)); };
++      wrapped.b63 = true;
++      B57.lineageList = wrapped;
++    }
++    if (window.B41 && typeof B41.mfpOpen === 'function' && !B41.mfpOpen.b63) {
++      const orig = B41.mfpOpen;
++      const wrapped = function () {
++        const result = orig.apply(this, arguments);
++        projectMotherDom(typeof document !== 'undefined' ? document : null);
++        return result;
++      };
++      wrapped.b63 = true;
++      B41.mfpOpen = wrapped;
++    }
++    ['activeStrains', 'sortedActiveStrains'].forEach((name) => {
++      const orig = window[name];
++      if (typeof orig !== 'function' || orig.b63) return;
++      const wrapped = function () { return projectVisible(orig.apply(this, arguments)); };
++      wrapped.b63 = true;
++      window[name] = wrapped;
++    });
++    if (typeof window.archivePlant === 'function' && !window.archivePlant.b63) {
++      const orig = window.archivePlant;
++      const wrapped = function (id) {
++        const shown = typeof detailPlantId === 'function' ? detailPlantId() : '';
++        if (!allowArchive(shown, id)) return;
++        return orig.apply(this, arguments);
++      };
++      wrapped.b63 = true;
++      window.archivePlant = wrapped;
++    }
++  }
++  window.B63 = {
++    configure, retiredMf, explicitId, explicitKey, projectActiveMothers, projectVisible,
++    sameRecord, keepChild, allowArchive, pendingMetadata, projectMotherDom, install,
++    hiddenIds: () => [...hiddenIds],
++  };
++  install();
++})();
+diff -ruN --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/www/index.html b62-app/www/index.html
+--- a/www/index.html	2026-11-07 02:47:38.000000000 +0000
++++ b/www/index.html	2026-11-07 14:43:16.502706148 +0000
+@@ -60,6 +60,7 @@
+     <link rel="stylesheet" href="build58.css" />
+     <link rel="stylesheet" href="build59.css" />
+     <link rel="stylesheet" href="build60.css" />
++    <link rel="stylesheet" href="build63.css" />
+   </head>
+   <body>
+     <a class="skip-link" href="#main">Skip to tracker</a>
+@@ -1376,5 +1377,6 @@
+     <script src="build58.js" defer></script>
+     <script src="build59.js" defer></script>
+     <script src="build60.js" defer></script>
++    <script src="build63.js" defer></script>
+   </body>
+ </html>
+diff -ruN --exclude assets --exclude mascots --exclude manual --exclude '*.jpg' --exclude '*.png' --exclude '*.pdf' --exclude '*.ttf' b62-base/www/service-worker.js b62-app/www/service-worker.js
+--- a/www/service-worker.js	2026-11-07 02:47:38.000000000 +0000
++++ b/www/service-worker.js	2026-11-07 14:43:16.502706148 +0000
+@@ -6,7 +6,7 @@
+   so users should still export JSON backups for long-term records.
+ */
+ 
+-const CACHE_NAME = 'boriken-genetics-logbook-app-v80';
++const CACHE_NAME = 'boriken-genetics-logbook-app-v81';
+ const APP_SHELL = [
+   './',
+   './index.html',
+@@ -68,6 +68,8 @@
+   './build59.css',
+   './build60.js',
+   './build60.css',
++  './build63.js',
++  './build63.css',
+   './build53.js',
+   './build53.css',
+   './assets/looks/pr01.jpg',

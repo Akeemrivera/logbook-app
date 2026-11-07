@@ -1,0 +1,33 @@
+Build 63 candidate. Build 62 is unchanged and is not rebuilt.
+
+Conflict check before this candidate: the validated build 62 tree and the support repository had no APP_BUILD 63, no CURRENT_PROJECT_VERSION 63, and no build63.js or build63.css. Nothing unrelated was overwritten.
+
+Settings in the candidate, after patch:
+- app.js, www/app.js, and ios/App/App/public/app.js: APP_BUILD '63', SHA-256 5eb9bd92a867b6fc3104b707df093a55360b06b380d78faac2883fcbad66d28c. The three copies match.
+- project.pbxproj: six CURRENT_PROJECT_VERSION values, all 63. MARKETING_VERSION stays 1.0. SHA-256 d5a8034e98b53225a92c3f3335fa59c647daadb94594b0fa4f42d125f492d2a3.
+- Service worker cache name: boriken-genetics-logbook-app-v81.
+- No newer build number than 62 was in the handoff. 63 is the candidate.
+
+Provenance does not mean rebuild 62. Apply the patch on a copy of the phase 1 folder. Do not replace ~/Library/Developer/Xcode/Archives/2026-11-06/Logbook-phase1-2026-11-06-214738.xcarchive. Parent verifies Mac paths before any build. This run did not archive, export, upload, or launch.
+
+Automated test: node scripts/b63-remaining.test.js passed on the patched tree. That is not a device pass.
+
+Device gate: not run here. No real-device proof. Bug Hunter and Chief still have to pass the changed screens before any user-ready claim.
+
+Migration blockers, no production writes:
+- Sample stable id and verified sample-only link ids are not in the handoff. hideIds stays empty. The named sample is not hidden and no descendant is hidden.
+- Duplicate parent ids and the grow-plant ids for the missing crosses are not in the handoff. No merge.
+- The parent id for origin text Arghandab District, Kandahar is not in the handoff. No name-matched origin write. build61.js is not loaded by index.html.
+- The retired mother id behind the reported Mothers count is not in the handoff. The Retired status leaves active projections for every such record. The count is not verified.
+- The grow-plant id and archive event for the vanished Veg plant are not in the handoff. No date or status rewrite.
+
+Item status:
+1. Sample hide. Implemented as an inactive id projection. Automated test passed. Device not tested. Not passed.
+2. Duplicate ids, self-child, missing parents. Self-child filter implemented. Merge and missing parents blocked. Automated test passed for self-child and for not hiding a descendant. Device not tested. Not passed.
+3. Origin text. Not implemented. Blocked on the record id. Device not tested. Not passed.
+4. Tree and inspection reflow. Implemented in build63.css. No horizontal scroll port. Automated source check passed. Device not tested. Not passed.
+5. Retired mothers and fathers. Active projection excludes Retired. Record array stays intact. Automated test passed. Device not tested. Not passed.
+6. Archive safeguard. Stale shown id is refused. Existing flower-date guard left in place. Automated test passed. The vanished plant was not restored. Device not tested. Not passed.
+7. Inspection table. Narrow reflow implemented. Automated source check passed. Device not tested. Not passed.
+
+Build 62 behavior left in place: photo code, tag-top wrapping, notes and Save, and dialog.modal[open] sheet lock. Automated source check passed. Device not retested for this candidate.
