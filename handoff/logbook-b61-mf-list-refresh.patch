@@ -1,0 +1,129 @@
+diff -Naur a/build13.js b/build13.js
+--- a/build13.js	2026-11-07 02:01:31.466483642 +0000
++++ b/build13.js	2026-11-07 02:01:31.470483648 +0000
+@@ -252,6 +252,12 @@
+ function mfRefresh() {
+   if (typeof renderBreeding === 'function') renderBreeding();
+   if (typeof renderAll === 'function') renderAll();
++  // The open Mothers & Fathers page replaced #breeding-view, so #breeding-mobile
++  // is gone and renderAll leaves the old "Mothers · 0" markup on screen.
++  try {
++    const v = document.getElementById('breeding-view');
++    if (v && v.querySelector('[data-mfp="back"]') && window.B41 && typeof B41.mfpOpen === 'function') B41.mfpOpen();
++  } catch (e) { console.warn('mf refresh', e); }
+ }
+ 
+ function openMfSheet(id) {
+diff -Naur a/scripts/mf-list-refresh.test.js b/scripts/mf-list-refresh.test.js
+--- a/scripts/mf-list-refresh.test.js	1970-01-01 00:00:00.000000000 +0000
++++ b/scripts/mf-list-refresh.test.js	2026-11-07 02:01:31.470483648 +0000
+@@ -0,0 +1,109 @@
++'use strict';
++
++/*
++  The Mothers & Fathers page is drawn by build41 mfpOpen, which replaces
++  #breeding-view. saveMfFromSheet then calls mfRefresh. renderBreeding writes
++  only to #breeding-mobile, which that replacement removed, and build41's
++  renderAll puts the page back only when its heading is missing. A saved
++  mother stayed in state while the open page still said "Mothers · 0".
++
++  This runs those two functions. It is not a Mac screenshot.
++*/
++
++const fs = require('fs');
++const path = require('path');
++const vm = require('vm');
++
++const ROOT = process.env.LOGBOOK_ROOT || path.join(__dirname, '..');
++const FAIL = [];
++function check(name, ok, detail) {
++  if (ok) console.log('PASS', name);
++  else { FAIL.push(name); console.error('FAIL', name, detail || ''); }
++}
++
++const build13 = fs.readFileSync(path.join(ROOT, 'build13.js'), 'utf8');
++const start = build13.indexOf('function mfRefresh()');
++const end = build13.indexOf('\nfunction openMfSheet', start);
++const fn = build13.slice(start, end);
++check('mfRefresh asks the open Mothers page to redraw', fn.includes('B41.mfpOpen') && fn.includes('[data-mfp="back"]'), fn);
++check('save still closes only after the record is stored', (() => {
++  const s = build13.slice(build13.indexOf('function saveMfFromSheet'), build13.indexOf('function openMflSheet'));
++  return s.indexOf('event.preventDefault()') < s.indexOf('mfList().push') && s.indexOf('saveState()') < s.indexOf("$('#mf-sheet').close()") && s.includes('mfRefresh()');
++})());
++
++function makeView() {
++  return {
++    id: 'breeding-view',
++    _html: '<div id="breeding-mobile"></div>',
++    __mfpHtml: '',
++    style: {},
++    dataset: {},
++    classList: { contains(c) { return c === 'active'; }, add() {}, remove() {} },
++    get innerHTML() { return this._html; },
++    set innerHTML(s) { this._html = String(s); },
++    querySelector(sel) {
++      if (sel === '#breeding-mobile' && this._html.includes('id="breeding-mobile"')) return { id: 'breeding-mobile' };
++      if (sel === '.b18-h1' && this._html.includes('class="b18-h1"')) return { textContent: 'Mothers & Fathers' };
++      if (sel === '[data-mfp="back"]' && this._html.includes('data-mfp="back"')) return { id: 'back' };
++      return null;
++    },
++    querySelectorAll() { return []; },
++    appendChild() {},
++    setAttribute() {},
++  };
++}
++
++function load() {
++  const view = makeView();
++  const state = { plants: [], breedingPlants: [], motherFatherPlants: [] };
++  const localStorage = { _m: {}, getItem(k) { return this._m[k] || null; }, setItem(k, v) { this._m[k] = String(v); } };
++  const g = {
++    document: {
++      documentElement: { dataset: {} },
++      getElementById(id) { return id === 'breeding-view' ? view : null; },
++      querySelector() { return null; },
++      querySelectorAll() { return []; },
++      addEventListener() {},
++      createElement() { return { className: '', style: {}, dataset: {}, setAttribute() {}, appendChild() {} }; },
++      createDocumentFragment() { return { appendChild() {} }; },
++    },
++    localStorage, console, state,
++    loadSnapshots: () => [], persistSnapshots() {}, isStateEmpty: () => true,
++    createSnapshot() {}, snapshotCounts() { return {}; },
++    APP_VERSION: '1', SCHEMA_VERSION: 1,
++    crypto: { randomUUID: () => 'id', getRandomValues(a) { a[0] = 1; return a; } },
++    saveState() { return true; }, renderPlantDetail() {}, switchView() {}, renderAll() {},
++    renderBreeding() {},
++    escapeHtml: (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])),
++    b18Sheet() {}, b18Mutate(_n, fn) { fn(); },
++    setInterval() { return 0; }, clearInterval() {}, scrollTo() {},
++  };
++  g.window = g;
++  vm.createContext(g);
++  vm.runInContext(fs.readFileSync(path.join(ROOT, 'build41.js'), 'utf8'), g, { filename: 'build41.js' });
++  vm.runInContext(fn + '\nthis.mfRefresh = mfRefresh;', g, { filename: 'build13.js' });
++  return { g, view, state };
++}
++
++const page = load();
++page.g.B41.mfpOpen();
++check('a new Mothers page starts empty', /Mothers · 0/.test(page.view.innerHTML) && /No mothers yet/.test(page.view.innerHTML));
++page.state.motherFatherPlants.push({ id: '1', name: 'QA LandRace', role: 'mother', status: 'Active', archived: false, cuttings: [], pollen: [] });
++page.state.motherFatherPlants.push({ id: '2', name: 'Old', role: 'mother', status: 'Active', archived: true, cuttings: [], pollen: [] });
++page.g.mfRefresh();
++check('saving a mother updates the open page', /Mothers · 1/.test(page.view.innerHTML) && page.view.innerHTML.includes('QA LandRace') && !/No mothers yet/.test(page.view.innerHTML));
++check('an archived mother stays off the live count', !page.view.innerHTML.includes('>Old<'));
++const painted = page.view.innerHTML;
++page.g.mfRefresh();
++check('a refresh with the same list does not rebuild the page', painted === page.view.innerHTML);
++
++const other = load();
++other.view._html = '<h2 class="b18-h1">Family tree</h2>';
++other.g.mfRefresh();
++check('another breeding page is left as it is', other.view.innerHTML === '<h2 class="b18-h1">Family tree</h2>');
++
++if (FAIL.length) {
++  console.error('FAILED', FAIL.length);
++  process.exit(1);
++}
++console.log('mf list refresh: all checks passed');

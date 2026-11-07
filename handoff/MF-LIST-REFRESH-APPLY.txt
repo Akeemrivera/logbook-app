@@ -1,0 +1,18 @@
+Apply this on the phase 1 tree that already has incr6b. It does not change CSS, the plant sheet, or the QA plant.
+
+The Add mother sheet closed because Save ran. saveMfFromSheet calls preventDefault, stores the record, and only then calls close(). Cancel and the × button close without storing. Nothing closes the sheet on a click outside the buttons. A click that misses Save leaves the sheet open.
+
+The open Mothers & Fathers page had replaced #breeding-view, so #breeding-mobile was gone. renderBreeding returned without drawing, and renderAll rebuilds that page only when its heading is missing. The heading was still there, so the page kept "Mothers · 0" after the record was stored.
+
+Before rebuilding, do not tap Save again. Click ‹ Breeding, then open Mothers & Fathers. QA LandRace is already stored if it appears. A second attempt that also closed the sheet may have stored a second one. Leave the existing QA plant.
+
+  patch -p1 --dry-run < logbook-b61-mf-list-refresh.patch
+  patch -p1 < logbook-b61-mf-list-refresh.patch
+  node scripts/mf-list-refresh.test.js
+  zsh scripts/qa-build.sh
+
+After the rebuild, open Mothers & Fathers and add a mother only if QA LandRace is not already listed. The count should change without leaving the page. The test runs the real mfRefresh and build41 mfpOpen. It is not a Mac screenshot.
+
+The dark band along the bottom of Save is the bottom-anchored sheet. The dialog background is transparent. In a Chromium fixture using the current incr6b CSS, Save's hit box is the gold button; the strip under it is the card or the dialog padding, and a click there does not submit and does not close the sheet. That fixture is not a Mac screenshot. No CSS change is included.
+
+Mother photo persistence and the Compliance tag wrap are still the original goal. This only makes a saved mother show on the page that is already open.
