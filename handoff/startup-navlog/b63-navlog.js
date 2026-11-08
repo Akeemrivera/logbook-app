@@ -168,17 +168,18 @@ async function runBrowser(opts) {
   const server = http.createServer((req, res) => {
     const url = new URL(req.url, 'http://127.0.0.1:' + port);
     let rel = decodeURIComponent(url.pathname);
+    if (rel === '/') rel = '/index.html';
+    const loggedPath = rel;
     const started = Date.now();
-    serverLog.push({ t: started, path: rel, phase: 'start' });
-    res.on('finish', () => serverLog.push({ t: Date.now(), path: rel, phase: 'finish' }));
-    res.on('close', () => serverLog.push({ t: Date.now(), path: rel, phase: 'close' }));
+    serverLog.push({ t: started, path: loggedPath, phase: 'start' });
+    res.on('finish', () => serverLog.push({ t: Date.now(), path: loggedPath, phase: 'finish' }));
+    res.on('close', () => serverLog.push({ t: Date.now(), path: loggedPath, phase: 'close' }));
     if (rel === '/b63-repair.json') {
       res.setHeader('Content-Type', 'application/json');
       res.setHeader('Cache-Control', 'no-store');
       res.end(repairBody);
       return;
     }
-    if (rel === '/') rel = '/index.html';
     const file = path.normalize(path.join(ROOT, rel.replace(/^\/+/, '')));
     if (file !== ROOT && !file.startsWith(ROOT + path.sep)) { res.statusCode = 403; res.end('no'); return; }
     if (!fs.existsSync(file) || !fs.statSync(file).isFile()) {
@@ -214,19 +215,30 @@ async function runBrowser(opts) {
     const pending = new Map();
     const logs = [];
     const navEvents = [];
+    const targetEvents = [];
     const netById = new Map();
     ws.addEventListener('message', (ev) => {
       const msg = JSON.parse(ev.data);
       const params = msg.params || {};
+      if (msg.method === 'Target.attachedToTarget' || msg.method === 'Target.detachedFromTarget' || msg.method === 'Target.targetCrashed' || msg.method === 'Target.targetDestroyed') {
+        const info = params.targetInfo || {};
+        targetEvents.push({ t: Date.now(), method: msg.method, type: info.type || params.type || '', url: info.url || '' });
+      }
       if (msg.method === 'Page.frameNavigated' || msg.method === 'Page.frameStartedLoading' || msg.method === 'Page.frameStoppedLoading' || msg.method === 'Page.loadEventFired' || msg.method === 'Page.frameRequestedNavigation') {
         const frame = params.frame || {};
         navEvents.push({ t: Date.now(), method: msg.method, url: frame.url || params.url || '' });
       }
       if (msg.method === 'Network.requestWillBeSent' && params.requestId) {
         const req = params.request || {};
-        netById.set(params.requestId, { t: Date.now(), end: 0, url: req.url || '', type: params.type || '', done: '', error: '', canceled: false, blocked: '' });
+        netById.set(params.requestId, { t: Date.now(), end: 0, url: req.url || '', type: params.type || '', done: '', error: '', canceled: false, blocked: '', responded: false, status: 0, sw: null });
       }
       const row = params.requestId ? netById.get(params.requestId) : null;
+      if (row && msg.method === 'Network.responseReceived') {
+        const response = params.response || {};
+        row.responded = true;
+        row.status = response.status || 0;
+        row.sw = !!response.fromServiceWorker;
+      }
       if (row && msg.method === 'Network.loadingFinished') { row.done = 'ok'; row.end = Date.now(); }
       if (row && msg.method === 'Network.loadingFailed') { row.done = 'fail'; row.end = Date.now(); row.error = params.errorText || 'failed'; row.canceled = !!params.canceled; row.blocked = params.blockedReason || ''; }
       if (msg.method === 'Runtime.consoleAPICalled') logs.push(msg.params.type + ' ' + (msg.params.args || []).map((a) => a.value || a.description || '').join(' ').slice(0, 240));
@@ -249,6 +261,7 @@ async function runBrowser(opts) {
     await send('Page.enable');
     await send('Runtime.enable');
     await send('Network.enable');
+    await send('Target.setAutoAttach', { autoAttach: true, waitForDebuggerOnStart: false, flatten: true });
     await send('Page.addScriptToEvaluateOnNewDocument', { source: init });
     function pathOf(url) { try { return new URL(url).pathname; } catch (e) { return ''; } }
     function dumpNav(label, w, h, since) {
@@ -267,13 +280,23 @@ async function runBrowser(opts) {
       sw.forEach((e) => console.error('NAVLOG sw +' + (e.t - since) + 'ms'));
       if (label === 'FAIL') {
         const serverHits = serverLog.filter((e) => e.t >= since);
-        failed.forEach((e) => {
+        const serverJs = [...new Set(serverHits.filter((e) => e.phase === 'start' && /\.js$/.test(e.path)).map((e) => e.path))];
+        const described = (e) => {
           const rel = pathOf(e.url);
           const hit = serverHits.filter((s) => s.path === rel);
           const how = hit.length ? hit.map((s) => s.phase + '+' + (s.t - since) + 'ms').join(',') : 'none';
-          console.error('NAVLOG failed ' + rel + ' +' + (e.end - since) + 'ms ' + e.error + (e.canceled ? ' canceled' : '') + (e.blocked ? ' blocked=' + e.blocked : '') + ' server=' + how);
-        });
-        pending.forEach((e) => console.error('NAVLOG pending ' + pathOf(e.url)));
+          const swAttr = e.responded ? String(e.sw) : 'absent';
+          const response = e.responded ? String(e.status) : 'absent';
+          return 'NAVLOG script ' + (e.done || 'pending') + ' ' + rel + ' start+' + (e.t - since) + 'ms end+' + (e.end ? (e.end - since) + 'ms' : 'none') + ' response=' + response + ' fromServiceWorker=' + swAttr + ' server=' + how + (e.error ? ' ' + e.error : '') + (e.canceled ? ' canceled' : '') + (e.blocked ? ' blocked=' + e.blocked : '');
+        };
+        const serverOf = (list) => {
+          let finish = 0; let none = 0;
+          list.forEach((e) => { if (serverHits.some((s) => s.path === pathOf(e.url) && s.phase === 'finish')) finish++; else if (!serverHits.some((s) => s.path === pathOf(e.url))) none++; });
+          return 'finish=' + finish + ' none=' + none;
+        };
+        console.error('NAVLOG coverage doneServer ' + serverOf(done) + ' failServer ' + serverOf(failed) + ' serverJs=' + serverJs.length + ' cdpJs=' + scripts.length);
+        targetEvents.filter((e) => e.t >= since).forEach((e) => console.error('NAVLOG target +' + (e.t - since) + 'ms ' + e.method + ' ' + e.type + ' ' + e.url));
+        scripts.sort((a, b) => (a.end || a.t) - (b.end || b.t)).forEach((e) => console.error(described(e)));
       }
     }
     for (const [w, h] of opts.viewports) {

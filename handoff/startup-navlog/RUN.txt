@@ -5,11 +5,10 @@ One command:
 
   node scripts/b63-navlog.test.js
 
-Keep the NAVLOG FAIL line and every NAVLOG failed line.
+On the failing viewport, keep NAVLOG FAIL, NAVLOG coverage, every NAVLOG target, and every NAVLOG script line.
 
-stopped=1+123ms and load=1+456ms are milliseconds after the viewport started.
-Each failed line has the browser failure time and server=none, or server=start/finish/close with its time.
-server=none means this test server did not see that URL.
-server=finish means this server completed the response.
+fromServiceWorker is true or false only when a response was recorded. It is absent when no response event arrived. absent is not false.
+server=none means this Node server did not log that path. It does not mean the browser created no request.
+doneServer and failServer use the same server match, so the two sets can be compared.
 
 A pass is not a fix.
