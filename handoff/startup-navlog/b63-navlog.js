@@ -168,7 +168,10 @@ async function runBrowser(opts) {
   const server = http.createServer((req, res) => {
     const url = new URL(req.url, 'http://127.0.0.1:' + port);
     let rel = decodeURIComponent(url.pathname);
-    serverLog.push({ t: Date.now(), path: rel });
+    const started = Date.now();
+    serverLog.push({ t: started, path: rel, phase: 'start' });
+    res.on('finish', () => serverLog.push({ t: Date.now(), path: rel, phase: 'finish' }));
+    res.on('close', () => serverLog.push({ t: Date.now(), path: rel, phase: 'close' }));
     if (rel === '/b63-repair.json') {
       res.setHeader('Content-Type', 'application/json');
       res.setHeader('Cache-Control', 'no-store');
@@ -221,11 +224,11 @@ async function runBrowser(opts) {
       }
       if (msg.method === 'Network.requestWillBeSent' && params.requestId) {
         const req = params.request || {};
-        netById.set(params.requestId, { t: Date.now(), url: req.url || '', type: params.type || '', done: '', error: '', canceled: false, blocked: '' });
+        netById.set(params.requestId, { t: Date.now(), end: 0, url: req.url || '', type: params.type || '', done: '', error: '', canceled: false, blocked: '' });
       }
       const row = params.requestId ? netById.get(params.requestId) : null;
-      if (row && msg.method === 'Network.loadingFinished') row.done = 'ok';
-      if (row && msg.method === 'Network.loadingFailed') { row.done = 'fail'; row.error = params.errorText || 'failed'; row.canceled = !!params.canceled; row.blocked = params.blockedReason || ''; }
+      if (row && msg.method === 'Network.loadingFinished') { row.done = 'ok'; row.end = Date.now(); }
+      if (row && msg.method === 'Network.loadingFailed') { row.done = 'fail'; row.end = Date.now(); row.error = params.errorText || 'failed'; row.canceled = !!params.canceled; row.blocked = params.blockedReason || ''; }
       if (msg.method === 'Runtime.consoleAPICalled') logs.push(msg.params.type + ' ' + (msg.params.args || []).map((a) => a.value || a.description || '').join(' ').slice(0, 240));
       if (msg.method === 'Runtime.exceptionThrown') logs.push('exception ' + ((msg.params.exceptionDetails && (msg.params.exceptionDetails.exception && msg.params.exceptionDetails.exception.description || msg.params.exceptionDetails.text)) || '').slice(0, 400));
       if (msg.id && pending.has(msg.id)) { const done = pending.get(msg.id); pending.delete(msg.id); done(msg); }
@@ -250,19 +253,26 @@ async function runBrowser(opts) {
     function pathOf(url) { try { return new URL(url).pathname; } catch (e) { return ''; } }
     function dumpNav(label, w, h, since) {
       const frames = navEvents.filter((e) => e.t >= since && e.method === 'Page.frameNavigated');
-      const stopped = navEvents.filter((e) => e.t >= since && e.method === 'Page.frameStoppedLoading').length;
-      const loaded = navEvents.some((e) => e.t >= since && e.method === 'Page.loadEventFired');
-      const sw = serverLog.filter((e) => e.t >= since && e.path === '/service-worker.js');
+      const stoppedEv = navEvents.filter((e) => e.t >= since && e.method === 'Page.frameStoppedLoading');
+      const loadedEv = navEvents.filter((e) => e.t >= since && e.method === 'Page.loadEventFired');
+      const sw = serverLog.filter((e) => e.t >= since && e.path === '/service-worker.js' && e.phase === 'start');
       const scripts = [...netById.values()].filter((e) => e.t >= since && /\.js$/.test(pathOf(e.url)));
       const docs = [...netById.values()].filter((e) => e.t >= since && (e.type === 'Document' || pathOf(e.url).indexOf('/index.html') >= 0));
       const done = scripts.filter((e) => e.done === 'ok');
       const failed = scripts.filter((e) => e.done === 'fail');
       const pending = scripts.filter((e) => !e.done);
-      console.error('NAVLOG ' + label + ' ' + w + 'x' + h + ' frames=' + frames.length + ' stopped=' + stopped + ' load=' + (loaded ? 1 : 0) + ' sw=' + sw.length + ' scriptsSent=' + scripts.length + ' scriptsDone=' + done.length + ' scriptsFail=' + failed.length + ' scriptsPending=' + pending.length + ' doc=' + docs.map((e) => e.done || 'pending').join(',') );
+      const mark = (ev) => ev ? '1+' + (ev.t - since) + 'ms' : '0';
+      console.error('NAVLOG ' + label + ' ' + w + 'x' + h + ' frames=' + frames.length + ' stopped=' + mark(stoppedEv[0]) + ' load=' + mark(loadedEv[0]) + ' sw=' + sw.length + ' scriptsSent=' + scripts.length + ' scriptsDone=' + done.length + ' scriptsFail=' + failed.length + ' scriptsPending=' + pending.length + ' doc=' + docs.map((e) => e.done || 'pending').join(','));
       frames.forEach((e) => console.error('NAVLOG frame +' + (e.t - since) + 'ms ' + e.url));
       sw.forEach((e) => console.error('NAVLOG sw +' + (e.t - since) + 'ms'));
       if (label === 'FAIL') {
-        failed.forEach((e) => console.error('NAVLOG failed ' + pathOf(e.url) + ' ' + e.error + (e.canceled ? ' canceled' : '') + (e.blocked ? ' blocked=' + e.blocked : '')));
+        const serverHits = serverLog.filter((e) => e.t >= since);
+        failed.forEach((e) => {
+          const rel = pathOf(e.url);
+          const hit = serverHits.filter((s) => s.path === rel);
+          const how = hit.length ? hit.map((s) => s.phase + '+' + (s.t - since) + 'ms').join(',') : 'none';
+          console.error('NAVLOG failed ' + rel + ' +' + (e.end - since) + 'ms ' + e.error + (e.canceled ? ' canceled' : '') + (e.blocked ? ' blocked=' + e.blocked : '') + ' server=' + how);
+        });
         pending.forEach((e) => console.error('NAVLOG pending ' + pathOf(e.url)));
       }
     }

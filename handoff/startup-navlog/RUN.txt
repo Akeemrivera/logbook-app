@@ -1,15 +1,15 @@
-Replace only scripts/b63-navlog.js. Leave scripts/b63-real-mockup.js and scripts/b63-real-mockup.test.js as they are.
+Replace only scripts/b63-navlog.js on the preserved snap17 tree.
+Do not replace scripts/b63-real-mockup.js or scripts/b63-real-mockup.test.js.
 
-One command, same preserved snap17 tree:
+One command:
 
   node scripts/b63-navlog.test.js
 
-Keep the FAIL viewport lines: NAVLOG FAIL, every NAVLOG failed, and every NAVLOG pending.
+Keep the NAVLOG FAIL line and every NAVLOG failed line.
 
-scriptsSent is how many script URLs the listener saw started.
-scriptsDone is how many of those later finished.
-scriptsFail is how many later failed. The previous scriptFail count did not match failures to URLs, so 0 did not mean the scripts completed.
-scriptsPending is started and neither finished nor failed when the boot check gave up.
-load=1 means Page.loadEventFired. doc=ok, fail, or pending is the index document.
+stopped=1+123ms and load=1+456ms are milliseconds after the viewport started.
+Each failed line has the browser failure time and server=none, or server=start/finish/close with its time.
+server=none means this test server did not see that URL.
+server=finish means this server completed the response.
 
 A pass is not a fix.
