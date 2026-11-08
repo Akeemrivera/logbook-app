@@ -12,8 +12,10 @@
 
   attach-not-sufficient: both arms stop at "the app did not finish loading".
   attach-sufficient: only the original stops there.
-  original-did-not-fail: the original arm boots the 1024 viewport.
-  That last result is not a fix. The acceptance test stays
+  treatment-boot-fail: the original arm boots and the attach arm does not.
+  That result exits 1. It is not an acceptance pass.
+  original-did-not-fail: both arms boot the 1024 viewport.
+  That result is not a fix. The acceptance test stays
   scripts/b63-real-mockup.test.js.
 */
 const crypto = require('crypto');
@@ -37,7 +39,8 @@ function outcome(status, text) {
 }
 function judge(control, treatment) {
   if (control === 'broken' || treatment === 'broken') return 'incomplete';
-  if (control === 'pass') return 'original-did-not-fail';
+  if (treatment === 'boot-fail' && control === 'pass') return 'treatment-boot-fail';
+  if (control === 'pass' && treatment === 'pass') return 'original-did-not-fail';
   if (control === 'boot-fail' && treatment === 'boot-fail') return 'attach-not-sufficient';
   if (control === 'boot-fail' && treatment === 'pass') return 'attach-sufficient';
   return 'inconclusive';
@@ -50,6 +53,7 @@ check('the verdict rules keep the original failure as the control', () => {
   if (judge('boot-fail', 'boot-fail') !== 'attach-not-sufficient') throw new Error('not sufficient');
   if (judge('boot-fail', 'pass') !== 'attach-sufficient') throw new Error('sufficient');
   if (judge('pass', 'pass') !== 'original-did-not-fail') throw new Error('did not fail');
+  if (judge('pass', 'boot-fail') !== 'treatment-boot-fail') throw new Error('treatment hidden');
   if (judge('broken', 'pass') !== 'incomplete') throw new Error('incomplete');
 });
 check('the original renderer, test, service worker, and css are unchanged', () => {
@@ -102,8 +106,8 @@ const treatment = runArm('treatment', 'scripts/b63-attach.js');
 const verdict = judge(control, treatment);
 console.error('AB verdict ' + verdict);
 console.log('AB verdict ' + verdict);
-if (verdict === 'incomplete') {
-  console.error('FAIL an arm did not reach boot');
+if (verdict === 'incomplete' || verdict === 'treatment-boot-fail') {
+  console.error('FAIL ' + verdict);
   process.exit(1);
 }
 console.log('PASS attach experiment recorded ' + verdict);

@@ -1,16 +1,7 @@
-Copy scripts/b63-attach.js and scripts/b63-attach.test.js onto the preserved snap17 tree.
-Do not replace scripts/b63-real-mockup.js, scripts/b63-real-mockup.test.js, service-worker.js, or build63.css.
+The attach experiment's verdict no longer hides a treatment boot failure.
 
-One command:
+treatment-boot-fail means the unchanged renderer booted and the attach arm stopped at "the app did not finish loading". That exits 1. It is not acceptance.
 
-  node scripts/b63-attach.test.js
+The saved box log classifies as treatment-boot-fail. Do not rerun this for a startup fix. The acceptance command remains:
 
-Control is the unchanged original renderer with the tree fixture and the default three viewports.
-Treatment is that renderer plus one browser-target Target.setAutoAttach before the viewport loop.
-
-AB verdict:
-  attach-not-sufficient   both arms stop at "the app did not finish loading"
-  attach-sufficient       only the original arm stops there
-  original-did-not-fail   the original arm boots 1024
-
-original-did-not-fail is not a fix. Acceptance remains node scripts/b63-real-mockup.test.js.
+  node scripts/b63-real-mockup.test.js
