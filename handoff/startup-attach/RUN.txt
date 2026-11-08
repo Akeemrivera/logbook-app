@@ -1,0 +1,16 @@
+Copy scripts/b63-attach.js and scripts/b63-attach.test.js onto the preserved snap17 tree.
+Do not replace scripts/b63-real-mockup.js, scripts/b63-real-mockup.test.js, service-worker.js, or build63.css.
+
+One command:
+
+  node scripts/b63-attach.test.js
+
+Control is the unchanged original renderer with the tree fixture and the default three viewports.
+Treatment is that renderer plus one browser-target Target.setAutoAttach before the viewport loop.
+
+AB verdict:
+  attach-not-sufficient   both arms stop at "the app did not finish loading"
+  attach-sufficient       only the original arm stops there
+  original-did-not-fail   the original arm boots 1024
+
+original-did-not-fail is not a fix. Acceptance remains node scripts/b63-real-mockup.test.js.
