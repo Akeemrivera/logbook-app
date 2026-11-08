@@ -1,0 +1,13 @@
+Copy scripts/b63-isolate.js onto the preserved snap17 tree.
+Do not replace the renderer, the acceptance test, the service worker, or the CSS.
+
+One command:
+
+  node scripts/b63-isolate.js
+
+It opens three fresh user-data directories with the harness Chrome flags and prints each target type, URL, and title.
+The second launch adds --disable-extensions.
+The third adds --disable-component-extensions-with-background-pages.
+It does not open the app or the real Chrome profile.
+Keep every ISOLATE target line.
+This command does not change the acceptance test. A listing is not a startup fix.

@@ -1,0 +1,2 @@
+359d8adf153ea98888989ae514f0694980266499a4c2d9c1758ee27d9b5ef07c  /cursor/stores/self/startup-navlog/b63-navlog.js
+50c9df46d4865f72885b5824658d57f2d13686da981d911ff57299e9920c6fb1  /cursor/stores/self/startup-navlog/b63-navlog.test.js

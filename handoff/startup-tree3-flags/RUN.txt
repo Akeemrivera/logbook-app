@@ -1,0 +1,19 @@
+c796a389d9726fec158e5943b648afe8251da0f4e20c8560b024211666c3eeff has no treeStyle allowlist. Do not copy it onto tree3.
+
+Base renderer: 1c807ef6e6a4293c499b1c0f8ebe1e32462b91b30c02b60787576af5544ec969
+Compatible renderer: that file plus the two Chrome flags only. See DIFF.txt.
+No runtime app file changes.
+
+On a fresh public tree3 copy, replace only scripts/b63-real-mockup.js.
+Add scripts/b63-tree3-flags.test.js.
+Leave scripts/b63-real-mockup.test.js, the service worker, and the CSS bytes in place.
+
+Run once:
+
+  node scripts/b63-tree3-flags.test.js
+  node scripts/b63-real-mockup.test.js
+
+The guard requires build63.css, www/build63.css, and ios/App/App/public/build63.css to be 26eb7f883d6da8118529d185483ad72d6a960f7f3c0f0423e3c732c84f9fc58e.
+If the acceptance command fails, keep that failure.
+Classification: test-isolation change. The boot-failure cause is unknown.
+A pass is not phone QA and does not clear appearance or upload.

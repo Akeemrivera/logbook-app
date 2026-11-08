@@ -1,0 +1,16 @@
+Replace scripts/b63-real-mockup.js with b63-real-mockup.js from this folder.
+Do not pass --factor. Do not change service-worker.js.
+
+Run the original test once:
+
+  B63_FAIL_LOG=1 node scripts/b63-real-mockup.test.js
+
+The 40x50ms gate and the assertions are unchanged.
+Emulation.setDeviceMetricsOverride is still followed directly by Page.navigate.
+No registration read runs before that navigation.
+Chrome stdout and stderr are drained as they arrive so a full pipe cannot stall Chrome.
+Network failure events and worker exceptions are recorded in the background.
+The registration read runs only after a viewport has already failed the original boot check.
+Keep every FAILLOG line.
+
+A pass of this command is the original regression result. This folder does not replace that test.

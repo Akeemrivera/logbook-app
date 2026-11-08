@@ -1,0 +1,36 @@
+/* Build 60: full both-sides family tree (mockups/2026-11-03_full-tree/optFull). Uses each style's own tree colours. */
+.b60-full { margin: 6px auto 0; max-width: 560px; }
+.b60-hint { text-align: center; font-size: 11px; color: var(--sub); margin: 2px 0 6px; }
+.b60-heads { display: flex; gap: 12px; }
+.b60-heads span { flex: 1; text-align: center; font-size: 11px; font-weight: 800; letter-spacing: .16em; text-transform: uppercase; color: var(--acc); }
+.b60-gen .b57-lab { margin: 10px 0 6px; }
+.b60-cols { display: flex; gap: 12px; align-items: stretch; }
+.b60-col { flex: 1 1 0; z-index: 1; min-width: 0; display: flex; gap: 8px; overflow-x: auto; -webkit-overflow-scrolling: touch; overscroll-behavior-x: contain; padding-bottom: 14px; position: relative; scroll-snap-type: x proximity; }
+.b60-full.up .b60-col { padding-bottom: 0; padding-top: 14px; }
+.b60-gap { flex: 1; }
+.b60-c { flex: 1 0 96px; max-width: 220px; min-height: 96px; scroll-snap-align: start; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; text-align: center; padding: 8px 6px; border-radius: 13px; background: var(--card); border: 1.5px solid var(--acc); color: var(--tx); font: inherit; position: relative; }
+.b60-c b { font-size: 13px; line-height: 1.15; overflow-wrap: anywhere; color: var(--tx); }
+.b60-c small { font-size: 11px; line-height: 1.25; color: var(--sub); overflow-wrap: anywhere; }
+.b60-c .b57-ph { width: 34px; height: 34px; flex: 0 0 34px; font-size: 12px; border-color: var(--acc); }
+.b60-c.slot { border-style: dashed; border-color: var(--line); min-height: 62px; }
+.b60-c.origin small { color: var(--sub); }
+.b60-full + .b59-pair { margin-top: 0; }
+.b60-orig { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; width: 100%; text-align: left; font: inherit; color: inherit; }
+.b60-orig .b58-stl { display: block; color: var(--bk-sub, #8a9590) !important; font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+.b60-orig b { display: block; font-size: 15px; } .b60-orig small { display: block; font-size: 12px; opacity: .75; }
+/* b60.1: real connector lines (SVG overlay drawn from the card positions), halves per side, wide single card */
+.b59-fam { position: relative; }
+.b59-fam > svg.b60-lines { position: absolute; left: 0; top: 0; pointer-events: none; overflow: visible; z-index: 0; }
+.b59-fam > svg.b60-lines path { fill: none; stroke: var(--acc); stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.b57-canvas { position: relative; }
+.b57-canvas > svg.b60-lines { position: absolute; left: 0; top: 0; pointer-events: none; overflow: visible; z-index: 0; }
+.b57-canvas > svg.b60-lines path { fill: none; stroke: var(--acc); stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.b57[data-b57k="ceiba"] .b57-canvas > svg.b60-lines path.arc { stroke-dasharray: 1.5 3; }
+.b57-canvas > :not(svg) { position: relative; z-index: 1; }
+.b59-fam > :not(svg) { position: relative; z-index: 1; }
+.b59-fam > .b59-brk { z-index: 1; }
+.b60-cols { gap: 16px; } .b60-col { gap: 8px; padding-bottom: 26px; }
+.b60-gen .b57-lab { margin: 2px 0 6px; }
+.b60-c { flex: 1 1 0; min-width: 92px; max-width: none; }
+.b60-col > .b60-c:only-child { flex: 1 1 100%; }
+.b60-c.slot { background: color-mix(in srgb, var(--card) 70%, transparent); }

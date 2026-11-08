@@ -1,0 +1,16 @@
+Copy these three files into scripts/ on the preserved snap17 tree:
+  b63-ext-off.js
+  b63-ext-ab.test.js
+  b63-ext-repeat.test.js
+Do not replace the original renderer, acceptance test, service worker, or CSS.
+
+One command. It always runs three pairs. It does not stop after a pass.
+
+  node scripts/b63-ext-repeat.test.js
+
+Keep every REPEAT pair line and the REPEAT verdict line.
+abandon-extension-claim: a zero-extension treatment failed to boot.
+harness-candidate: all three baselines failed and all three treatments booted with zero extension targets.
+not-reproduced: all six boots passed.
+inconclusive: any other complete pattern.
+A harness-candidate is not applied by this command. Acceptance remains node scripts/b63-real-mockup.test.js.

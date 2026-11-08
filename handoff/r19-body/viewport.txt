@@ -1,0 +1,5 @@
+PASS precache 125 boriken-genetics-logbook-app-v92
+PASS viewport 1024x768 scripts=40 ready=true ms=230
+PASS viewport 1024x1366 scripts=40 ready=true ms=195
+PASS viewport offline scripts=40 ready=true ms=199
+b63 sw viewport: cached shell served every deferred script online and offline

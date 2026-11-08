@@ -1,0 +1,3 @@
+RELOAD-AT 2026-11-07T21:14:01.523Z epoch=1794086041523 waited=false {"controller":false,"active":null,"installing":"installing","waiting":null} firstBoot=true
+RELOAD scripts=40 failed=0 boot=true
+b63 reload during install: immediate second navigation finished

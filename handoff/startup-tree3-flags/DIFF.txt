@@ -1,0 +1,14 @@
+--- /workspace/handoff/r19-tree/b63-real-mockup.js	2026-11-07 23:41:16.504575899 +0000
++++ /workspace/handoff/startup-tree3-flags/b63-real-mockup.js	2026-11-08 00:44:20.433319025 +0000
+@@ -207,8 +207,11 @@
+   const captureBrowser = failLog || process.env.B63_SW_DIAG === '1' || trace.active();
+   const chromeErr = [];
+   const chromeOut = [];
++  // Test Chrome only. These flags keep extension workers out of the throwaway profile.
++  // They do not establish that those workers caused the intermittent boot failure.
+   proc = spawn(CHROME, [
+     '--headless=new', '--disable-gpu', '--no-sandbox', '--disable-dev-shm-usage',
++    '--disable-extensions', '--disable-component-extensions-with-background-pages',
+     '--user-data-dir=' + dir, '--remote-debugging-port=' + debugPort, 'about:blank',
+   ], { stdio: captureBrowser ? ['ignore', 'pipe', 'pipe'] : 'ignore' });
+   function takePipe(stream, bucket) {

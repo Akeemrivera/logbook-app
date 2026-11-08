@@ -1,0 +1,17 @@
+Replace scripts/b63-real-mockup.js with this file.
+Add scripts/b63-harness-flags.test.js.
+Do not replace scripts/b63-real-mockup.test.js, service-worker.js, or build63.css.
+
+The pre-registered three-pair verdict remains inconclusive.
+The two Chrome flags isolate the throwaway test profile. They do not establish that extension workers caused the boot failure.
+
+First:
+
+  node scripts/b63-harness-flags.test.js
+
+Then, once:
+
+  node scripts/b63-real-mockup.test.js
+
+If the acceptance command fails, keep that failure. Do not run it again for a pass.
+A pass is evidence about this test Chrome. It is not evidence about the phone.

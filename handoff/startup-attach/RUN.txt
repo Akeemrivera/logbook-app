@@ -1,0 +1,7 @@
+The attach experiment's verdict no longer hides a treatment boot failure.
+
+treatment-boot-fail means the unchanged renderer booted and the attach arm stopped at "the app did not finish loading". That exits 1. It is not acceptance.
+
+The saved box log classifies as treatment-boot-fail. Do not rerun this for a startup fix. The acceptance command remains:
+
+  node scripts/b63-real-mockup.test.js

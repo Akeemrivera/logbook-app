@@ -1,0 +1,17 @@
+Package for the family-tree preview. Generic fixture only.
+
+Copy into the app, same bytes in root, www/, and ios/App/App/public/:
+  build57.js build60.js build60.css build63.css
+Copy into scripts/:
+  b63-real-mockup.js
+  b63-tree-branches.test.js
+  b63-fail-trace.js
+b63-real-mockup.js requires ./b63-fail-trace.js. Do not omit it.
+
+The phone Ceiba row is four grandparents, then two parents. The center plant stays inside a 390x844 screen for the generic long-label fixture. Curves are the Ceiba, Roots, and River branches. Group style still wins over the record you walk to; that behavior is unchanged.
+
+Screenshots in shots/ are the app's current default theme, not a claim that the phone is in the dark premade theme.
+
+  node scripts/b63-tree-branches.test.js
+
+Real records stay on the box. This is not mockup approval.

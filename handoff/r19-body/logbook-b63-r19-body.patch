@@ -1,0 +1,279 @@
+--- a/service-worker.js
++++ b/service-worker.js
+@@ -6,12 +6,13 @@
+   so users should still export JSON backups for long-term records.
+ */
+ 
+-// v91: a controlled page serves the cached shell. A script whose Request lookup
+-// misses or throws still uses the cached response for that exact URL before the
+-// fetch is failed. An older cache is deleted on activate.
++// v92: a controlled reload was aborting scripts after status 200 while the cache
++// still held the file. Script, style, and document responses are copied into a
++// new body with the length of those bytes before they are returned. Activate
++// deletes every older cache.
+ // iosScheme is https, so this worker registers inside the iOS wrapper (https://localhost).
+ // Precache requests use cache:'reload' so a cached localhost response cannot refill the new cache.
+-const CACHE_NAME = 'boriken-genetics-logbook-app-v91';
++const CACHE_NAME = 'boriken-genetics-logbook-app-v92';
+ const APP_SHELL = [
+   './',
+   './index.html',
+@@ -198,23 +199,42 @@
+     return caches.match(request.url).catch(() => null);
+   });
+ }
++function copyBody(request) {
++  const dest = request.destination;
++  if (dest === 'script' || dest === 'document' || dest === 'style' || dest === 'worker') return true;
++  try { return /\.(js|css|html|json)$/i.test(new URL(request.url).pathname); }
++  catch (e) { return false; }
++}
++function deliver(response, url) {
++  if (!response) return Promise.resolve(response);
++  const readable = response.bodyUsed && url ? caches.match(url).catch(() => null) : Promise.resolve(response);
++  return readable.then((source) => {
++    const body = source || response;
++    return body.clone().arrayBuffer().then((bytes) => {
++      const headers = new Headers(body.headers);
++      headers.set('Content-Length', String(bytes.byteLength));
++      return new Response(bytes, { status: body.status, statusText: body.statusText, headers: headers });
++    });
++  }).catch(() => response);
++}
+ self.addEventListener('fetch', (event) => {
+   if (event.request.method !== 'GET' || !sameOrigin(event.request)) return;
+   if (repairRequest(event.request)) {
+     event.respondWith(repairResponse(event.request));
+     return;
+   }
++  const copy = copyBody(event.request);
+   let networkRequest = event.request;
+   try { networkRequest = event.request.clone(); } catch (e) { networkRequest = event.request; }
+   event.respondWith(matchUrl(event.request).then((found) => {
+-    if (found) return found;
++    if (found) return copy ? deliver(found, event.request.url) : found;
+     return fetch(networkRequest).then((response) => {
+       remember(event.request, response);
+-      return response;
++      return copy ? deliver(response, event.request.url) : response;
+     }).catch(() => matchUrl(event.request).then((again) => {
+-      if (again) return again;
++      if (again) return copy ? deliver(again, event.request.url) : again;
+       if (event.request.mode === 'navigate') {
+-        return caches.match('./index.html').then((shell) => shell || Promise.reject(new Error('unavailable')));
++        return caches.match('./index.html').then((shell) => shell ? deliver(shell, event.request.url) : Promise.reject(new Error('unavailable')));
+       }
+       return Promise.reject(new Error('unavailable'));
+     }));
+--- a/www/service-worker.js
++++ b/www/service-worker.js
+@@ -6,12 +6,13 @@
+   so users should still export JSON backups for long-term records.
+ */
+ 
+-// v91: a controlled page serves the cached shell. A script whose Request lookup
+-// misses or throws still uses the cached response for that exact URL before the
+-// fetch is failed. An older cache is deleted on activate.
++// v92: a controlled reload was aborting scripts after status 200 while the cache
++// still held the file. Script, style, and document responses are copied into a
++// new body with the length of those bytes before they are returned. Activate
++// deletes every older cache.
+ // iosScheme is https, so this worker registers inside the iOS wrapper (https://localhost).
+ // Precache requests use cache:'reload' so a cached localhost response cannot refill the new cache.
+-const CACHE_NAME = 'boriken-genetics-logbook-app-v91';
++const CACHE_NAME = 'boriken-genetics-logbook-app-v92';
+ const APP_SHELL = [
+   './',
+   './index.html',
+@@ -198,23 +199,42 @@
+     return caches.match(request.url).catch(() => null);
+   });
+ }
++function copyBody(request) {
++  const dest = request.destination;
++  if (dest === 'script' || dest === 'document' || dest === 'style' || dest === 'worker') return true;
++  try { return /\.(js|css|html|json)$/i.test(new URL(request.url).pathname); }
++  catch (e) { return false; }
++}
++function deliver(response, url) {
++  if (!response) return Promise.resolve(response);
++  const readable = response.bodyUsed && url ? caches.match(url).catch(() => null) : Promise.resolve(response);
++  return readable.then((source) => {
++    const body = source || response;
++    return body.clone().arrayBuffer().then((bytes) => {
++      const headers = new Headers(body.headers);
++      headers.set('Content-Length', String(bytes.byteLength));
++      return new Response(bytes, { status: body.status, statusText: body.statusText, headers: headers });
++    });
++  }).catch(() => response);
++}
+ self.addEventListener('fetch', (event) => {
+   if (event.request.method !== 'GET' || !sameOrigin(event.request)) return;
+   if (repairRequest(event.request)) {
+     event.respondWith(repairResponse(event.request));
+     return;
+   }
++  const copy = copyBody(event.request);
+   let networkRequest = event.request;
+   try { networkRequest = event.request.clone(); } catch (e) { networkRequest = event.request; }
+   event.respondWith(matchUrl(event.request).then((found) => {
+-    if (found) return found;
++    if (found) return copy ? deliver(found, event.request.url) : found;
+     return fetch(networkRequest).then((response) => {
+       remember(event.request, response);
+-      return response;
++      return copy ? deliver(response, event.request.url) : response;
+     }).catch(() => matchUrl(event.request).then((again) => {
+-      if (again) return again;
++      if (again) return copy ? deliver(again, event.request.url) : again;
+       if (event.request.mode === 'navigate') {
+-        return caches.match('./index.html').then((shell) => shell || Promise.reject(new Error('unavailable')));
++        return caches.match('./index.html').then((shell) => shell ? deliver(shell, event.request.url) : Promise.reject(new Error('unavailable')));
+       }
+       return Promise.reject(new Error('unavailable'));
+     }));
+--- a/ios/App/App/public/service-worker.js
++++ b/ios/App/App/public/service-worker.js
+@@ -6,12 +6,13 @@
+   so users should still export JSON backups for long-term records.
+ */
+ 
+-// v91: a controlled page serves the cached shell. A script whose Request lookup
+-// misses or throws still uses the cached response for that exact URL before the
+-// fetch is failed. An older cache is deleted on activate.
++// v92: a controlled reload was aborting scripts after status 200 while the cache
++// still held the file. Script, style, and document responses are copied into a
++// new body with the length of those bytes before they are returned. Activate
++// deletes every older cache.
+ // iosScheme is https, so this worker registers inside the iOS wrapper (https://localhost).
+ // Precache requests use cache:'reload' so a cached localhost response cannot refill the new cache.
+-const CACHE_NAME = 'boriken-genetics-logbook-app-v91';
++const CACHE_NAME = 'boriken-genetics-logbook-app-v92';
+ const APP_SHELL = [
+   './',
+   './index.html',
+@@ -198,23 +199,42 @@
+     return caches.match(request.url).catch(() => null);
+   });
+ }
++function copyBody(request) {
++  const dest = request.destination;
++  if (dest === 'script' || dest === 'document' || dest === 'style' || dest === 'worker') return true;
++  try { return /\.(js|css|html|json)$/i.test(new URL(request.url).pathname); }
++  catch (e) { return false; }
++}
++function deliver(response, url) {
++  if (!response) return Promise.resolve(response);
++  const readable = response.bodyUsed && url ? caches.match(url).catch(() => null) : Promise.resolve(response);
++  return readable.then((source) => {
++    const body = source || response;
++    return body.clone().arrayBuffer().then((bytes) => {
++      const headers = new Headers(body.headers);
++      headers.set('Content-Length', String(bytes.byteLength));
++      return new Response(bytes, { status: body.status, statusText: body.statusText, headers: headers });
++    });
++  }).catch(() => response);
++}
+ self.addEventListener('fetch', (event) => {
+   if (event.request.method !== 'GET' || !sameOrigin(event.request)) return;
+   if (repairRequest(event.request)) {
+     event.respondWith(repairResponse(event.request));
+     return;
+   }
++  const copy = copyBody(event.request);
+   let networkRequest = event.request;
+   try { networkRequest = event.request.clone(); } catch (e) { networkRequest = event.request; }
+   event.respondWith(matchUrl(event.request).then((found) => {
+-    if (found) return found;
++    if (found) return copy ? deliver(found, event.request.url) : found;
+     return fetch(networkRequest).then((response) => {
+       remember(event.request, response);
+-      return response;
++      return copy ? deliver(response, event.request.url) : response;
+     }).catch(() => matchUrl(event.request).then((again) => {
+-      if (again) return again;
++      if (again) return copy ? deliver(again, event.request.url) : again;
+       if (event.request.mode === 'navigate') {
+-        return caches.match('./index.html').then((shell) => shell || Promise.reject(new Error('unavailable')));
++        return caches.match('./index.html').then((shell) => shell ? deliver(shell, event.request.url) : Promise.reject(new Error('unavailable')));
+       }
+       return Promise.reject(new Error('unavailable'));
+     }));
+--- a/scripts/b63-r5.test.js
++++ b/scripts/b63-r5.test.js
+@@ -34,7 +34,8 @@
+   if (new Set(hashes).size !== 1) throw new Error(hashes.join(' '));
+   if (hashes[0] === REV4_SW_SHA) throw new Error('script bytes still match revision 4, so an update check would not install a worker');
+   const text = read('service-worker.js').toString('utf8');
+-  if (!text.includes("boriken-genetics-logbook-app-v91")) throw new Error('cache name');
++  if (!text.includes("boriken-genetics-logbook-app-v92")) throw new Error('cache name');
++  if (text.includes("boriken-genetics-logbook-app-v91")) throw new Error('v91 cache name still present');
+   if (text.includes("boriken-genetics-logbook-app-v90")) throw new Error('v90 cache name still present');
+   if (text.includes("boriken-genetics-logbook-app-v89")) throw new Error('v89 cache name still present');
+   if (text.includes("boriken-genetics-logbook-app-v88")) throw new Error('v88 cache name still present');
+@@ -176,6 +177,8 @@
+   await v89.put('https://localhost/b63-repair.json', new Response('V89-STALE-REPAIR', { status: 200 }));
+   const v90 = await scope.caches.open('boriken-genetics-logbook-app-v90');
+   await v90.put('https://localhost/b63-repair.json', new Response('V90-STALE-REPAIR', { status: 200 }));
++  const v91 = await scope.caches.open('boriken-genetics-logbook-app-v91');
++  await v91.put('https://localhost/b63-repair.json', new Response('V91-STALE-REPAIR', { status: 200 }));
+ 
+   const held = await scope.caches.match('https://localhost/build57.js');
+   if (!held || await held.text() !== 'REV2-STALE') throw new Error('seed failed');
+@@ -201,7 +204,8 @@
+   if (names.includes('boriken-genetics-logbook-app-v88')) throw new Error('v88 cache kept ' + names.join(','));
+   if (names.includes('boriken-genetics-logbook-app-v89')) throw new Error('v89 cache kept ' + names.join(','));
+   if (names.includes('boriken-genetics-logbook-app-v90')) throw new Error('v90 cache kept ' + names.join(','));
+-  if (!names.includes('boriken-genetics-logbook-app-v91')) throw new Error('new cache missing ' + names.join(','));
++  if (names.includes('boriken-genetics-logbook-app-v91')) throw new Error('v91 cache kept ' + names.join(','));
++  if (!names.includes('boriken-genetics-logbook-app-v92')) throw new Error('new cache missing ' + names.join(','));
+ 
+   const precached = await scope.caches.match('https://localhost/build57.js');
+   const precachedBody = await precached.text();
+--- a/scripts/b63-photo-missing.test.js
++++ b/scripts/b63-photo-missing.test.js
+@@ -184,7 +184,7 @@
+   });
+   const sw = fs.readFileSync(path.join(ROOT, 'service-worker.js'), 'utf8');
+   check('revision 5 cache name does not change this export path', () => {
+-    if (!sw.includes("boriken-genetics-logbook-app-v91")) throw new Error('worker');
++    if (!sw.includes("boriken-genetics-logbook-app-v92")) throw new Error('worker');
+     const fn = fs.readFileSync(path.join(ROOT, 'app.js'), 'utf8');
+     const start = fn.indexOf('async function buildFullBackupPayload');
+     const body = fn.slice(start, fn.indexOf('function snapshotCounts'));
+--- a/scripts/b63-sw-browser.test.js
++++ b/scripts/b63-sw-browser.test.js
+@@ -144,10 +144,10 @@
+       const out = await send('Runtime.evaluate', { expression: READ, awaitPromise: true, returnByValue: true });
+       updated = out.result && out.result.value;
+       const fresh = updated && updated.build13 && updated.build13.sum === EXPECT['build13.js'] && updated.build58.sum === EXPECT['build58.js'] && updated.build63 && updated.build63.sum === EXPECT['build63.js'];
+-      if (fresh && updated.keys.includes('boriken-genetics-logbook-app-v91') && !updated.keys.includes(cacheName)) break;
++      if (fresh && updated.keys.includes('boriken-genetics-logbook-app-v92') && !updated.keys.includes(cacheName)) break;
+       await sleep(250);
+     }
+-    if (!updated || updated.build13.sum !== EXPECT['build13.js'] || updated.build58.sum !== EXPECT['build58.js'] || !updated.build63 || updated.build63.sum !== EXPECT['build63.js'] || updated.keys.includes(cacheName) || !updated.keys.includes('boriken-genetics-logbook-app-v91')) {
++    if (!updated || updated.build13.sum !== EXPECT['build13.js'] || updated.build58.sum !== EXPECT['build58.js'] || !updated.build63 || updated.build63.sum !== EXPECT['build63.js'] || updated.keys.includes(cacheName) || !updated.keys.includes('boriken-genetics-logbook-app-v92')) {
+       throw new Error(cacheName + ' did not install the current worker ' + JSON.stringify(updated) + ' ' + logs.join(' | '));
+     }
+     console.log('PASS real Chrome replaced ' + cacheName + ' and served the current build13.js, build58.js, and build63.js');
+@@ -177,7 +177,8 @@
+     await chromeCase('boriken-genetics-logbook-app-v88', 9349);
+     await chromeCase('boriken-genetics-logbook-app-v89', 9350);
+     await chromeCase('boriken-genetics-logbook-app-v90', 9351);
+-    console.log('b63 sw browser: v81 through v90 update paths passed');
++    await chromeCase('boriken-genetics-logbook-app-v91', 9352);
++    console.log('b63 sw browser: v81 through v91 update paths passed');
+   } finally {
+     server.close();
+   }
+--- a/scripts/b63-repair-startup.test.js
++++ b/scripts/b63-repair-startup.test.js
+@@ -139,7 +139,7 @@
+     if (offline.father !== '-' || offline.detail.bytes < 1) fail('offline reload left ' + JSON.stringify(offline));
+     const cached = await cacheProof();
+     const joined = (cached.urls || []).join(' ');
+-    if (!cached.names.includes('boriken-genetics-logbook-app-v91') || joined.indexOf('build63.js') < 0 || joined.indexOf('b63-repair.json') < 0 || cached.repair !== repair) fail('offline cache was not the installed shell ' + JSON.stringify(cached));
++    if (!cached.names.includes('boriken-genetics-logbook-app-v92') || joined.indexOf('build63.js') < 0 || joined.indexOf('b63-repair.json') < 0 || cached.repair !== repair) fail('offline cache was not the installed shell ' + JSON.stringify(cached));
+     console.log('PASS offline reload settled via ' + offline.detail.via + ' bytes=' + offline.detail.bytes + ' in ' + offline.elapsed + 'ms');
+     await send('Network.emulateNetworkConditions', { offline: false, latency: 0, downloadThroughput: -1, uploadThroughput: -1 });
+     repairDelay = 3000;

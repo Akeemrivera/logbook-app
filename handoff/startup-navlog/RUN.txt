@@ -1,0 +1,14 @@
+Replace only scripts/b63-navlog.js on the preserved snap17 tree.
+Do not replace scripts/b63-real-mockup.js or scripts/b63-real-mockup.test.js.
+
+One command:
+
+  node scripts/b63-navlog.test.js
+
+On the failing viewport, keep NAVLOG FAIL, NAVLOG coverage, every NAVLOG target, and every NAVLOG script line.
+
+fromServiceWorker is true or false only when a response was recorded. It is absent when no response event arrived. absent is not false.
+server=none means this Node server did not log that path. It does not mean the browser created no request.
+doneServer and failServer use the same server match, so the two sets can be compared.
+
+A pass is not a fix.

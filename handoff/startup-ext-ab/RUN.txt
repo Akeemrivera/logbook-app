@@ -1,0 +1,13 @@
+Copy scripts/b63-ext-off.js and scripts/b63-ext-ab.test.js onto the preserved snap17 tree.
+Do not replace scripts/b63-real-mockup.js, scripts/b63-real-mockup.test.js, service-worker.js, or build63.css.
+
+One command:
+
+  node scripts/b63-ext-ab.test.js
+
+Baseline is the unchanged renderer, original tree fixture, default three viewports.
+Treatment is that renderer plus --disable-extensions and --disable-component-extensions-with-background-pages on the test Chrome process.
+Keep the AB baseline and AB treatment lines, including every AB target line.
+A boot failure exits 1. A pass does not change the application. Acceptance remains:
+
+  node scripts/b63-real-mockup.test.js
