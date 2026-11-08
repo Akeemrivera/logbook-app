@@ -1,0 +1,20 @@
+Box path: /workspace/b63audit/snap17-tree3-harnessflags
+Evidence: 915d521726a3dfd9f7439feadf7a8cf8dfc847f8fb000c3c5205410e546790e0
+When: 2026-11-07 19:46 ET. One run each. No retry.
+
+Renderer: 179ccd7210ea58d76d72f9b26d31cb6c02cce620f91e9a8c2189c21132bbeb9a
+Guard: 069ccbb7f677cdea2c9ccb803ec7f0ee86dd0cc8b9c3c90be9652b1a1e470342
+Acceptance test: 2f8280d194adb8a81c729637c199a82e07d0a674df5d0bca7e8b61d7b8eb89d5
+CSS, all three copies: 26eb7f883d6da8118529d185483ad72d6a960f7f3c0f0423e3c732c84f9fc58e
+Service worker: 25a422476c95b2155c51991efc0e4f8e635f4c0a1ca28e5aa640de1027717624
+build57.js: 1c4c20c8b884073bf89787b4273b28e3b8d78e68e9c798a7dfb3723cf0a70cc5
+build60.js: c2e8e314d6aa0632197a62be16efd16a04ad2eeeb3a33573e62c7738387385b4
+
+node scripts/b63-tree3-flags.test.js: exit 0
+node scripts/b63-real-mockup.test.js: exit 0, 16 PASS lines, final line "b63 real mockup: screens and packaging held"
+
+The earlier "17" count included the guard. The acceptance command itself printed 16 PASS lines.
+
+The three-pair extension comparison stays inconclusive. The cause of the earlier unisolated boot failures is unknown. This change isolates the test Chrome. It is not a phone fix, not QA, not appearance approval, and not an upload.
+
+No startup boot failure is recorded on this isolated tree3 candidate.
