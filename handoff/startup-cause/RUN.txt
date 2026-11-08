@@ -1,0 +1,25 @@
+Copy scripts/b63-cause.js and scripts/b63-cause.test.js onto the preserved snap17 tree.
+Do not replace scripts/b63-real-mockup.js, scripts/b63-real-mockup.test.js, service-worker.js, or build63.css.
+
+One command:
+
+  node scripts/b63-cause.test.js
+
+Hypothesis: the second navigation fails because the viewport metrics change and Page.navigate run back to back.
+Control uses 1024x768 for that navigation. Hold uses the first viewport's 390x844 in the same setDeviceMetricsOverride call. Nothing is inserted between that call and Page.navigate.
+
+Read the final line, CAUSE verdict:
+  supported      control 1024 failed with no script response and no server record, and hold booted with a response for every script
+  rejected       hold failed with that same shape
+  not-reproduced control 1024 did not fail with that shape
+  inconclusive   control failed in a different shape
+  incomplete     a summary line was missing
+
+not-reproduced is not a fix. The acceptance command remains node scripts/b63-real-mockup.test.js.
+
+Keep both CAUSE summary lines for 1024x768, the CAUSE worker and CAUSE target lines, and the CAUSE resource lines for both viewports in both arms.
+clientSeenBeforeScripts and lastClientBeforeScripts are worker version events at or before the first script request.
+postLoadController is only the later boot poll.
+A service-worker.js request time is not a controller observation.
+fromServiceWorker is absent when no response event arrived. absent is not false.
+server=none means this Node server did not log that path.
