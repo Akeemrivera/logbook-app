@@ -1,0 +1,11 @@
+Copy scripts/b63-capture.js and scripts/b63-capture.test.js onto the preserved snap17 tree.
+Do not replace scripts/b63-real-mockup.js, scripts/b63-real-mockup.test.js, service-worker.js, or build63.css.
+
+One command:
+
+  node scripts/b63-capture.test.js
+
+Same fixture, tree record, phase before, and default three viewports as the original tree check.
+Keep every CAPTURE summary, CAPTURE script, CAPTURE document, CAPTURE target, CAPTURE workerErrorReported, CAPTURE workerException, and CAPTURE workerConsole line.
+A boot failure exits nonzero after those lines are flushed. A pass is not a fix.
+Acceptance remains: node scripts/b63-real-mockup.test.js
