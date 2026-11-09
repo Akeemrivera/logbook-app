@@ -10,9 +10,15 @@ Local proof, already run, three and three, all kept:
 before: executedMiss=0, net::ERR_FAILED, response=absent
 after:  executedMiss=1, result=ok, response=200
 
-On the tree3 candidate (renderer 179ccd72…), from the tree root:
+On the tree3 candidate (renderer 179ccd72…), from the tree root, with the
+corrected patcher. It also replaces the navigation-shell Promise.reject
+with a 503 text/html page. The three copies must match, and a second run
+refuses because the cache is already v93.
 
   node /path/to/b63-sw-v93-patch.js .
+
+Expected service-worker.js sha256:
+  5269935d4d8600de6eb486c52ef0ef22a06cdf9014385a5093f6fb917eef7a8b
 
 That rewrites service-worker.js, www/service-worker.js, and
 ios/App/App/public/service-worker.js from v92 to v93 and requires the three
