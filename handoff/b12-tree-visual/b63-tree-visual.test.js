@@ -1,8 +1,10 @@
 'use strict';
 /*
-  Public fixture only. Azulejo keeps one plant circle and one ribbon, and
-  its outer labels stay whole inside the screen. Ceiba has no empty title
-  circle, and opening the tree from Breeding leaves the Breeding tab active.
+  Public fixture only. Azulejo keeps one plant circle and one ribbon.
+  Each fan label stays inside its own wedge, does not overlap another
+  label or the centre circle, and is drawn at its natural width.
+  Ceiba keeps the title glyph, and opening the tree from Breeding
+  leaves the Breeding tab active.
 
   Widths 390x844, 375x667, 1024x768. Light, then setThemePref('dark').
   Chrome uses the harness flags from renderer 179ccd72.
@@ -19,11 +21,14 @@ const CHROME = process.env.CHROME || '/opt/google/chrome/chrome';
 const FLAGS = ['--disable-extensions', '--disable-component-extensions-with-background-pages'];
 const WIDTHS = [[390, 844], [375, 667], [1024, 768]];
 const state = {
-  plants: [{ id: 'p-nophoto', name: 'Fixture Child', status: 'active', count: 1, logs: [], treeStyle: 4, b49Mother: 'mf:m-mom', b49Father: 'mf:f-dad', b58Manual: { m: true, f: true } }],
+  plants: [
+    { id: 'p-nophoto', name: 'Fixture Child', status: 'active', count: 1, logs: [], treeStyle: 4, b49Mother: 'mf:m-north', b49Father: 'mf:f-rom', b58Manual: { m: true, f: true } },
+    { id: 'p-sib', name: 'Fixture Sibling', status: 'active', count: 1, logs: [], treeStyle: 4, b49Mother: 'mf:m-north', b49Father: 'mf:f-rom', b58Manual: { m: true, f: true } },
+  ],
   breedingPlants: [],
   motherFatherPlants: [
-    { id: 'm-mom', name: 'Fixture Mother With A Long Label', role: 'mother', status: 'Active', treeStyle: 4 },
-    { id: 'f-dad', name: 'Fixture Father With A Long Label', role: 'father', status: 'Active', treeStyle: 4 },
+    { id: 'm-north', name: 'Northern lights #5', role: 'mother', status: 'Active', treeStyle: 4 },
+    { id: 'f-rom', name: 'Romulan', role: 'father', status: 'Active', treeStyle: 4 },
   ],
   breedingProjects: [],
   cloneRuns: [],
@@ -67,12 +72,56 @@ const MEASURE = `(() => {
       outside: r.width > 0 && (r.left < -1 || r.right > window.innerWidth + 1 || r.top < -1 || r.bottom > window.innerHeight + 1),
     };
   });
+  function boxOf(el) { const r = el.getBoundingClientRect(); return { l: r.left, r: r.right, t: r.top, b: r.bottom, w: r.width, h: r.height }; }
+  function hits(a, b) { return a.w > 0.4 && b.w > 0.4 && a.l < b.r - 0.6 && a.r > b.l + 0.6 && a.t < b.b - 0.6 && a.b > b.t + 0.6; }
+  const fanSvg = root && root.querySelector('svg.b57-svg.fan');
+  let fan = null;
+  if (fanSvg) {
+    const centre = fanSvg.querySelector('.b57-ctr');
+    const cr = centre ? boxOf(centre) : null;
+    const segs = [...fanSvg.querySelectorAll('g.b57-seg')].map((g) => {
+      const path = g.querySelector('path');
+      const pb = path ? boxOf(path) : null;
+      const bits = [...g.querySelectorAll('text')].flatMap((text) => {
+        const spans = [...text.querySelectorAll('tspan')];
+        const nodes = spans.length ? spans : [text];
+        const full = (text.getAttribute('data-full') || text.textContent || '').replace(/\\s+/g, '');
+        const shown = (text.textContent || '').replace(/\\s+/g, '');
+        const svg = text.ownerSVGElement;
+        const vb = svg && svg.viewBox && svg.viewBox.baseVal;
+        const scale = vb && vb.width ? svg.getBoundingClientRect().width / vb.width : 1;
+        const fs = (parseFloat(getComputedStyle(text).fontSize) || 0) * (scale || 1);
+        const mismatched = text.hasAttribute('textLength') || shown !== full;
+        return nodes.map((el) => {
+          const b = boxOf(el);
+          let intended = 0;
+          try {
+            const ctx = document.createElement('canvas').getContext('2d');
+            ctx.font = getComputedStyle(el).font;
+            intended = ctx.measureText(el.textContent || '').width;
+          } catch (e) { intended = 0; }
+          const crushed = mismatched || (intended > 8 && b.w + 1.5 < intended * 0.9);
+          return { b, fs, crushed };
+        });
+      });
+      return { pb, bits, aria: g.getAttribute('aria-label') || '' };
+    });
+    const pieces = segs.flatMap((seg) => seg.bits.map((bit) => bit.b));
+    let overlap = false;
+    for (let i = 0; i < pieces.length; i++) for (let j = i + 1; j < pieces.length; j++) if (hits(pieces[i], pieces[j])) overlap = true;
+    const outside = segs.some((seg) => seg.pb && seg.bits.some((bit) => bit.b.w > 0.4 && (bit.b.l < seg.pb.l - 1.5 || bit.b.r > seg.pb.r + 1.5 || bit.b.t < seg.pb.t - 1.5 || bit.b.b > seg.pb.b + 1.5)));
+    const centreHit = !!(cr && segs.some((seg) => seg.bits.some((bit) => hits(bit.b, cr))));
+    const clipped = segs.some((seg) => seg.bits.some((bit) => bit.crushed));
+    const small = segs.some((seg) => seg.bits.some((bit) => bit.fs && bit.fs < (window.innerWidth >= 380 && window.innerWidth <= 430 ? 9 : 8.2)));
+    const short = segs.filter((seg) => /\\+ Not recorded/.test(seg.aria)).length;
+    fan = { segments: segs.length, overlap, outside, centreHit, clipped, small, short };
+  }
   const de = document.scrollingElement || document.documentElement;
   const breed = document.querySelector('#tabbar [data-tab-view="breeding"]');
   const lin = document.querySelector('#tabbar [data-tab-view="lineage"]');
   const on = (el) => !!(el && (el.classList.contains('active') || el.classList.contains('on') || el.getAttribute('aria-current') === 'page'));
   return {
-    k, circles, ribbons, badge, glyph, labels,
+    k, circles, ribbons, badge, glyph, labels, fan,
     pan: de.scrollWidth > de.clientWidth + 2,
     breed: on(breed), lineage: on(lin),
     notRecorded: labels.some((row) => row.full === 'Not recorded' || row.full === '+ Not recorded'),
@@ -91,6 +140,15 @@ function judge(row, style) {
       if (label.outside) fails.push('label outside the screen ' + JSON.stringify(label));
     });
     if (!row.notRecorded) fails.push('outer Not recorded label is missing');
+    if (!row.fan || row.fan.segments < 4) fails.push('grandparent wedges missing');
+    else {
+      if (row.fan.overlap) fails.push('fan labels overlap');
+      if (row.fan.outside) fails.push('a fan label leaves its wedge');
+      if (row.fan.centreHit) fails.push('a fan label hits the centre circle');
+      if (row.fan.clipped) fails.push('a fan label is clipped');
+      if (row.fan.small) fails.push('a fan label is under 9px');
+      if (row.fan.short < 4) fails.push('an empty slot is not + Not recorded');
+    }
   }
   if (!row.badge || !row.glyph) fails.push('title badge glyph is missing');
   if (row.k === 'ceiba' && (!row.breed || row.lineage)) fails.push('tab is not Breeding');

@@ -9,7 +9,17 @@ drawing.
 onLin() treats every family tree as the Lineage tab, including one
 opened from Breeding. The B-4 diffs do not change mark().
 
-From the B-10 app root, or from the first B-12 patch:
+The r2 label check only asked for a viewport box and no ellipsis, so
+the middle-ring grandparents still collided. This revision places each
+Azulejo fan label inside its own wedge. An empty slot draws
+"+ Not" / "recorded". The "Mother of …" line stays on the accessible
+name, and is drawn only when that row fits in the same block. The font
+stays 10 user px.
+
+The public fixture is a plant with mother Northern lights #5, father
+Romulan, four Not recorded grandparents, and one sibling.
+
+From the B-10 app root, or from either earlier B-12 patch:
 
   node /path/to/b12-tree-visual/b63-tree-visual-patch.js .
 
@@ -23,11 +33,11 @@ Chrome flags: --disable-extensions and
 --disable-component-extensions-with-background-pages.
 Dark is setThemePref('dark').
 
-build57.js                  5c0408fe405ae39e8e9b3c0da1ea7d0d3ae6e7a568f064ff28c22aa6a4d00c47
+build57.js                  0c68d9d14d62d8236eb575d8f53f484bfe378a793908078df7610a1a11f83cde
 build63.css                 a5d3be09a872055377fdf49988d2caa50bf38aa48b43aedaecdb0201e827abbf
-service-worker.js           59d1244fe9b55ba578a7982db539bf26e6feacd92c13eba339abac3be92a1d48
-b63-tree-visual-patch.js    a03cf3f4ed79d0fe406edb11e564d1bcc1fa2efa990a43ccfacb9d937f4851d0
-b63-tree-visual.test.js     4da5ec82cdecf3b544e7d6a2f5094a74f5b3d8bdc747275beaf547852187aea5
+service-worker.js           299b116d90e9604667d0aca8a1f61acd5ba3485c6399e4b17f497688eea1ba61
+b63-tree-visual-patch.js    9e0cea65a8316e55e6e2ada2582703e609c8f14b22e55a1e8641c42b68e0609d
+b63-tree-visual.test.js     16b6f8c8a2bde9d6f98dd5bde271d5b8587105b0b885e70e97077f59f7f97bd7
 b63-tree-ribbon.test.js     cc8328381809a1e960b82101753150d186f30117fec1f9069be4a8d28388126c
 
-Cache name is v98. The title badge stays; a missing glyph uses the light plant image. Fetch behavior is unchanged.
+Cache name is v99. The title badge stays; a missing glyph uses the light plant image. Fetch behavior is unchanged.

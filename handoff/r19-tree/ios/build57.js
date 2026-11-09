@@ -227,12 +227,80 @@
     const xAt = x.toFixed(1);
     return `<text x="${xAt}" y="${y0.toFixed(1)}" text-anchor="middle" class="${cls || 't1'}" data-full="${esc(t)}" style="font-size:${fs.toFixed(1)}px">${lines.map((l, i) => `<tspan x="${xAt}" dy="${i ? (fs * 1.05).toFixed(1) : 0}">${esc(l)}</tspan>`).join('')}</text>`;
   }
+  function wedgeBox(cx, cy, r0, r1, b0, b1) {
+    const pts = [];
+    for (let a = b0; a <= b1 + 1e-6; a += Math.max(0.02, (b1 - b0) / 8)) { pts.push(P_(cx, cy, r0, a)); pts.push(P_(cx, cy, r1, a)); }
+    pts.push(P_(cx, cy, r0, b0), P_(cx, cy, r1, b0), P_(cx, cy, r0, b1), P_(cx, cy, r1, b1));
+    const xs = pts.map((p) => p[0]); const ys = pts.map((p) => p[1]);
+    return { l: Math.min.apply(null, xs), r: Math.max.apply(null, xs), t: Math.min.apply(null, ys), b: Math.max.apply(null, ys) };
+  }
+  function wrapLines(text, fs, maxW) {
+    const widthOf = (s) => Math.max(fs, String(s).length * fs * 0.56);
+    const words = String(text).split(' ');
+    const lines = []; let cur = '';
+    words.forEach((w) => {
+      const next = cur ? cur + ' ' + w : w;
+      if (!cur || widthOf(next) <= maxW) cur = next;
+      else { lines.push(cur); cur = w; }
+    });
+    if (cur) lines.push(cur);
+    return { lines, widthOf, widest: Math.max.apply(null, lines.map(widthOf)) };
+  }
+  /* Fan wedges are short. An empty slot shows "+ Not" / "recorded" only.
+     The "Mother of …" line stays on the wedge as its accessible name unless
+     that second row fits in the same block. */
+  function fanLines(text, fs, maxW) {
+    if (text === '+ Not recorded') {
+      return { lines: ['+ Not', 'recorded'], widest: Math.max(fs, '+ Not'.length * fs * 0.56, 'recorded'.length * fs * 0.56) };
+    }
+    return wrapLines(text, fs, maxW);
+  }
+  function fanLabel(lines, tx, ty, box, fs, cls, full) {
+    const widthOf = (s) => Math.max(fs, String(s).length * fs * 0.56);
+    const widest = Math.max.apply(null, lines.map(widthOf));
+    const lineH = fs * 1.15;
+    const blockH = lines.length * lineH;
+    let x = tx;
+    let top = ty - blockH / 2;
+    if (x - widest / 2 < box.l + 1) x += (box.l + 1) - (x - widest / 2);
+    if (x + widest / 2 > box.r - 1) x -= (x + widest / 2) - (box.r - 1);
+    if (top < box.t + 1) top = box.t + 1;
+    if (top + blockH > box.b - 1) top = Math.max(box.t + 1, box.b - 1 - blockH);
+    const y0 = top + fs * 0.82;
+    const xAt = x.toFixed(1);
+    return `<text x="${xAt}" y="${y0.toFixed(1)}" text-anchor="middle" class="${cls}" data-full="${esc(full)}" style="font-size:${fs}px">${lines.map((l, i) => `<tspan x="${xAt}" dy="${i ? lineH.toFixed(1) : 0}">${esc(l)}</tspan>`).join('')}</text>`;
+  }
   function ring(items, cx, cy, r0, r1, a0, a1, cls, boxW, boxH) {
     if (!items.length) return ''; const step = (a1 - a0) / items.length; let s = '';
+    const fan = !!(boxH && boxH <= 220);
     items.forEach((x, i) => { const b0 = a0 + i * step, b1 = b0 + step, m = (b0 + b1) / 2, rm = (r0 + r1) / 2; const [tx, ty] = P_(cx, cy, rm, m); const arc = Math.min(step * rm * 0.92, 120);
       const nm = x.cand ? x.t : x.self ? 'Self (S1)' : x.none ? (x.via ? '+ Not recorded' : 'Not recorded') : x.k ? nm2(x.k) : (x.t || 'Not recorded'); const sb = x.cand ? x.s : x.k ? (x.ref ? 'also above' : (stat(x.k).t === 'culled' ? 'Culled' : stat(x.k).t === 'archived' ? 'Archived' : stat(x.k).t === 'retired' ? 'Retired' : stat(x.k).t === 'removed' ? 'Deleted plant' : stat(x.k).t === 'nameonly' ? 'Name only' : stat(x.k).t === 'bought' ? (window.B58 && B58.boughtBadge ? B58.boughtBadge(stat(x.k).br) : 'Bought') : (x.role || gen(x.k)))) : (x.s || x.role || '');
       const one = step * rm < 34; const tap = x.k && !isUnk(x.k); const add = !tap && x.via && x.side;
-      s += `<g class="b57-seg ${cls}${tap ? '' : add ? ' none add' : ' none'}${x.keeper ? ' keeper' : ''}${x.me ? ' is-me' : ''}"${tap ? ` data-b57="sel" data-k="${esc(x.k)}" role="button" tabindex="0" aria-label="${esc(nm)}"` : add ? ` data-b58="add" role="button" tabindex="0" aria-label="${esc(nm)} · tap to add"` : ''}${ofA(x)}${add ? ' data-add="1"' : ''}${x.cand ? ` data-cand="${x.i}"` : ''}><path d="${seg(cx, cy, r0, r1, b0, b1)}"/>${lbl(nm, tx, ty + (one ? 4 : -2), arc, boxW, boxH, 't1')}${one ? '' : lbl(sb, tx, ty + 11, arc, boxW, boxH, 't2')}</g>`; });
+      const detail = sb && String(sb) !== String(nm) ? String(sb) : '';
+      const aria = detail ? `${nm} · ${detail}` : nm;
+      if (fan) {
+        const raw = wedgeBox(cx, cy, r0, r1, b0, b1);
+        const guard = 56;
+        const box = (raw.b > cy - guard && raw.t < cy + guard && raw.r > cx - guard && raw.l < cx + guard)
+          ? { l: raw.l, r: raw.r, t: raw.t, b: Math.min(raw.b, cy - guard - 1) }
+          : raw;
+        const fs = 10;
+        const maxW = Math.max(20, box.r - box.l - 4);
+        const nameBlock = fanLines(nm, fs, maxW);
+        let lines = nameBlock.lines.slice();
+        let full = nm;
+        if (detail && !x.none) {
+          const subBlock = fanLines(detail, fs, maxW);
+          const lineH = fs * 1.15;
+          const allH = (lines.length + subBlock.lines.length) * lineH;
+          const allW = Math.max(nameBlock.widest, subBlock.widest);
+          if (allH <= (box.b - box.t - 2) && allW <= maxW) { lines = lines.concat(subBlock.lines); full = nm + ' ' + detail; }
+        }
+        s += `<g class="b57-seg ${cls}${tap ? '' : add ? ' none add' : ' none'}${x.keeper ? ' keeper' : ''}${x.me ? ' is-me' : ''}"${tap ? ` data-b57="sel" data-k="${esc(x.k)}" role="button" tabindex="0" aria-label="${esc(aria)}"` : add ? ` data-b58="add" role="button" tabindex="0" aria-label="${esc(aria)}"` : ` aria-label="${esc(aria)}"`}${ofA(x)}${add ? ' data-add="1"' : ''}${x.cand ? ` data-cand="${x.i}"` : ''}><path d="${seg(cx, cy, r0, r1, b0, b1)}"/>${fanLabel(lines, tx, ty, box, fs, 't1', full)}</g>`;
+      } else {
+        s += `<g class="b57-seg ${cls}${tap ? '' : add ? ' none add' : ' none'}${x.keeper ? ' keeper' : ''}${x.me ? ' is-me' : ''}"${tap ? ` data-b57="sel" data-k="${esc(x.k)}" role="button" tabindex="0" aria-label="${esc(nm)}"` : add ? ` data-b58="add" role="button" tabindex="0" aria-label="${esc(aria)}"` : ` aria-label="${esc(aria)}"`}${ofA(x)}${add ? ' data-add="1"' : ''}${x.cand ? ` data-cand="${x.i}"` : ''}><path d="${seg(cx, cy, r0, r1, b0, b1)}"/>${lbl(nm, tx, ty + (one ? 4 : -2), arc, boxW, boxH, 't1')}${one || x.none ? '' : lbl(sb, tx, ty + 11, arc, boxW, boxH, 't2')}</g>`;
+      }
+    });
     return s;
   }
   let cid = 0;
