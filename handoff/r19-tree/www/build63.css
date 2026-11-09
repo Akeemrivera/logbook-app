@@ -6,44 +6,84 @@
 #breeding-view .b60-c.st-retired b,
 #breeding-view .b57-n.st-nameonly b,
 #breeding-view .b60-c.st-nameonly b { text-decoration: none; }
+/* Inspection table. Headings break only at a space. Below 1024 the row
+   becomes a card of the same labels, in the same order, so nothing clips
+   and nothing scrolls sideways. At 1024 and wider the table stays. */
+#compliance-panel-inspection,
 #compliance-panel-inspection .table-wrap {
-  overflow: visible;
   max-width: 100%;
+  min-width: 0;
+  overflow-x: clip;
 }
 #compliance-panel-inspection table.compliance-table {
-  min-width: 0;
+  min-width: 0 !important;
   width: 100%;
+  max-width: 100%;
   table-layout: fixed;
+  border-collapse: collapse;
+}
+#compliance-panel-inspection .compliance-table th {
+  font-size: 11px;
+  line-height: 1.2;
+  letter-spacing: 0.03em;
+  padding: 6px 3px;
 }
 #compliance-panel-inspection .compliance-table th,
 #compliance-panel-inspection .compliance-table td {
-  overflow-wrap: normal;
-  word-break: normal;
-  hyphens: manual;
+  overflow-wrap: normal !important;
+  word-break: normal !important;
+  hyphens: manual !important;
   white-space: normal;
-  overflow: visible;
+  overflow: hidden;
   text-overflow: clip;
   vertical-align: top;
+  min-width: 0;
+  box-sizing: border-box;
 }
-@media (max-width: 720px) {
+#compliance-panel-inspection .compliance-table td {
+  overflow-wrap: anywhere !important;
+}
+@media (max-width: 1023px) {
   #compliance-panel-inspection table.compliance-table,
-  #compliance-panel-inspection .compliance-table tbody,
-  #compliance-panel-inspection .compliance-table tr,
-  #compliance-panel-inspection .compliance-table td {
+  #compliance-panel-inspection .compliance-table tbody {
     display: block;
     width: 100%;
+    max-width: 100%;
   }
   #compliance-panel-inspection .compliance-table thead {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip: rect(0, 0, 0, 0);
+    display: none;
+  }
+  #compliance-panel-inspection .compliance-table tr {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    margin: 0 0 10px;
+    padding: 10px 12px;
+    border-radius: 12px;
+    background: var(--card);
+    border: 1px solid var(--line);
+    color: inherit;
   }
   #compliance-panel-inspection .compliance-table td {
     display: grid;
-    grid-template-columns: minmax(0, 7.5rem) minmax(0, 1fr);
-    gap: 0.35rem;
+    grid-template-columns: max-content minmax(0, 1fr);
+    gap: 0.2rem 0.75rem;
+    align-items: baseline;
+    width: 100%;
+    padding: 3px 0;
+    overflow: hidden;
+  }
+  #compliance-panel-inspection .compliance-table td::before {
+    overflow-wrap: normal;
+    word-break: normal;
+    hyphens: manual;
+    white-space: nowrap;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--sub, inherit);
   }
   #compliance-panel-inspection .compliance-table td:nth-child(1)::before { content: "Plant code"; }
   #compliance-panel-inspection .compliance-table td:nth-child(2)::before { content: "Patient alias"; }
