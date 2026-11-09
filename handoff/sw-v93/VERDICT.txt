@@ -1,0 +1,11 @@
+Accept-watch evidence 732251e0b86cb20a0734ee974c1f1f592c9cc4cff61c1a725c72a6dede827ae7.
+Exit 1. 390 passed. 1024 failed. Six extension targets.
+80 script failures: each of the 40 scripts twice, all net::ERR_ABORTED, response absent, fromServiceWorker absent, workerStart 0, resourceStatus 0.
+
+The 1024 document did not execute app script (switchView and b18BrPageHtml are undefined). It cannot have called location.reload.
+The service worker only calls skipWaiting and clients.claim. It does not navigate the page.
+The patches in this branch show registration as navigator.serviceWorker.register(...).catch with no controllerchange or updatefound listener. build57.js and build60.js have no reload call.
+
+The unflagged renderer issues setDeviceMetricsOverride and then Page.navigate for that viewport. Those are the two loads. Both were cancelled in the browser loader before a service worker fetch. The same renderer sequence with the two isolation flags passed the 16-check acceptance.
+
+Verdict: test-harness / headless-Chrome artifact while extension workers are running. It cannot occur in the iOS WKWebView production app. The remedy is the existing harness renderer 179ccd7210ea58d76d72f9b26d31cb6c02cce620f91e9a8c2189c21132bbeb9a. No further box run.
