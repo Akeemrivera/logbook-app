@@ -9,7 +9,7 @@ drawing.
 onLin() treats every family tree as the Lineage tab, including one
 opened from Breeding. The B-4 diffs do not change mark().
 
-From the B-10 app root:
+From the B-10 app root, or from the first B-12 patch:
 
   node /path/to/b12-tree-visual/b63-tree-visual-patch.js .
 
@@ -23,11 +23,11 @@ Chrome flags: --disable-extensions and
 --disable-component-extensions-with-background-pages.
 Dark is setThemePref('dark').
 
-build57.js                  0698b42265b62e6035adcb465ee53edf99bb5e6e1b06a53706f9e0e060cb89a4
+build57.js                  5c0408fe405ae39e8e9b3c0da1ea7d0d3ae6e7a568f064ff28c22aa6a4d00c47
 build63.css                 a5d3be09a872055377fdf49988d2caa50bf38aa48b43aedaecdb0201e827abbf
-service-worker.js           8c19275b3a6edc95c1ba032a2adfe8ad108c1550d6b2cef3f000ec279b252a92
-b63-tree-visual-patch.js    b521a2ca8d97bdf9402d72c3606be99af77e0c4b76bdbab24b3c3d2f02b8d74d
-b63-tree-visual.test.js     4a8931cd40c0cb38bb1e6d34647561092fbaea7285cfd46616d3959e6b727701
+service-worker.js           59d1244fe9b55ba578a7982db539bf26e6feacd92c13eba339abac3be92a1d48
+b63-tree-visual-patch.js    a03cf3f4ed79d0fe406edb11e564d1bcc1fa2efa990a43ccfacb9d937f4851d0
+b63-tree-visual.test.js     4da5ec82cdecf3b544e7d6a2f5094a74f5b3d8bdc747275beaf547852187aea5
 b63-tree-ribbon.test.js     cc8328381809a1e960b82101753150d186f30117fec1f9069be4a8d28388126c
 
-Cache name is v97. Fetch behavior is unchanged.
+Cache name is v98. The title badge stays; a missing glyph uses the light plant image. Fetch behavior is unchanged.

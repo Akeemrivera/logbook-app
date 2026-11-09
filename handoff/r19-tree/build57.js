@@ -349,25 +349,72 @@ ${pg.edit ? '<div class="b58-banner" role="status">Edit mode · tap any plant to
     B49.openPage = function (pg) {
       const lin = !!(pg && pg.fromLin);
       const out = _openPage.apply(this, arguments);
-      try { if (B18.brPage && B18.brPage.type === 'b49tree') B18.brPage.fromLin = lin; mark(); clearTitleBadge(); } catch (err) { /* */ }
+      try { if (B18.brPage && B18.brPage.type === 'b49tree') B18.brPage.fromLin = lin; mark(); keepTitleGlyph(); } catch (err) { /* */ }
       return out;
     };
     B49.openPage.b63from = 1;
   }
-  function clearTitleBadge() {
+  /* The round title badge stays. Its plant glyph is img.mz-inline. A record
+     with no photo, or a dark-theme asset that fails, leaves that circle
+     empty. Use a glyph that already loaded, else the light seedling. */
+  const GLYPHS = ['mascots/light/seedling.png', 'mascots/cartoon/sprout.png', 'mascots/coqui-flag-icon.png'];
+  function glyphUrl(rel) { try { return new URL(rel, document.baseURI).href; } catch (e) { return rel; } }
+  function titleGlyphs() {
     const root = document.querySelector('#breeding-view .b57[data-b57k]');
     const h = root && root.querySelector('.b18-h1');
-    if (!h) return;
+    if (!h) return [];
     const hr = h.getBoundingClientRect();
-    [...root.querySelectorAll('img, svg, span, i, div')].forEach((el) => {
-      if (el === h || el.contains(h)) return;
-      if (!h.contains(el) && el.closest('.b57-canvas, .b57-scroll, .b57-tools, .b57-ban, .b57-svgw, #tabbar')) return;
-      const r = el.getBoundingClientRect();
-      if (r.width < 18 || r.width > 64 || r.height < 18 || r.height > 64) return;
-      if (Math.abs(r.width - r.height) > 8) return;
-      if (r.top > hr.bottom + 8 || r.bottom < hr.top - 8) return;
-      if ((el.innerText || '').trim()) return;
-      el.remove();
+    return [...root.querySelectorAll('img.mz-inline')].filter((img) => {
+      if (img.closest('.b57-canvas, .b57-scroll, .b57-ban, .b57-svgw, #tabbar')) return false;
+      if (h.contains(img)) return true;
+      const r = img.getBoundingClientRect();
+      if (!r.width && !r.height) return h.contains(img) || !!(img.parentElement && h.contains(img.parentElement));
+      return r.bottom >= hr.top - 12 && r.top <= hr.bottom + 12;
+    });
+  }
+  function glyphShown(img) {
+    if (!img.complete || img.naturalWidth < 1) return false;
+    const cs = getComputedStyle(img);
+    if (cs.display === 'none' || cs.visibility === 'hidden' || parseFloat(cs.opacity) === 0) return false;
+    const r = img.getBoundingClientRect();
+    return r.width >= 8 && r.height >= 8;
+  }
+  function revealGlyph(img) {
+    const parent = img.parentElement;
+    const pr = parent && parent.getBoundingClientRect();
+    const round = pr && pr.width >= 18 && pr.width <= 96 && Math.abs(pr.width - pr.height) < 12;
+    const size = round ? Math.max(16, Math.round(pr.width * 0.62)) : 22;
+    img.hidden = false;
+    img.removeAttribute('hidden');
+    img.style.setProperty('display', 'inline-block', 'important');
+    img.style.setProperty('visibility', 'visible', 'important');
+    img.style.setProperty('opacity', '1', 'important');
+    img.style.setProperty('width', size + 'px', 'important');
+    img.style.setProperty('height', size + 'px', 'important');
+    img.style.setProperty('max-width', 'none', 'important');
+    img.style.setProperty('object-fit', 'contain', 'important');
+  }
+  function keepTitleGlyph() {
+    titleGlyphs().forEach((img) => {
+      if (glyphShown(img)) {
+        const src = img.currentSrc || img.src || '';
+        if (/mascots\/|coqui|sprout|seedling/i.test(src)) window.__b63Glyph = src;
+        return;
+      }
+      const cur = img.getAttribute('src') || '';
+      if (!img.complete && cur) return;
+      if (img.complete && img.naturalWidth > 0) { revealGlyph(img); return; }
+      let next = window.__b63Glyph || '';
+      if ((!next || next === cur) && cur.indexOf('/dark/') >= 0) next = cur.replace('/dark/', '/light/');
+      if (!next || next === cur) {
+        const tried = img.dataset.b63try || '';
+        next = glyphUrl(GLYPHS[tried === glyphUrl(GLYPHS[0]) ? 1 : tried === glyphUrl(GLYPHS[1]) ? 2 : 0]);
+      }
+      if (img.dataset.b63try === next) return;
+      img.dataset.b63try = next;
+      img.addEventListener('error', function onErr() { img.removeEventListener('error', onErr); keepTitleGlyph(); }, { once: true });
+      img.src = next;
+      revealGlyph(img);
     });
   }
   /* b59: the profile's own key. detailColl is 'plants', 'breedingPlants' or 'mf' (b42 mother / father profiles); b57 sent every
@@ -455,6 +502,6 @@ ${pg.edit ? '<div class="b58-banner" role="status">Edit mode · tap any plant to
   const treeView = document.getElementById('breeding-view');
   if (treeView) new MutationObserver(() => { try { fitTree(); } catch (e) { /* */ } }).observe(treeView, { childList: true, subtree: true });
   window.addEventListener('resize', () => { try { fitTree(); } catch (e) { /* */ } });
-  setInterval(() => { try { addTab(); addSide(); profileBtn(); mark(); clearTitleBadge(); fitTree(); } catch (e) { console.warn('b57 entry', e); } }, 300);
+  setInterval(() => { try { addTab(); addSide(); profileBtn(); mark(); keepTitleGlyph(); fitTree(); } catch (e) { console.warn('b57 entry', e); } }, 300);
   window.B57 = { walk, detailKey, resolveKey, partners, rec, name, same, isUnk, ph, mono, rr: () => renderBreeding(), openLineage, lineageList, candidates, par2, stat, popOf, styles: STYLES, styleOf, assign, ancestors, siblings, kids, photo, fitTree };
 })();

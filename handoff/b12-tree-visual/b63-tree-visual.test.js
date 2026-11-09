@@ -19,7 +19,7 @@ const CHROME = process.env.CHROME || '/opt/google/chrome/chrome';
 const FLAGS = ['--disable-extensions', '--disable-component-extensions-with-background-pages'];
 const WIDTHS = [[390, 844], [375, 667], [1024, 768]];
 const state = {
-  plants: [{ id: 'p-child', name: 'Fixture Child', status: 'active', count: 1, logs: [], treeStyle: 4, b49Mother: 'mf:m-mom', b49Father: 'mf:f-dad', b58Manual: { m: true, f: true } }],
+  plants: [{ id: 'p-nophoto', name: 'Fixture Child', status: 'active', count: 1, logs: [], treeStyle: 4, b49Mother: 'mf:m-mom', b49Father: 'mf:f-dad', b58Manual: { m: true, f: true } }],
   breedingPlants: [],
   motherFatherPlants: [
     { id: 'm-mom', name: 'Fixture Mother With A Long Label', role: 'mother', status: 'Active', treeStyle: 4 },
@@ -37,17 +37,24 @@ const MEASURE = `(() => {
   const ribbons = root ? root.querySelectorAll('.b57-ban').length : 0;
   const h = root && root.querySelector('.b18-h1');
   const hr = h ? h.getBoundingClientRect() : null;
-  let titleCircle = false;
-  if (root && hr) {
-    titleCircle = [...root.querySelectorAll('img, svg, span, i, div')].some((el) => {
-      if (el === h || el.contains(h)) return false;
-      if (!h.contains(el) && el.closest('.b57-canvas, .b57-scroll, .b57-tools, .b57-ban, .b57-svgw, #tabbar')) return false;
-      const r = el.getBoundingClientRect();
-      if (r.width < 18 || r.width > 64 || Math.abs(r.width - r.height) > 8) return false;
-      if (r.top > hr.bottom + 8 || r.bottom < hr.top - 8) return false;
-      return !(el.innerText || '').trim();
-    });
-  }
+  const imgs = [...(root ? root.querySelectorAll('img.mz-inline') : [])].filter((img) => {
+    if (!h) return false;
+    if (img.closest('.b57-canvas, .b57-scroll, .b57-ban, .b57-svgw, #tabbar')) return false;
+    if (h.contains(img)) return true;
+    const r = img.getBoundingClientRect();
+    return r.bottom >= hr.top - 12 && r.top <= hr.bottom + 16;
+  });
+  const glyph = imgs.some((img) => {
+    const r = img.getBoundingClientRect();
+    const cs = getComputedStyle(img);
+    return img.complete && img.naturalWidth > 0 && r.width >= 8 && r.height >= 8 && cs.display !== 'none' && cs.visibility !== 'hidden' && parseFloat(cs.opacity) > 0;
+  });
+  const badge = imgs.length > 0 || [...(root ? root.querySelectorAll('span, div, i') : [])].some((el) => {
+    if (!hr || el.closest('.b57-canvas, .b57-scroll, .b57-tools, #tabbar')) return false;
+    const r = el.getBoundingClientRect();
+    if (r.width < 18 || r.width > 96 || Math.abs(r.width - r.height) > 10) return false;
+    return r.bottom >= hr.top - 8 && r.top <= hr.bottom + 8;
+  });
   const labels = [...(root ? root.querySelectorAll('svg.b57-svg text') : [])].map((el) => {
     const r = el.getBoundingClientRect();
     const text = (el.textContent || '').replace(/\\s+/g, ' ').trim();
@@ -65,7 +72,7 @@ const MEASURE = `(() => {
   const lin = document.querySelector('#tabbar [data-tab-view="lineage"]');
   const on = (el) => !!(el && (el.classList.contains('active') || el.classList.contains('on') || el.getAttribute('aria-current') === 'page'));
   return {
-    k, circles, ribbons, titleCircle, labels,
+    k, circles, ribbons, badge, glyph, labels,
     pan: de.scrollWidth > de.clientWidth + 2,
     breed: on(breed), lineage: on(lin),
     notRecorded: labels.some((row) => row.full === 'Not recorded' || row.full === '+ Not recorded'),
@@ -85,10 +92,8 @@ function judge(row, style) {
     });
     if (!row.notRecorded) fails.push('outer Not recorded label is missing');
   }
-  if (row.k === 'ceiba') {
-    if (row.titleCircle) fails.push('empty title circle');
-    if (!row.breed || row.lineage) fails.push('tab is not Breeding');
-  }
+  if (!row.badge || !row.glyph) fails.push('title badge glyph is missing');
+  if (row.k === 'ceiba' && (!row.breed || row.lineage)) fails.push('tab is not Breeding');
   return fails;
 }
 
@@ -147,7 +152,7 @@ function selfHtml(dup) {
   svg{width:300px;height:160px;overflow:visible}
   </style><body>
   <div id="tabbar"><button class="tab" data-tab-view="breeding">Breeding</button><button class="tab active" data-tab-view="lineage" aria-current="page">Lineage</button></div>
-  <div id="breeding-view"><div class="b57" data-b57k="azulejo"><h2 class="b18-h1">Family tree <span class="badge"></span></h2>
+  <div id="breeding-view"><div class="b57" data-b57k="azulejo"><h2 class="b18-h1">Family tree ${dup ? '<span class="badge"></span>' : '<span class="badge"><img class="mz-inline" src="/glyph.png" width="22" height="22" alt=""></span>'}</h2>
   <div class="b57-svgw"><svg class="b57-svg fan" viewBox="0 0 380 206"><text class="t1" data-full="Not recorded" x="8" y="20">${label}</text></svg></div>
   <g class="b57-ctr"></g><div class="b57-ban"><b>Fixture Child · F1</b><small>Fixture Mother With A Long Label</small></div>
   ${extra}
@@ -155,8 +160,11 @@ function selfHtml(dup) {
 }
 
 async function runSelf() {
+  const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
   await withChrome((req, res) => {
-    const dup = new URL(req.url, 'http://127.0.0.1').searchParams.get('dup') === '1';
+    const url = new URL(req.url, 'http://127.0.0.1');
+    if (url.pathname === '/glyph.png') { res.setHeader('Content-Type', 'image/png'); res.end(png); return; }
+    const dup = url.searchParams.get('dup') === '1';
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.end(selfHtml(dup));
   }, async ({ port, send, evaluate }) => {
@@ -209,7 +217,7 @@ async function runApp() {
       for (const [w, h] of WIDTHS) {
         await send('Emulation.setDeviceMetricsOverride', { width: w, height: h, deviceScaleFactor: 1, mobile: w < 900 });
         for (let style = 1; style <= 8; style++) {
-          await evaluate('(() => { switchView("breeding"); B49.openPage({ type: "b49tree", key: "pl:p-child", forceStyle: ' + style + ' }); return true; })()');
+          await evaluate('(() => { switchView("breeding"); B49.openPage({ type: "b49tree", key: "pl:p-nophoto", forceStyle: ' + style + ' }); return true; })()');
           await sleep(420);
           const row = await evaluate(MEASURE);
           const bad = judge(row, style);
