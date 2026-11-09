@@ -334,6 +334,57 @@ ${pg.edit ? '<div class="b58-banner" role="status">Edit mode · tap any plant to
       if (r && bv && !bv.querySelector('.b57-ftbtn')) { const h = bv.querySelector('.b18-h1') || bv.querySelector('h2'); if (h) h.insertAdjacentHTML('afterend', `<button type="button" class="m-card b57-ftbtn" data-b57="tree" data-k="mf:${esc(r.id)}">${TREE_SVG}<span><b>Family tree</b><small>${esc(crossTxt(`mf:${r.id}`))}</small></span><i class="b18-chev" aria-hidden="true">›</i></button>`); } } catch (e) { /* */ }
   }
   addTab(); addSide();
-  setInterval(() => { try { addTab(); addSide(); profileBtn(); mark(); } catch (e) { console.warn('b57 entry', e); } }, 300);
-  window.B57 = { walk, detailKey, resolveKey, partners, rec, name, same, isUnk, ph, mono, rr: () => renderBreeding(), openLineage, lineageList, candidates, par2, stat, popOf, styles: STYLES, styleOf, assign, ancestors, siblings, kids, photo };
+  /* Keep the tree's own block clear of the fixed tab bar, and on a tall
+     phone bring the grandparents, parents, plant, and name ribbon above it. */
+  let fitting = false;
+  function fitTree() {
+    if (fitting) return;
+    fitting = true;
+    try { fitTreeNow(); } catch (e) { /* */ } finally { fitting = false; }
+  }
+  function fitTreeNow() {
+    const root = document.querySelector('#breeding-view .b57[data-b57s]');
+    document.querySelectorAll('#breeding-view .b57.b63-reserved').forEach((el) => {
+      if (el !== root) { el.style.paddingBottom = ''; el.classList.remove('b63-reserved', 'b63-compact'); }
+    });
+    if (!root) return;
+    const bar = document.getElementById('tabbar');
+    const box = bar ? bar.getBoundingClientRect() : null;
+    const covers = !!(box && box.height >= 24 && box.bottom >= window.innerHeight - 12 && box.top >= window.innerHeight * 0.5);
+    const tabH = covers ? Math.ceil(box.height) : 0;
+    root.classList.add('b63-reserved');
+    root.classList.toggle('b63-compact', window.innerWidth <= 480);
+    root.style.setProperty('--b63-tab-h', tabH + 'px');
+    root.style.paddingBottom = 'calc(' + tabH + 'px + env(safe-area-inset-bottom))';
+    const canvas = root.querySelector('.b57-canvas');
+    if (!canvas) return;
+    const pg = window.B18 && B18.brPage;
+    const userZoom = pg && pg.zoom ? Number(pg.zoom) : 1;
+    const squeeze = covers && window.innerWidth <= 480 && window.innerHeight >= 780;
+    if (!squeeze) {
+      if (canvas.dataset.b63fit) { delete canvas.dataset.b63fit; canvas.style.zoom = String(userZoom); }
+      return;
+    }
+    const tabTop = box.top;
+    const parts = [...root.querySelectorAll('.b57-ban small, .b57-ban, .b57-row.gp, .b57-row.par, .b57-me')].filter((el) => el.getClientRects().length);
+    if (!parts.length) return;
+    const lowest = Math.max.apply(null, parts.map((el) => el.getBoundingClientRect().bottom));
+    if (lowest <= tabTop - 2) { canvas.dataset.b63fit = canvas.dataset.b63fit || '1'; return; }
+    const cTop = canvas.getBoundingClientRect().top;
+    const need = lowest - cTop;
+    const have = tabTop - 2 - cTop;
+    if (need <= 8 || have < 120) return;
+    const current = Number(canvas.style.zoom) || userZoom;
+    const next = Math.max(userZoom * 0.45, Math.min(current, current * (have / need)));
+    const rounded = Math.round(next * 1000) / 1000;
+    if (rounded >= current - 0.004) { canvas.dataset.b63fit = String(rounded / userZoom); return; }
+    canvas.style.zoom = String(rounded);
+    canvas.dataset.b63fit = String(Math.round((rounded / userZoom) * 1000) / 1000);
+    window.dispatchEvent(new Event('resize'));
+  }
+  const treeView = document.getElementById('breeding-view');
+  if (treeView) new MutationObserver(() => { try { fitTree(); } catch (e) { /* */ } }).observe(treeView, { childList: true, subtree: true });
+  window.addEventListener('resize', () => { try { fitTree(); } catch (e) { /* */ } });
+  setInterval(() => { try { addTab(); addSide(); profileBtn(); mark(); fitTree(); } catch (e) { console.warn('b57 entry', e); } }, 300);
+  window.B57 = { walk, detailKey, resolveKey, partners, rec, name, same, isUnk, ph, mono, rr: () => renderBreeding(), openLineage, lineageList, candidates, par2, stat, popOf, styles: STYLES, styleOf, assign, ancestors, siblings, kids, photo, fitTree };
 })();

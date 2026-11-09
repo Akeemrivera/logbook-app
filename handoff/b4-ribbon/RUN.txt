@@ -1,0 +1,36 @@
+Family-tree ribbon. Public fixture only. No private records.
+
+The tree block reserves padding-bottom of the tab bar height plus
+env(safe-area-inset-bottom). On a tall phone the same grandparents,
+parents, plant circle, and name ribbon (including the subtitle) are
+tightened so they sit above the bar at the initial scroll. The eight
+styles and their branches stay. The backup banner and other pages are
+not restyled. The worker cache name is v94 so a cache-first install
+loads the new stylesheet; the fetch behavior is the v93 worker.
+
+Copy this folder onto the machine, then from the app root:
+
+  node /path/to/b4-ribbon/b63-ribbon-patch.js .
+
+Expect, before the patch, on the current tree3 files:
+
+  node scripts/b63-tree-ribbon.test.js
+
+to fail the 390x844 ribbon (it sits under the tab bar, and the tree
+block has no bottom reserve). Apply the patch, then run the same
+command. It uses the harness Chrome flags
+--disable-extensions and --disable-component-extensions-with-background-pages.
+Eight styles at 390x844 must pass at the initial scroll, and 375x667
+and 1024x768 must clear the bar without horizontal overflow.
+
+The 16-check acceptance is unchanged:
+
+  node scripts/b63-real-mockup.test.js
+
+A local check that does not need the app:
+
+  node b63-tree-ribbon.test.js --self
+
+build63.css   8cd60ad7556fecf054d6446d8ebe9cbdd14738c1ffeb453db7700ae949a920e6
+build57.js    ff67e8560571a8f9f0d6564ba92e308b723fd1f97e737715298ce9d30a41398b
+service-worker.js  5296817f43ab1cf2146d73560b2127240058930fbd4c11e0493696e0edd3258a

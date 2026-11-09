@@ -174,3 +174,28 @@
   word-break: normal;
   white-space: normal;
 }
+/* Family tree only. The page reserves the fixed tab bar, plus the home
+   indicator, so the ribbon can sit fully above the bar. A phone tightens
+   the same nodes; it does not add a layout or change the branches. */
+#breeding-view .b57.b63-reserved {
+  box-sizing: border-box;
+  padding-bottom: calc(var(--b63-tab-h, 0px) + env(safe-area-inset-bottom));
+}
+@media (max-width: 480px) {
+  #breeding-view .b57.b63-compact .b57-lab { margin: 2px 0; }
+  #breeding-view .b57.b63-compact .b57-row.gp,
+  #breeding-view .b57.b63-compact .b57-row.par { margin-top: 0; margin-bottom: 0; }
+  #breeding-view .b57.b63-compact .b57-row.gp > .b57-n { padding: 3px 2px; }
+  #breeding-view .b57.b63-compact .b57-row.gp > .b57-n .b57-ph { width: 22px; height: 22px; flex-basis: 22px; }
+  #breeding-view .b57.b63-compact .b57-row.par > .b57-n { padding: 3px 5px; }
+  #breeding-view .b57.b63-compact .b57-row.par > .b57-n .b57-ph { width: 30px; height: 30px; flex-basis: 30px; }
+  #breeding-view .b57.b63-compact .b57-ph.big { width: 92px; height: 92px; flex-basis: 92px; }
+  #breeding-view .b57.b63-compact .b57-me { margin: 2px 0 0; }
+  #breeding-view .b57.b63-compact .b57-ban { margin: 4px auto 0; }
+  #breeding-view .b57.b63-compact .b57-bar { height: 8px; margin: 2px auto; }
+  #breeding-view .b57.b63-compact[data-b57k="ceiba"] .b57-bar,
+  #breeding-view .b57.b63-compact[data-b57k="river"] .b57-bar { height: 0; margin: 0; background: none; }
+  #breeding-view .b57.b63-compact .b18-h1 { margin: 0 0 2px; }
+  #breeding-view .b57.b63-compact .b57-subt { margin: 0 0 4px; }
+  #breeding-view .b57.b63-compact .b57-tools { margin-bottom: 4px; }
+}
