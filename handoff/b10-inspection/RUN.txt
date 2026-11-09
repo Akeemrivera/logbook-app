@@ -1,0 +1,33 @@
+Inspection table. Public fixture only. No private records.
+
+Below 1024 each inspection row is a card with the same labels, in the
+same order. At 1024 the table stays. Headings do not break inside a
+word. Nothing on that table scrolls sideways.
+
+The patch applies to the B-4 base (service worker v95 2a21bc7c…,
+build63.css 3517a759…, build57.js 7aa3f1c8…). build57.js is not
+replaced. The cache name becomes v96.
+
+From the app root:
+
+  node /path/to/b10-inspection/b63-inspection-patch.js .
+
+On the current B-4 base, this fails. After the patch, it passes:
+
+  node scripts/b63-inspection-table.test.js
+  node scripts/b63-tree-ribbon.test.js
+  node scripts/b63-real-mockup.test.js
+
+The ribbon test stays cc8328381809a1e960b82101753150d186f30117fec1f9069be4a8d28388126c.
+Chrome flags are --disable-extensions and
+--disable-component-extensions-with-background-pages.
+
+build63.css                    f2c40c6d036a66681440b646064c4442386739992e35ff3be8216a5275cdad28
+service-worker.js              4d4ced3d36d72a781d4e778362e91ab2c36dd3a7944bb2bc8dddad487b7918ed
+build57.js                     7aa3f1c8d5dd0b74bd20d3882c48544f4ca967a9b4b6de5eee34ce595b6054cb
+b63-inspection-patch.js         ff3145185d257aa09ba5425ab46b79ed1c1802a749db126fd3fafe042d907d86
+b63-inspection-table.test.js   780af6d2a223d8c9c8c4843fb09543c20e1bfb7e55df7122992a560de9cc6440
+
+A check that does not need the app:
+
+  node b63-inspection-table.test.js --self
