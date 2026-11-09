@@ -1,0 +1,26 @@
+Azulejo (style 4) at 390x844. The fan keeps its viewBox. Only that
+style is shortened on a tall phone, so the this-plant circle and the
+ribbon sit above the tab bar. The other seven styles are not retuned.
+The ribbon test file is unchanged.
+
+Start from the original tree3 + v93 files, or from the first ribbon
+patch. From the app root:
+
+  node /path/to/b4-ribbon/b63-ribbon-patch.js .
+
+Then:
+
+  node scripts/b63-tree-ribbon.test.js
+  node scripts/b63-real-mockup.test.js
+
+The ribbon test is cc8328381809a1e960b82101753150d186f30117fec1f9069be4a8d28388126c.
+Chrome flags stay --disable-extensions and
+--disable-component-extensions-with-background-pages.
+
+build63.css          3517a759466012ac6fcbbfecc45b83d592790b9a8e0a044f54f13d56424db26a
+build57.js           7aa3f1c8d5dd0b74bd20d3882c48544f4ca967a9b4b6de5eee34ce595b6054cb
+service-worker.js    2a21bc7c6b7296530d805530d58c5fd170c7a7a2f83d37a3c4ceb1ccc71fbb90
+b63-ribbon-patch.js  d75dccaa548f1d1d5b9c1a5bf7d13d2fd60e4328dedae1093f9ae135a45a4517
+b63-tree-ribbon.test.js  cc8328381809a1e960b82101753150d186f30117fec1f9069be4a8d28388126c
+
+Worker cache name is v95. Fetch behavior is the v93 worker.
