@@ -2,3 +2,5 @@ a3ba9e1df26bd2004117b82d09ea77a3bd697664648ec71a6eaa6ca61e67fa88  handoff/sw-v93
 5269935d4d8600de6eb486c52ef0ef22a06cdf9014385a5093f6fb917eef7a8b  handoff/sw-v93/service-worker.js
 d8e9f1e0ea8c344219c279fddbb2b834ba47f6d04e15094c2f9d72826afe4d4e  handoff/sw-v93/b63-sw-reject-repro.js
 777480fd0c0ba0c461079f0d5aa3b09b241aa10063a4e6ea4bc14d0b5181c0dd  handoff/sw-v93/b63-fetchlog.test.js
+cc83de785bcd24ebca69b5e3c756bf359c42c3b67bc9b60451226f75a0d86089  handoff/sw-v93/b63-accept-watch.test.js
+1c807ef6e6a4293c499b1c0f8ebe1e32462b91b30c02b60787576af5544ec969  handoff/sw-v93/b63-real-mockup-unflagged.js
