@@ -1,0 +1,15 @@
+Copy b63-fetchlog.test.js to scripts/b63-fetchlog.test.js on the v93 tree3 tree.
+Do not replace service-worker.js, the renderer, the acceptance test, or any app file.
+The on-disk service worker must be 5269935d4d8600de6eb486c52ef0ef22a06cdf9014385a5093f6fb917eef7a8b.
+
+From the tree root, once:
+
+  node scripts/b63-fetchlog.test.js
+
+Chrome is launched without the two isolation flags. The server serves an in-memory copy of the v93 worker that only records fetch settlement. Disk files stay as they are.
+
+Keep every FETCHLOG line, especially DECISION.
+OUTSIDE-APP: extension targets were present, and every failing script was either never received by the app worker or was returned as a Response that the browser still failed. That failure is outside the app and cannot occur in the iOS WKWebView production app.
+SW-PATH: the app worker received a failing script and rejected it or returned a non-Response.
+MIXED: both happened.
+A boot failure exits 1 after the record. Do not rerun for a pass.

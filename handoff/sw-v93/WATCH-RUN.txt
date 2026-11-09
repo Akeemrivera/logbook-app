@@ -1,0 +1,17 @@
+Copy these two files into scripts/ on the v93 tree. Do not replace the
+acceptance test or the on-disk service worker.
+  b63-accept-watch.test.js
+  b63-real-mockup-unflagged.js   (sha 1c807ef6e6a4293c499b1c0f8ebe1e32462b91b30c02b60787576af5544ec969)
+
+From the tree root, once:
+
+  node scripts/b63-accept-watch.test.js --renderer scripts/b63-real-mockup-unflagged.js
+
+This is the acceptance tree invocation: phase before, the original fixture,
+and the default three viewports. The renderer has no isolation flags and
+serves the on-disk service worker. A second DevTools client records Network
+and, after a script failure, one resource-timing read. It does not call
+Target.setAutoAttach and it does not change the served worker bytes.
+
+Keep every WATCH line, especially DECISION.
+A boot failure exits 1 after the record. Do not rerun for a pass.

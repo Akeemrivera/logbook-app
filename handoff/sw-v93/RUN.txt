@@ -1,0 +1,34 @@
+Mechanism: service-worker.js v92 ends a controlled fetch with
+Promise.reject(new Error('unavailable')) when the cache misses and the
+Request fetch fails. Chrome reports that as net::ERR_FAILED with no response.
+v93 fetches the URL and always gives respondWith a Response. The precache
+list is unchanged. clients.claim() is unchanged: on this Chrome, claiming
+during an uncontrolled reload did not abort in-flight network scripts.
+
+Local proof, already run, three and three, all kept:
+  node handoff/sw-v93/b63-sw-reject-repro.js
+before: executedMiss=0, net::ERR_FAILED, response=absent
+after:  executedMiss=1, result=ok, response=200
+
+On the tree3 candidate (renderer 179ccd72…), from the tree root, with the
+corrected patcher. It also replaces the navigation-shell Promise.reject
+with a 503 text/html page. The three copies must match, and a second run
+refuses because the cache is already v93.
+
+  node /path/to/b63-sw-v93-patch.js .
+
+Expected service-worker.js sha256:
+  5269935d4d8600de6eb486c52ef0ef22a06cdf9014385a5093f6fb917eef7a8b
+
+That rewrites service-worker.js, www/service-worker.js, and
+ios/App/App/public/service-worker.js from v92 to v93 and requires the three
+copies to match.
+
+Then once, flags still on:
+
+  node scripts/b63-real-mockup.test.js
+
+And once with the two Chrome flags removed from that launch (renderer
+1c807ef6…), keeping the same test file. Keep both results. A failure stands.
+This is not a phone QA pass, not appearance approval, and not an upload.
+The three-pair extension verdict remains inconclusive.
