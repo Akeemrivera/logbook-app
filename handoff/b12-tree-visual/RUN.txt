@@ -9,17 +9,16 @@ drawing.
 onLin() treats every family tree as the Lineage tab, including one
 opened from Breeding. The B-4 diffs do not change mark().
 
-The r2 label check only asked for a viewport box and no ellipsis, so
-the middle-ring grandparents still collided. This revision places each
-Azulejo fan label inside its own wedge. An empty slot draws
-"+ Not" / "recorded". The "Mother of …" line stays on the accessible
-name, and is drawn only when that row fits in the same block. The font
-stays 10 user px.
+Azulejo labels are fitted to the open width of their own wedge, inset
+from the rim and the dashed edges. Words wrap. A role line is kept only
+when that row fits at 9px or larger. A name that still cannot fit keeps
+a whole-word form, and the full wording stays on the accessible name.
 
-The public fixture is a plant with mother Northern lights #5, father
-Romulan, four Not recorded grandparents, and one sibling.
+The public fixture is Fixture Child, mother Fixture Mother With A Long
+Label, father Fixture Father With A Long Label, four Not recorded
+grandparents, and one sibling.
 
-From the B-10 app root, or from either earlier B-12 patch:
+From the B-10 app root, or from any earlier B-12 patch:
 
   node /path/to/b12-tree-visual/b63-tree-visual-patch.js .
 
@@ -33,11 +32,11 @@ Chrome flags: --disable-extensions and
 --disable-component-extensions-with-background-pages.
 Dark is setThemePref('dark').
 
-build57.js                  0c68d9d14d62d8236eb575d8f53f484bfe378a793908078df7610a1a11f83cde
+build57.js                  57bffa9d2a38e5ec26dda8cba1842024bd1c539c1470a91d711e643351169db1
 build63.css                 a5d3be09a872055377fdf49988d2caa50bf38aa48b43aedaecdb0201e827abbf
-service-worker.js           299b116d90e9604667d0aca8a1f61acd5ba3485c6399e4b17f497688eea1ba61
-b63-tree-visual-patch.js    9e0cea65a8316e55e6e2ada2582703e609c8f14b22e55a1e8641c42b68e0609d
-b63-tree-visual.test.js     16b6f8c8a2bde9d6f98dd5bde271d5b8587105b0b885e70e97077f59f7f97bd7
+service-worker.js           48a5a2bb3032d83361922ab7fca3502889ba105c85af60b5900c6c116015d3cd
+b63-tree-visual-patch.js    3eb924e49a2de48db9dcf0677b573323abec5a7d98e2ea7edd669a584ad19734
+b63-tree-visual.test.js     82b2bd73fc146210b0e94c28ba6eb5287d9829daf7566b7128d381b912fd13ea
 b63-tree-ribbon.test.js     cc8328381809a1e960b82101753150d186f30117fec1f9069be4a8d28388126c
 
-Cache name is v99. The title badge stays; a missing glyph uses the light plant image. Fetch behavior is unchanged.
+Cache name is v100. The title badge stays; a missing glyph uses the light plant image. Fetch behavior is unchanged.

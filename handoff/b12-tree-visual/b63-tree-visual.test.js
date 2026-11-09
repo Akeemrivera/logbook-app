@@ -22,13 +22,13 @@ const FLAGS = ['--disable-extensions', '--disable-component-extensions-with-back
 const WIDTHS = [[390, 844], [375, 667], [1024, 768]];
 const state = {
   plants: [
-    { id: 'p-nophoto', name: 'Fixture Child', status: 'active', count: 1, logs: [], treeStyle: 4, b49Mother: 'mf:m-north', b49Father: 'mf:f-rom', b58Manual: { m: true, f: true } },
-    { id: 'p-sib', name: 'Fixture Sibling', status: 'active', count: 1, logs: [], treeStyle: 4, b49Mother: 'mf:m-north', b49Father: 'mf:f-rom', b58Manual: { m: true, f: true } },
+    { id: 'p-nophoto', name: 'Fixture Child', status: 'active', count: 1, logs: [], treeStyle: 4, b49Mother: 'mf:m-mom', b49Father: 'mf:f-dad', b58Manual: { m: true, f: true } },
+    { id: 'p-sib', name: 'Fixture Sibling', status: 'active', count: 1, logs: [], treeStyle: 4, b49Mother: 'mf:m-mom', b49Father: 'mf:f-dad', b58Manual: { m: true, f: true } },
   ],
   breedingPlants: [],
   motherFatherPlants: [
-    { id: 'm-north', name: 'Northern lights #5', role: 'mother', status: 'Active', treeStyle: 4 },
-    { id: 'f-rom', name: 'Romulan', role: 'father', status: 'Active', treeStyle: 4 },
+    { id: 'm-mom', name: 'Fixture Mother With A Long Label', role: 'mother', status: 'Active', treeStyle: 4 },
+    { id: 'f-dad', name: 'Fixture Father With A Long Label', role: 'father', status: 'Active', treeStyle: 4 },
   ],
   breedingProjects: [],
   cloneRuns: [],
@@ -100,7 +100,7 @@ const MEASURE = `(() => {
             ctx.font = getComputedStyle(el).font;
             intended = ctx.measureText(el.textContent || '').width;
           } catch (e) { intended = 0; }
-          const crushed = mismatched || (intended > 8 && b.w + 1.5 < intended * 0.9);
+          const crushed = mismatched || (intended > 4 && scale > 0 && b.w + 1.5 < intended * scale * 0.88);
           return { b, fs, crushed };
         });
       });
