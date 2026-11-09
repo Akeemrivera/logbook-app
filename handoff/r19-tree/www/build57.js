@@ -194,16 +194,45 @@
   const P_ = (cx, cy, r, a) => [cx + r * Math.cos(a), cy + r * Math.sin(a)];
   function seg(cx, cy, r0, r1, a0, a1) { const [x0, y0] = P_(cx, cy, r1, a0), [x1, y1] = P_(cx, cy, r1, a1), [x2, y2] = P_(cx, cy, r0, a1), [x3, y3] = P_(cx, cy, r0, a0); const L = a1 - a0 > Math.PI ? 1 : 0; return `M${x0} ${y0}A${r1} ${r1} 0 ${L} 1 ${x1} ${y1}L${x2} ${y2}A${r0} ${r0} 0 ${L} 0 ${x3} ${y3}Z`; }
   function fit(t, len) { const max = Math.max(3, Math.floor(len / 6.6)); t = String(t || ''); return t.length > max ? t.slice(0, max - 1) + '…' : t; }
-  function lbl(t, x, y, arc) { t = String(t || ''); const cpl = Math.max(4, Math.floor(arc / 6.2)); let L = [t];
-    if (t.length > cpl) { const w = t.split(' '); if (w.length > 1) { let a = ''; let i = 0; while (i < w.length && (a + (a ? ' ' : '') + w[i]).length <= Math.max(cpl, w[0].length)) { a += (a ? ' ' : '') + w[i]; i++; } L = [a, w.slice(i).join(' ')].filter(Boolean); } }
-    const lg = Math.max(...L.map((l) => l.length)); const fs = Math.max(6.2, Math.min(10.5, 10.5 * cpl / lg)); const y0 = y - (L.length - 1) * fs * 0.55;
-    return `<text x="${x.toFixed(1)}" y="${y0.toFixed(1)}" text-anchor="middle" class="t1" data-full="${esc(t)}" style="font-size:${fs.toFixed(1)}px"${lg * fs * 0.56 > arc ? ` textLength="${arc.toFixed(0)}" lengthAdjust="spacingAndGlyphs"` : ''}>${L.map((l, i) => `<tspan x="${x.toFixed(1)}" dy="${i ? (fs * 1.05).toFixed(1) : 0}">${esc(l)}</tspan>`).join('')}</text>`; }
-  function ring(items, cx, cy, r0, r1, a0, a1, cls) {
+  function lbl(t, x, y, arc, boxW, boxH, cls) {
+    t = String(t || '').replace(/\s+/g, ' ').trim();
+    if (!t) return '';
+    const words = t.split(' ');
+    const widthOf = (s, size) => Math.max(size, s.length * size * 0.62);
+    let fs = 10.5;
+    let lines = [t];
+    const maxW0 = Math.max(36, (arc || 80) * 0.9);
+    while (fs > 6) {
+      lines = [];
+      let cur = '';
+      words.forEach((w) => {
+        const next = cur ? cur + ' ' + w : w;
+        if (!cur || widthOf(next, fs) <= maxW0) cur = next;
+        else { lines.push(cur); cur = w; }
+      });
+      if (cur) lines.push(cur);
+      const widest = Math.max.apply(null, lines.map((l) => widthOf(l, fs)));
+      if (widest <= maxW0 || fs <= 6.4) break;
+      fs -= 0.4;
+    }
+    const widest = Math.max.apply(null, lines.map((l) => widthOf(l, fs)));
+    const half = widest / 2;
+    if (boxW) x = Math.max(4 + half, Math.min(boxW - 4 - half, x));
+    let y0 = y - (lines.length - 1) * fs * 0.52;
+    if (boxH) {
+      const bot = y0 + Math.max(0, lines.length - 1) * fs * 1.05 + fs * 0.25;
+      if (bot > boxH - 3) y0 -= bot - (boxH - 3);
+      if (y0 < fs) y0 = fs;
+    }
+    const xAt = x.toFixed(1);
+    return `<text x="${xAt}" y="${y0.toFixed(1)}" text-anchor="middle" class="${cls || 't1'}" data-full="${esc(t)}" style="font-size:${fs.toFixed(1)}px">${lines.map((l, i) => `<tspan x="${xAt}" dy="${i ? (fs * 1.05).toFixed(1) : 0}">${esc(l)}</tspan>`).join('')}</text>`;
+  }
+  function ring(items, cx, cy, r0, r1, a0, a1, cls, boxW, boxH) {
     if (!items.length) return ''; const step = (a1 - a0) / items.length; let s = '';
     items.forEach((x, i) => { const b0 = a0 + i * step, b1 = b0 + step, m = (b0 + b1) / 2, rm = (r0 + r1) / 2; const [tx, ty] = P_(cx, cy, rm, m); const arc = Math.min(step * rm * 0.92, 120);
       const nm = x.cand ? x.t : x.self ? 'Self (S1)' : x.none ? (x.via ? '+ Not recorded' : 'Not recorded') : x.k ? nm2(x.k) : (x.t || 'Not recorded'); const sb = x.cand ? x.s : x.k ? (x.ref ? 'also above' : (stat(x.k).t === 'culled' ? 'Culled' : stat(x.k).t === 'archived' ? 'Archived' : stat(x.k).t === 'retired' ? 'Retired' : stat(x.k).t === 'removed' ? 'Deleted plant' : stat(x.k).t === 'nameonly' ? 'Name only' : stat(x.k).t === 'bought' ? (window.B58 && B58.boughtBadge ? B58.boughtBadge(stat(x.k).br) : 'Bought') : (x.role || gen(x.k)))) : (x.s || x.role || '');
       const one = step * rm < 34; const tap = x.k && !isUnk(x.k); const add = !tap && x.via && x.side;
-      s += `<g class="b57-seg ${cls}${tap ? '' : add ? ' none add' : ' none'}${x.keeper ? ' keeper' : ''}${x.me ? ' is-me' : ''}"${tap ? ` data-b57="sel" data-k="${esc(x.k)}" role="button" tabindex="0" aria-label="${esc(nm)}"` : add ? ` data-b58="add" role="button" tabindex="0" aria-label="${esc(nm)} · tap to add"` : ''}${ofA(x)}${add ? ' data-add="1"' : ''}${x.cand ? ` data-cand="${x.i}"` : ''}><path d="${seg(cx, cy, r0, r1, b0, b1)}"/>${lbl(nm, tx, ty + (one ? 4 : -2), arc)}${one ? '' : `<text x="${tx.toFixed(1)}" y="${(ty + 10).toFixed(1)}" text-anchor="middle" class="t2">${esc(fit(sb, arc))}</text>`}</g>`; });
+      s += `<g class="b57-seg ${cls}${tap ? '' : add ? ' none add' : ' none'}${x.keeper ? ' keeper' : ''}${x.me ? ' is-me' : ''}"${tap ? ` data-b57="sel" data-k="${esc(x.k)}" role="button" tabindex="0" aria-label="${esc(nm)}"` : add ? ` data-b58="add" role="button" tabindex="0" aria-label="${esc(nm)} · tap to add"` : ''}${ofA(x)}${add ? ' data-add="1"' : ''}${x.cand ? ` data-cand="${x.i}"` : ''}><path d="${seg(cx, cy, r0, r1, b0, b1)}"/>${lbl(nm, tx, ty + (one ? 4 : -2), arc, boxW, boxH, 't1')}${one ? '' : lbl(sb, tx, ty + 11, arc, boxW, boxH, 't2')}</g>`; });
     return s;
   }
   let cid = 0;
@@ -217,18 +246,18 @@
     const top = P.items.filter((x) => !x.me); const outer = top.length ? top : [{ t: P.hunt ? 'No candidates' : 'No siblings', s: 'same seed pop' }];
     const kk = ks.length ? ks.map((x) => (x.k ? { k: x.k, role: x.s } : { t: x.t, s: x.s })) : [{ t: 'No kids yet', s: 'kids' }];
     return `<div class="b57-svgw"><svg viewBox="0 0 380 380" class="b57-svg radial" role="group" aria-label="Family tree rings">
-<circle cx="190" cy="190" r="187" class="wood"/>${ring(outer, 190, 190, 140, 184, -Math.PI, 0, 'r3')}${ring(kk, 190, 190, 140, 184, 0, Math.PI, 'r3 k')}${ring(gp, 190, 190, 98, 140, -Math.PI / 2, 1.5 * Math.PI, 'r2')}${ring([m, f], 190, 190, 56, 98, Math.PI / 2, 2.5 * Math.PI, 'r1')}${centre(k, 190, 190, 52)}</svg></div>
+<circle cx="190" cy="190" r="187" class="wood"/>${ring(outer, 190, 190, 140, 184, -Math.PI, 0, 'r3', 380, 380)}${ring(kk, 190, 190, 140, 184, 0, Math.PI, 'r3 k', 380, 380)}${ring(gp, 190, 190, 98, 140, -Math.PI / 2, 1.5 * Math.PI, 'r2', 380, 380)}${ring([m, f], 190, 190, 56, 98, Math.PI / 2, 2.5 * Math.PI, 'r1', 380, 380)}${centre(k, 190, 190, 52)}</svg></div>
 <div class="b57-ban solo"><b>${esc(name(k))}${gen(k) ? ` · ${esc(gen(k))}` : ''}</b><small>${esc(crossTxt(k))}</small></div>
-<p class="b57-key">Centre: this plant · Ring 1: parents · Ring 2: grandparents · Outer ring: ${P.hunt ? 'pheno-hunt candidates' : 'brothers &amp; sisters'} (top), kids (bottom)</p>${fam(k, ks)}${P.hunt ? `${lab(popLab(P))}${popRow(P)}` : ''}${nextBranch(P)}`;
+<p class="b57-key">Centre: this plant · Ring 1: parents · Ring 2: grandparents · Outer ring: ${P.hunt ? 'pheno-hunt candidates' : 'brothers &amp; sisters'} (top), kids (bottom)</p>${fam(k, ks, { noMe: 1 })}${P.hunt ? `${lab(popLab(P))}${popRow(P)}` : ''}${nextBranch(P)}`;
   }
   function fan(k, lv, P, ks) {
     /* b60.1: with a partner the one-sided ring / fan art is replaced by the both-sides tree */
     if (window.B60 && partners(k, ks).length) return `<div class="b60-ring-swap" data-b60swap="fan">${fam(k, ks)}</div>${P.hunt ? `${lab(popLab(P))}${popRow(P)}` : ''}${nextBranch(P)}`;
     const [m, f] = parentsRow(lv); const gp = gpItems(lv, m, f);
     const o0 = P.items.filter((x) => !x.me); const o = o0.length ? o0 : [{ t: P.hunt ? 'No candidates' : 'No siblings', s: 'same seed pop' }];
-    return `${lab(P.hunt ? 'Pheno-hunt candidates · outer band' : 'Brothers & sisters · outer band')}<div class="b57-svgw"><svg viewBox="0 0 380 206" class="b57-svg fan" role="group" aria-label="Family tree fan">${ring(o, 190, 198, 150, 190, Math.PI, 2 * Math.PI, 'r3')}${ring(gp, 190, 198, 104, 150, Math.PI, 2 * Math.PI, 'r2')}${ring([m, f], 190, 198, 58, 104, Math.PI, 2 * Math.PI, 'r1')}${centre(k, 190, 198, 52)}</svg></div>
+    return `${lab(P.hunt ? 'Pheno-hunt candidates · outer band' : 'Brothers & sisters · outer band')}<div class="b57-svgw"><svg viewBox="0 0 380 206" class="b57-svg fan" role="group" aria-label="Family tree fan">${ring(o, 190, 198, 150, 190, Math.PI, 2 * Math.PI, 'r3', 380, 206)}${ring(gp, 190, 198, 104, 150, Math.PI, 2 * Math.PI, 'r2', 380, 206)}${ring([m, f], 190, 198, 58, 104, Math.PI, 2 * Math.PI, 'r1', 380, 206)}${centre(k, 190, 198, 52)}</svg></div>
 <div class="b57-sides"><span>◀ Mother's side</span><span>Father's side ▶</span></div><div class="b57-ban solo"><b>${esc(name(k))}${gen(k) ? ` · ${esc(gen(k))}` : ''}</b><small>${esc(crossTxt(k))}</small></div>
-${P.hunt ? `${lab(popLab(P))}${popRow(P)}` : ''}${nextBranch(P)}${fam(k, ks)}`;
+${P.hunt ? `${lab(popLab(P))}${popRow(P)}` : ''}${nextBranch(P)}${fam(k, ks, { noMe: 1 })}`;
   }
   function cert(k, lv, P, ks) {
     const [m, f] = parentsRow(lv);
@@ -307,14 +336,40 @@ ${pg.edit ? '<div class="b58-banner" role="status">Edit mode · tap any plant to
     const b = document.createElement('button'); b.type = 'button'; b.className = 'tab b57-tab'; b.dataset.tabView = 'lineage'; b.setAttribute('aria-label', 'Lineage'); b.innerHTML = `${TREE_SVG}<span>Lineage</span>`; br.after(b);
   }
   function addSide() { try { if (typeof W_NAV !== 'undefined' && !W_NAV.some((x) => x.id === 'lineage')) { const i = W_NAV.findIndex((x) => x.id === 'breeding'); W_NAV.splice(i + 1, 0, { id: 'lineage', label: 'Lineage', ico: '🌳', views: ['b57-lineage'] }); if (typeof wCurrentView === 'function') { const _wc = wCurrentView; wCurrentView = function () { return onLin() ? 'b57-lineage' : _wc.apply(this, arguments); }; } if (typeof wRenderSidebar === 'function') wRenderSidebar(); } } catch (e) { /* */ } }
-  const onLin = () => typeof activeView !== 'undefined' && activeView === 'breeding' && B18.brPage && (B18.brPage.type === 'b57lin' || B18.brPage.type === 'b49tree');
+  const onLin = () => typeof activeView !== 'undefined' && activeView === 'breeding' && B18.brPage && (B18.brPage.type === 'b57lin' || (B18.brPage.type === 'b49tree' && B18.brPage.fromLin));
   function mark() {
     const on = onLin();
     document.querySelectorAll('#tabbar [data-tab-view="lineage"], [data-w-nav="lineage"]').forEach((b) => { b.classList.toggle('active', on); b.classList.toggle('on', on); if (on) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
     if (on) document.querySelectorAll('#tabbar [data-tab-view="breeding"], [data-w-nav="breeding"]').forEach((b) => { b.classList.remove('active', 'on'); b.removeAttribute('aria-current'); });
   }
   document.addEventListener('click', (e) => { const b = e.target.closest('#tabbar [data-tab-view="lineage"], [data-w-nav="lineage"]'); if (!b) return; e.preventDefault(); e.stopImmediatePropagation(); openLineage(); }, true);
-  document.addEventListener('click', (e) => { const b = e.target.closest('[data-b57="tree"]'); if (!b) return; e.preventDefault(); const lin = B18.brPage && B18.brPage.type === 'b57lin'; B49.openPage({ type: 'b49tree', key: resolveKey(b.dataset.k), fromLin: lin }); mark(); });
+  document.addEventListener('click', (e) => { const b = e.target.closest('[data-b57="tree"]'); if (!b) return; e.preventDefault(); const lin = B18.brPage && B18.brPage.type === 'b57lin'; B49.openPage({ type: 'b49tree', key: resolveKey(b.dataset.k), fromLin: lin }); if (B18.brPage && B18.brPage.type === 'b49tree') B18.brPage.fromLin = !!lin; mark(); });
+  if (window.B49 && B49.openPage && !B49.openPage.b63from) {
+    const _openPage = B49.openPage;
+    B49.openPage = function (pg) {
+      const lin = !!(pg && pg.fromLin);
+      const out = _openPage.apply(this, arguments);
+      try { if (B18.brPage && B18.brPage.type === 'b49tree') B18.brPage.fromLin = lin; mark(); clearTitleBadge(); } catch (err) { /* */ }
+      return out;
+    };
+    B49.openPage.b63from = 1;
+  }
+  function clearTitleBadge() {
+    const root = document.querySelector('#breeding-view .b57[data-b57k]');
+    const h = root && root.querySelector('.b18-h1');
+    if (!h) return;
+    const hr = h.getBoundingClientRect();
+    [...root.querySelectorAll('img, svg, span, i, div')].forEach((el) => {
+      if (el === h || el.contains(h)) return;
+      if (!h.contains(el) && el.closest('.b57-canvas, .b57-scroll, .b57-tools, .b57-ban, .b57-svgw, #tabbar')) return;
+      const r = el.getBoundingClientRect();
+      if (r.width < 18 || r.width > 64 || r.height < 18 || r.height > 64) return;
+      if (Math.abs(r.width - r.height) > 8) return;
+      if (r.top > hr.bottom + 8 || r.bottom < hr.top - 8) return;
+      if ((el.innerText || '').trim()) return;
+      el.remove();
+    });
+  }
   /* b59: the profile's own key. detailColl is 'plants', 'breedingPlants' or 'mf' (b42 mother / father profiles); b57 sent every
      mf profile as pl:<id>, which has no record, so the tree drew 'Deleted plant'. */
   function detailKey() { if (typeof detailPlantId !== 'function') return ''; const id = detailPlantId(); if (!id) return ''; const c = typeof detailColl !== 'undefined' ? detailColl : 'plants';
@@ -400,6 +455,6 @@ ${pg.edit ? '<div class="b58-banner" role="status">Edit mode · tap any plant to
   const treeView = document.getElementById('breeding-view');
   if (treeView) new MutationObserver(() => { try { fitTree(); } catch (e) { /* */ } }).observe(treeView, { childList: true, subtree: true });
   window.addEventListener('resize', () => { try { fitTree(); } catch (e) { /* */ } });
-  setInterval(() => { try { addTab(); addSide(); profileBtn(); mark(); fitTree(); } catch (e) { console.warn('b57 entry', e); } }, 300);
+  setInterval(() => { try { addTab(); addSide(); profileBtn(); mark(); clearTitleBadge(); fitTree(); } catch (e) { console.warn('b57 entry', e); } }, 300);
   window.B57 = { walk, detailKey, resolveKey, partners, rec, name, same, isUnk, ph, mono, rr: () => renderBreeding(), openLineage, lineageList, candidates, par2, stat, popOf, styles: STYLES, styleOf, assign, ancestors, siblings, kids, photo, fitTree };
 })();

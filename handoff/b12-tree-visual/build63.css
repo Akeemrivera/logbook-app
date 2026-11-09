@@ -1,0 +1,243 @@
+/* Build 63. Narrow layouts reflow. They do not add a horizontal scroll port. */
+#breeding-view .b60-c.st-culled b { text-decoration: line-through; text-decoration-thickness: 1px; }
+#breeding-view .b57-n.st-archived b,
+#breeding-view .b60-c.st-archived b,
+#breeding-view .b57-n.st-retired b,
+#breeding-view .b60-c.st-retired b,
+#breeding-view .b57-n.st-nameonly b,
+#breeding-view .b60-c.st-nameonly b { text-decoration: none; }
+/* Inspection table. Headings break only at a space. Below 1024 the row
+   becomes a card of the same labels, in the same order, so nothing clips
+   and nothing scrolls sideways. At 1024 and wider the table stays. */
+#compliance-panel-inspection,
+#compliance-panel-inspection .table-wrap {
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: clip;
+}
+#compliance-panel-inspection table.compliance-table {
+  min-width: 0 !important;
+  width: 100%;
+  max-width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+}
+#compliance-panel-inspection .compliance-table th {
+  font-size: 11px;
+  line-height: 1.2;
+  letter-spacing: 0.03em;
+  padding: 6px 3px;
+}
+#compliance-panel-inspection .compliance-table th,
+#compliance-panel-inspection .compliance-table td {
+  overflow-wrap: normal !important;
+  word-break: normal !important;
+  hyphens: manual !important;
+  white-space: normal;
+  overflow: hidden;
+  text-overflow: clip;
+  vertical-align: top;
+  min-width: 0;
+  box-sizing: border-box;
+}
+#compliance-panel-inspection .compliance-table td {
+  overflow-wrap: anywhere !important;
+}
+@media (max-width: 1023px) {
+  #compliance-panel-inspection table.compliance-table,
+  #compliance-panel-inspection .compliance-table tbody {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+  }
+  #compliance-panel-inspection .compliance-table thead {
+    display: none;
+  }
+  #compliance-panel-inspection .compliance-table tr {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    margin: 0 0 10px;
+    padding: 10px 12px;
+    border-radius: 12px;
+    background: var(--card);
+    border: 1px solid var(--line);
+    color: inherit;
+  }
+  #compliance-panel-inspection .compliance-table td {
+    display: grid;
+    grid-template-columns: max-content minmax(0, 1fr);
+    gap: 0.2rem 0.75rem;
+    align-items: baseline;
+    width: 100%;
+    padding: 3px 0;
+    overflow: hidden;
+  }
+  #compliance-panel-inspection .compliance-table td::before {
+    overflow-wrap: normal;
+    word-break: normal;
+    hyphens: manual;
+    white-space: nowrap;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--sub, inherit);
+  }
+  #compliance-panel-inspection .compliance-table td:nth-child(1)::before { content: "Plant code"; }
+  #compliance-panel-inspection .compliance-table td:nth-child(2)::before { content: "Patient alias"; }
+  #compliance-panel-inspection .compliance-table td:nth-child(3)::before { content: "Cert ID"; }
+  #compliance-panel-inspection .compliance-table td:nth-child(4)::before { content: "Cultivar"; }
+  #compliance-panel-inspection .compliance-table td:nth-child(5)::before { content: "Stage"; }
+  #compliance-panel-inspection .compliance-table td:nth-child(6)::before { content: "Area"; }
+  #compliance-panel-inspection .compliance-table td:nth-child(7)::before { content: "Tag status"; }
+  #compliance-panel-inspection .compliance-table td:nth-child(8)::before { content: "Last updated"; }
+}
+.b57 {
+  margin-left: 0;
+  margin-right: 0;
+  width: auto;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+.b57-scroll, .b57-row.scroll, .b59-kids, .b60-col {
+  overflow: visible;
+  max-width: 100%;
+  touch-action: pan-y;
+  scroll-snap-type: none;
+}
+.b57-row, .b59-kids, .b60-col { flex-wrap: wrap; max-width: 100%; }
+.b57-n { flex: 1 1 8rem; width: auto; max-width: 100%; min-width: 0; }
+.b57-n b, .b57-n small {
+  white-space: normal;
+  overflow-wrap: break-word;
+  word-break: normal;
+  hyphens: manual;
+  max-width: 100%;
+}
+.b60-full, .b60-cols { width: 100%; max-width: 100%; }
+.b60-col { flex: 1 1 0; min-width: 0; }
+.b60-col > .b60-c { flex: 1 1 calc(50% - 8px); width: auto; min-width: 0; max-width: 100%; min-height: 110px; box-sizing: border-box; }
+.b60-col > .b60-c.slot { min-height: 60px; }
+.b60-col > .b60-c:only-child { flex: 1 1 100%; }
+.b57 .b18-h1, .b57-subt, .b57-tools { max-width: 100%; overflow-wrap: break-word; word-break: normal; }
+/* Card titles were overflow-wrap:anywhere, so a name split inside the word
+   (Synthetic / c Gran, Grandfathe / r). Keep the two cards on one row.
+   Break only at a space unless one word is wider than the card. */
+#breeding-view .b60-c b,
+#breeding-view .b60-c small,
+#breeding-view .b57-n b,
+#breeding-view .b57-n small,
+#breeding-view .b57-subt,
+#breeding-view .b57-ban small,
+#breeding-view .b59-plab b,
+#breeding-view .b59-plab small {
+  overflow-wrap: break-word;
+  word-break: normal;
+  hyphens: manual;
+  white-space: normal;
+  max-width: 100%;
+}
+/* On a phone or a 768 window, two cards in one half are too narrow for a
+   name. Stack them so each card uses the whole half. The two halves stay
+   equal. At 1024 and wider the cards stay on one row. The stripped fixture
+   is not inside #breeding-view, so its side-by-side check is unchanged. */
+@media (max-width: 899px) {
+  #breeding-view .b60-col > .b60-c {
+    flex: 1 1 100%;
+    width: 100%;
+  }
+}
+#breeding-view .b60-c { container-type: inline-size; }
+@container (max-width: 150px) {
+  b, small { font-size: 12px; line-height: 1.25; }
+}
+#breeding-view .b57-tools { flex-wrap: wrap; row-gap: 6px; }
+#breeding-view .b57-tools .m-s {
+  flex: 1 1 9rem;
+  min-width: 0;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+}
+/* A real 1024 or 1366 window keeps the agreed 248px sidebar.
+   Default wide text size stays 1.28. That zoom makes innerWidth/1.28 fall
+   under 1080, and data-weff would otherwise draw the sidebar at 216px.
+   This does not change the saved text size or the zoom. Below 1024 the
+   narrower wide rule is unchanged. */
+@media (min-width: 1024px) {
+  :root[data-layout='wide'][data-weff] body { padding-left: 248px; }
+  :root[data-layout='wide'][data-weff] .w-side { width: 248px; }
+  :root[data-layout='wide'][data-weff] body::after { left: 248px; }
+}
+@media (max-width: 720px) {
+  .b57-n { flex: 1 1 calc(50% - 8px); }
+}
+/* Four grandparents were wrapping three plus one stretched card at 1024.
+   Each card stays half the row, so four cards are two by two and a wrapped
+   card does not grow to the full width. */
+@media (min-width: 1024px) {
+  #breeding-view .b57-row .b57-n,
+  #breeding-view .b60-col > .b60-c {
+    flex: 1 1 calc(50% - 8px);
+    max-width: calc(50% - 8px);
+  }
+}
+/* The premade Ceiba phone layout is four compact grandparents on one row,
+   then two compact parents, with the plant and trunk still on screen.
+   The half-width card rule turned that row into a tall 2x2. These rows
+   stay one line; the words wrap inside the card. Other tree art is unchanged. */
+#breeding-view .b57-row.gp,
+#breeding-view .b57-row.par {
+  flex-wrap: nowrap;
+}
+#breeding-view .b57-row.gp > .b57-n,
+#breeding-view .b57-row.par > .b57-n {
+  flex: 1 1 0;
+  width: auto;
+  max-width: none;
+  min-width: 0;
+}
+#breeding-view .b57-row.gp > .b57-n { padding: 5px 2px; }
+#breeding-view .b57-row.gp > .b57-n .b57-ph { width: 26px; height: 26px; flex-basis: 26px; font-size: 9px; }
+#breeding-view .b57-row.gp > .b57-n b { font-size: 10px; }
+#breeding-view .b57-row.gp > .b57-n small { font-size: 8.5px; }
+#breeding-view .b57-row.par > .b57-n { flex-direction: row; text-align: left; padding: 5px 6px; }
+#breeding-view .b57-row.par > .b57-n .b57-ph { width: 36px; height: 36px; flex-basis: 36px; }
+#breeding-view .b57[data-b57k="ceiba"] .b57-bar,
+#breeding-view .b57[data-b57k="river"] .b57-bar { height: 0; margin: 0; background: none; }
+.w-side, nav.w-side, .mfx-list, .w-list { min-width: 0; max-width: 100%; overflow: visible; }
+.w-side .w-l, .w-side .w-foot, .w-side .w-n, .w-side .w-li-t, .w-side .w-li-t b, .mfx-list .w-li-t b {
+  min-width: 0;
+  overflow-wrap: break-word;
+  word-break: normal;
+  white-space: normal;
+}
+/* Family tree only. The page reserves the fixed tab bar, plus the home
+   indicator, so the ribbon can sit fully above the bar. A phone tightens
+   the same nodes; it does not add a layout or change the branches. */
+#breeding-view .b57.b63-reserved {
+  box-sizing: border-box;
+  padding-bottom: calc(var(--b63-tab-h, 0px) + env(safe-area-inset-bottom));
+}
+@media (max-width: 480px) {
+  #breeding-view .b57.b63-compact .b57-lab { margin: 2px 0; }
+  #breeding-view .b57.b63-compact .b57-row.gp,
+  #breeding-view .b57.b63-compact .b57-row.par { margin-top: 0; margin-bottom: 0; }
+  #breeding-view .b57.b63-compact .b57-row.gp > .b57-n { padding: 3px 2px; }
+  #breeding-view .b57.b63-compact .b57-row.gp > .b57-n .b57-ph { width: 22px; height: 22px; flex-basis: 22px; }
+  #breeding-view .b57.b63-compact .b57-row.par > .b57-n { padding: 3px 5px; }
+  #breeding-view .b57.b63-compact .b57-row.par > .b57-n .b57-ph { width: 30px; height: 30px; flex-basis: 30px; }
+  #breeding-view .b57.b63-compact .b57-ph.big { width: 92px; height: 92px; flex-basis: 92px; }
+  #breeding-view .b57.b63-compact .b57-me { margin: 2px 0 0; }
+  #breeding-view .b57.b63-compact .b57-ban { margin: 4px auto 0; }
+  #breeding-view .b57.b63-compact .b57-bar { height: 8px; margin: 2px auto; }
+  #breeding-view .b57.b63-compact[data-b57k="ceiba"] .b57-bar,
+  #breeding-view .b57.b63-compact[data-b57k="river"] .b57-bar { height: 0; margin: 0; background: none; }
+  #breeding-view .b57.b63-compact .b18-h1 { margin: 0 0 2px; }
+  #breeding-view .b57.b63-compact .b57-subt { margin: 0 0 4px; }
+  #breeding-view .b57.b63-compact .b57-tools { margin-bottom: 4px; }
+}
+#breeding-view .b57 svg.b57-svg { overflow: visible; }
+#breeding-view .b57 .b57-svg text { text-overflow: clip; }

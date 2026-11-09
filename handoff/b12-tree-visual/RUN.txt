@@ -1,0 +1,33 @@
+Family-tree visual fixes. Public fixture only.
+
+(a) and (b) were already in the fan drawn by 721679f (7 Nov), before
+the B-4 ribbon patch. The pre-B-4 screenshots in handoff/r19-tree/shots
+show two Azulejo circles and two ribbons, and outer labels cut at the
+rim. B-4 commit 8e6f09e only shrank that fan; it did not add the second
+drawing.
+(c) The title badge and the Lineage highlight are also from 721679f.
+onLin() treats every family tree as the Lineage tab, including one
+opened from Breeding. The B-4 diffs do not change mark().
+
+From the B-10 app root:
+
+  node /path/to/b12-tree-visual/b63-tree-visual-patch.js .
+
+On the current base the visual test fails. After the patch:
+
+  node scripts/b63-tree-visual.test.js
+  node scripts/b63-tree-ribbon.test.js
+  node scripts/b63-real-mockup.test.js
+
+Chrome flags: --disable-extensions and
+--disable-component-extensions-with-background-pages.
+Dark is setThemePref('dark').
+
+build57.js                  0698b42265b62e6035adcb465ee53edf99bb5e6e1b06a53706f9e0e060cb89a4
+build63.css                 a5d3be09a872055377fdf49988d2caa50bf38aa48b43aedaecdb0201e827abbf
+service-worker.js           8c19275b3a6edc95c1ba032a2adfe8ad108c1550d6b2cef3f000ec279b252a92
+b63-tree-visual-patch.js    b521a2ca8d97bdf9402d72c3606be99af77e0c4b76bdbab24b3c3d2f02b8d74d
+b63-tree-visual.test.js     4a8931cd40c0cb38bb1e6d34647561092fbaea7285cfd46616d3959e6b727701
+b63-tree-ribbon.test.js     cc8328381809a1e960b82101753150d186f30117fec1f9069be4a8d28388126c
+
+Cache name is v97. Fetch behavior is unchanged.

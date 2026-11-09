@@ -1,0 +1,229 @@
+'use strict';
+/*
+  Public fixture only. Azulejo keeps one plant circle and one ribbon, and
+  its outer labels stay whole inside the screen. Ceiba has no empty title
+  circle, and opening the tree from Breeding leaves the Breeding tab active.
+
+  Widths 390x844, 375x667, 1024x768. Light, then setThemePref('dark').
+  Chrome uses the harness flags from renderer 179ccd72.
+
+  node scripts/b63-tree-visual.test.js
+  node scripts/b63-tree-visual.test.js --self
+*/
+const fs = require('fs');
+const http = require('http');
+const path = require('path');
+const { spawn } = require('child_process');
+const ROOT = path.join(__dirname, '..');
+const CHROME = process.env.CHROME || '/opt/google/chrome/chrome';
+const FLAGS = ['--disable-extensions', '--disable-component-extensions-with-background-pages'];
+const WIDTHS = [[390, 844], [375, 667], [1024, 768]];
+const state = {
+  plants: [{ id: 'p-child', name: 'Fixture Child', status: 'active', count: 1, logs: [], treeStyle: 4, b49Mother: 'mf:m-mom', b49Father: 'mf:f-dad', b58Manual: { m: true, f: true } }],
+  breedingPlants: [],
+  motherFatherPlants: [
+    { id: 'm-mom', name: 'Fixture Mother With A Long Label', role: 'mother', status: 'Active', treeStyle: 4 },
+    { id: 'f-dad', name: 'Fixture Father With A Long Label', role: 'father', status: 'Active', treeStyle: 4 },
+  ],
+  breedingProjects: [],
+  cloneRuns: [],
+};
+function sleep(ms) { return new Promise((r) => setTimeout(r, ms)); }
+
+const MEASURE = `(() => {
+  const root = document.querySelector('#breeding-view .b57');
+  const k = root && root.getAttribute('data-b57k');
+  const circles = root ? root.querySelectorAll('.b57-ctr, .b57-me, .b57-rose .b57-ph').length : 0;
+  const ribbons = root ? root.querySelectorAll('.b57-ban').length : 0;
+  const h = root && root.querySelector('.b18-h1');
+  const hr = h ? h.getBoundingClientRect() : null;
+  let titleCircle = false;
+  if (root && hr) {
+    titleCircle = [...root.querySelectorAll('img, svg, span, i, div')].some((el) => {
+      if (el === h || el.contains(h)) return false;
+      if (!h.contains(el) && el.closest('.b57-canvas, .b57-scroll, .b57-tools, .b57-ban, .b57-svgw, #tabbar')) return false;
+      const r = el.getBoundingClientRect();
+      if (r.width < 18 || r.width > 64 || Math.abs(r.width - r.height) > 8) return false;
+      if (r.top > hr.bottom + 8 || r.bottom < hr.top - 8) return false;
+      return !(el.innerText || '').trim();
+    });
+  }
+  const labels = [...(root ? root.querySelectorAll('svg.b57-svg text') : [])].map((el) => {
+    const r = el.getBoundingClientRect();
+    const text = (el.textContent || '').replace(/\\s+/g, ' ').trim();
+    const full = (el.getAttribute('data-full') || text).replace(/\\s+/g, ' ').trim();
+    const cs = getComputedStyle(el);
+    return {
+      text, full,
+      cut: full && text.replace(/\\s/g, '') !== full.replace(/\\s/g, ''),
+      ellipsis: /\\u2026|\\.\\.\\./.test(text) || cs.textOverflow === 'ellipsis',
+      outside: r.width > 0 && (r.left < -1 || r.right > window.innerWidth + 1 || r.top < -1 || r.bottom > window.innerHeight + 1),
+    };
+  });
+  const de = document.scrollingElement || document.documentElement;
+  const breed = document.querySelector('#tabbar [data-tab-view="breeding"]');
+  const lin = document.querySelector('#tabbar [data-tab-view="lineage"]');
+  const on = (el) => !!(el && (el.classList.contains('active') || el.classList.contains('on') || el.getAttribute('aria-current') === 'page'));
+  return {
+    k, circles, ribbons, titleCircle, labels,
+    pan: de.scrollWidth > de.clientWidth + 2,
+    breed: on(breed), lineage: on(lin),
+    notRecorded: labels.some((row) => row.full === 'Not recorded' || row.full === '+ Not recorded'),
+  };
+})()`;
+
+function judge(row, style) {
+  const fails = [];
+  if (!row || !row.k) return ['tree did not render'];
+  if (row.circles !== 1) fails.push('plant circles ' + row.circles);
+  if (row.ribbons !== 1) fails.push('ribbons ' + row.ribbons);
+  if (row.pan) fails.push('page scrolls sideways');
+  if (row.k === 'azulejo') {
+    (row.labels || []).forEach((label) => {
+      if (label.cut || label.ellipsis) fails.push('label truncated ' + JSON.stringify(label));
+      if (label.outside) fails.push('label outside the screen ' + JSON.stringify(label));
+    });
+    if (!row.notRecorded) fails.push('outer Not recorded label is missing');
+  }
+  if (row.k === 'ceiba') {
+    if (row.titleCircle) fails.push('empty title circle');
+    if (!row.breed || row.lineage) fails.push('tab is not Breeding');
+  }
+  return fails;
+}
+
+async function withChrome(handler, body) {
+  if (!fs.existsSync(CHROME)) throw new Error('chrome missing at ' + CHROME);
+  const probe = http.createServer();
+  const port = await new Promise((resolve) => probe.listen(0, '127.0.0.1', () => { const p = probe.address().port; probe.close(() => resolve(p)); }));
+  const debugProbe = http.createServer();
+  const debug = await new Promise((resolve) => debugProbe.listen(0, '127.0.0.1', () => { const p = debugProbe.address().port; debugProbe.close(() => resolve(p)); }));
+  const server = http.createServer(handler);
+  await new Promise((resolve) => server.listen(port, '127.0.0.1', resolve));
+  const dir = fs.mkdtempSync(path.join(require('os').tmpdir(), 'b63-visual-'));
+  const proc = spawn(CHROME, ['--headless=new', '--disable-gpu', '--no-sandbox', '--disable-dev-shm-usage', ...FLAGS, '--user-data-dir=' + dir, '--remote-debugging-port=' + debug, 'about:blank'], { stdio: 'ignore' });
+  try {
+    let page = null;
+    for (let i = 0; i < 50 && !page; i++) {
+      try { const list = await (await fetch('http://127.0.0.1:' + debug + '/json/list')).json(); page = list.find((t) => t.type === 'page' && t.webSocketDebuggerUrl); }
+      catch (e) { await sleep(100); }
+    }
+    if (!page) throw new Error('chrome did not open');
+    const ws = new WebSocket(page.webSocketDebuggerUrl);
+    await new Promise((resolve, reject) => { ws.addEventListener('open', resolve); ws.addEventListener('error', reject); });
+    let n = 0; const pending = new Map();
+    ws.addEventListener('message', (ev) => { const msg = JSON.parse(ev.data); if (msg.id && pending.has(msg.id)) { const done = pending.get(msg.id); pending.delete(msg.id); done(msg); } });
+    function send(method, params) {
+      const id = ++n;
+      return new Promise((resolve, reject) => {
+        const timer = setTimeout(() => reject(new Error('timeout ' + method)), 20000);
+        pending.set(id, (msg) => { clearTimeout(timer); if (msg.error) reject(new Error(JSON.stringify(msg.error))); else resolve(msg.result || {}); });
+        ws.send(JSON.stringify({ id, method, params: params || {} }));
+      });
+    }
+    async function evaluate(expression) {
+      const out = await send('Runtime.evaluate', { expression, awaitPromise: true, returnByValue: true });
+      if (out.exceptionDetails) throw new Error(JSON.stringify(out.exceptionDetails).slice(0, 400));
+      return out.result && out.result.value;
+    }
+    await send('Page.enable');
+    await send('Runtime.enable');
+    await body({ port, send, evaluate });
+  } finally {
+    try { proc.kill('SIGKILL'); } catch (e) {}
+    server.close();
+    await sleep(100);
+    try { fs.rmSync(dir, { recursive: true, force: true }); } catch (e) {}
+  }
+}
+
+function selfHtml(dup) {
+  const extra = dup ? '<div class="b57-me" style="width:90px;height:90px;border-radius:50%"></div><div class="b57-ban"><b>Fixture Child</b><small>Not recorded</small></div>' : '';
+  const label = dup ? '+ Not recor' : 'Not recorded';
+  return `<!doctype html><meta name="viewport" content="width=device-width"><style>
+  body{margin:0} #tabbar{position:fixed;bottom:0;left:0;right:0;height:56px;display:flex}
+  .tab{flex:1} .tab.active{background:gold}
+  .badge{width:36px;height:36px;border-radius:50%;background:#e6b325;display:inline-block}
+  svg{width:300px;height:160px;overflow:visible}
+  </style><body>
+  <div id="tabbar"><button class="tab" data-tab-view="breeding">Breeding</button><button class="tab active" data-tab-view="lineage" aria-current="page">Lineage</button></div>
+  <div id="breeding-view"><div class="b57" data-b57k="azulejo"><h2 class="b18-h1">Family tree <span class="badge"></span></h2>
+  <div class="b57-svgw"><svg class="b57-svg fan" viewBox="0 0 380 206"><text class="t1" data-full="Not recorded" x="8" y="20">${label}</text></svg></div>
+  <g class="b57-ctr"></g><div class="b57-ban"><b>Fixture Child · F1</b><small>Fixture Mother With A Long Label</small></div>
+  ${extra}
+  </div></div></body>`;
+}
+
+async function runSelf() {
+  await withChrome((req, res) => {
+    const dup = new URL(req.url, 'http://127.0.0.1').searchParams.get('dup') === '1';
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.end(selfHtml(dup));
+  }, async ({ port, send, evaluate }) => {
+    await send('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
+    await send('Page.navigate', { url: 'http://127.0.0.1:' + port + '/?dup=1' });
+    await sleep(150);
+    const before = await evaluate(MEASURE);
+    const beforeFails = judge(before, 4);
+    if (!beforeFails.some((line) => line.indexOf('circles') >= 0 || line.indexOf('ribbons') >= 0)) throw new Error('self check expected a duplicate ' + JSON.stringify(beforeFails));
+    console.log('PASS self unfixed fails: ' + beforeFails[0]);
+    await send('Page.navigate', { url: 'http://127.0.0.1:' + port + '/?dup=0' });
+    await sleep(150);
+    const after = await evaluate(MEASURE);
+    const bad = judge(after, 4).filter((line) => line.indexOf('title') < 0 && line.indexOf('Breeding') < 0 && line.indexOf('Not recorded label is missing') < 0);
+    if (after.circles !== 1 || after.ribbons !== 1) throw new Error('self fixed still duplicated ' + JSON.stringify(after));
+    if ((after.labels || []).some((label) => label.cut || label.outside)) throw new Error('self label still clipped ' + JSON.stringify(after.labels));
+    console.log('PASS self single circle and ribbon, Not recorded inside the screen');
+    if (bad.length && bad.some((line) => line.indexOf('truncated') >= 0 || line.indexOf('outside') >= 0)) throw new Error(bad.join('; '));
+  });
+  console.log('b63 tree visual self-check passed');
+}
+
+function appHandler(req, res) {
+  let rel = decodeURIComponent(new URL(req.url, 'http://127.0.0.1').pathname);
+  if (rel === '/') rel = '/index.html';
+  const file = path.normalize(path.join(ROOT, rel.replace(/^\/+/, '')));
+  if ((!file.startsWith(ROOT + path.sep) && file !== ROOT) || !fs.existsSync(file) || !fs.statSync(file).isFile()) { res.statusCode = 404; res.end('missing'); return; }
+  const type = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.webmanifest': 'application/manifest+json', '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.ttf': 'font/ttf', '.woff2': 'font/woff2' }[path.extname(file).toLowerCase()] || 'application/octet-stream';
+  res.setHeader('Content-Type', type);
+  res.setHeader('Cache-Control', 'no-store');
+  res.end(fs.readFileSync(file));
+}
+
+async function runApp() {
+  const fails = [];
+  await withChrome(appHandler, async ({ port, send, evaluate }) => {
+    const init = 'localStorage.setItem("boriken-genetics-logbook-v1", ' + JSON.stringify(JSON.stringify(state)) + ');';
+    await send('Page.addScriptToEvaluateOnNewDocument', { source: init });
+    await send('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
+    await send('Page.navigate', { url: 'http://127.0.0.1:' + port + '/index.html' });
+    let ready = false;
+    for (let i = 0; i < 80 && !ready; i++) {
+      ready = await evaluate('!!(window.B57 && window.B49 && window.__b63Boot && window.__b63Boot.ready)');
+      if (!ready) await sleep(50);
+    }
+    if (!ready) throw new Error('app did not boot');
+    for (const theme of ['light', 'dark']) {
+      await evaluate('setThemePref(' + JSON.stringify(theme) + ')');
+      await sleep(50);
+      for (const [w, h] of WIDTHS) {
+        await send('Emulation.setDeviceMetricsOverride', { width: w, height: h, deviceScaleFactor: 1, mobile: w < 900 });
+        for (let style = 1; style <= 8; style++) {
+          await evaluate('(() => { switchView("breeding"); B49.openPage({ type: "b49tree", key: "pl:p-child", forceStyle: ' + style + ' }); return true; })()');
+          await sleep(420);
+          const row = await evaluate(MEASURE);
+          const bad = judge(row, style);
+          if (bad.length) fails.push(theme + ' ' + w + 'x' + h + ' style ' + style + ' ' + (row && row.k) + ' ' + bad.join('; '));
+          else console.log('PASS visual ' + theme + ' ' + row.k + ' ' + w + 'x' + h);
+        }
+      }
+    }
+  });
+  if (fails.length) { console.error(fails.join('\n')); process.exit(1); }
+  console.log('b63 tree visual: one circle, one ribbon, labels inside, Breeding tab');
+}
+
+(async () => {
+  if (process.argv.includes('--self')) await runSelf();
+  else await runApp();
+})().catch((e) => { console.error('FAIL', e && e.stack || e); process.exit(1); });
