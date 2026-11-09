@@ -345,7 +345,7 @@ ${pg.edit ? '<div class="b58-banner" role="status">Edit mode · tap any plant to
   function fitTreeNow() {
     const root = document.querySelector('#breeding-view .b57[data-b57s]');
     document.querySelectorAll('#breeding-view .b57.b63-reserved').forEach((el) => {
-      if (el !== root) { el.style.paddingBottom = ''; el.classList.remove('b63-reserved', 'b63-compact'); }
+      if (el !== root) { el.style.paddingBottom = ''; el.classList.remove('b63-reserved', 'b63-compact', 'b63-squeeze'); }
     });
     if (!root) return;
     const bar = document.getElementById('tabbar');
@@ -354,6 +354,7 @@ ${pg.edit ? '<div class="b58-banner" role="status">Edit mode · tap any plant to
     const tabH = covers ? Math.ceil(box.height) : 0;
     root.classList.add('b63-reserved');
     root.classList.toggle('b63-compact', window.innerWidth <= 480);
+    root.classList.toggle('b63-squeeze', covers && window.innerWidth <= 480 && window.innerHeight >= 780);
     root.style.setProperty('--b63-tab-h', tabH + 'px');
     root.style.paddingBottom = 'calc(' + tabH + 'px + env(safe-area-inset-bottom))';
     const canvas = root.querySelector('.b57-canvas');
@@ -366,21 +367,35 @@ ${pg.edit ? '<div class="b58-banner" role="status">Edit mode · tap any plant to
       return;
     }
     const tabTop = box.top;
-    const parts = [...root.querySelectorAll('.b57-ban small, .b57-ban, .b57-row.gp, .b57-row.par, .b57-me')].filter((el) => el.getClientRects().length);
-    if (!parts.length) return;
-    const lowest = Math.max.apply(null, parts.map((el) => el.getBoundingClientRect().bottom));
-    if (lowest <= tabTop - 2) { canvas.dataset.b63fit = canvas.dataset.b63fit || '1'; return; }
-    const cTop = canvas.getBoundingClientRect().top;
-    const need = lowest - cTop;
-    const have = tabTop - 2 - cTop;
-    if (need <= 8 || have < 120) return;
-    const current = Number(canvas.style.zoom) || userZoom;
-    const next = Math.max(userZoom * 0.45, Math.min(current, current * (have / need)));
-    const rounded = Math.round(next * 1000) / 1000;
-    if (rounded >= current - 0.004) { canvas.dataset.b63fit = String(rounded / userZoom); return; }
-    canvas.style.zoom = String(rounded);
-    canvas.dataset.b63fit = String(Math.round((rounded / userZoom) * 1000) / 1000);
-    window.dispatchEvent(new Event('resize'));
+    const fan = root.getAttribute('data-b57k') === 'azulejo';
+    const sel = fan ? '.b57-ban small, .b57-ban, .b57-row.gp, .b57-row.par, .b57-me, .b57-ph.big' : '.b57-ban small, .b57-ban, .b57-row.gp, .b57-row.par, .b57-me';
+    const floor = fan ? 0.28 : 0.45;
+    /* Viewport bottoms plus ancestor scroll, so a scrolled fan is fitted
+       for the initial view. At scroll 0 this is the same measurement as before. */
+    const restBottom = (el) => {
+      let y = el.getBoundingClientRect().bottom; let n = el.parentElement;
+      while (n) { y += n.scrollTop || 0; n = n.parentElement; }
+      return y;
+    };
+    let changed = false;
+    for (let step = 0; step < 6; step++) {
+      const parts = [...root.querySelectorAll(sel)].filter((el) => el.getClientRects().length);
+      if (!parts.length) return;
+      const lowest = Math.max.apply(null, parts.map(restBottom));
+      if (lowest <= tabTop - 2) { canvas.dataset.b63fit = canvas.dataset.b63fit || '1'; break; }
+      const cTop = restBottom(canvas) - canvas.getBoundingClientRect().height;
+      const need = lowest - cTop;
+      const have = tabTop - 2 - cTop;
+      if (need <= 8 || have < 120) break;
+      const current = Number(canvas.style.zoom) || userZoom;
+      const next = Math.max(userZoom * floor, Math.min(current, current * (have / need)));
+      const rounded = Math.round(next * 1000) / 1000;
+      if (rounded >= current - 0.004) { canvas.dataset.b63fit = String(rounded / userZoom); break; }
+      canvas.style.zoom = String(rounded);
+      canvas.dataset.b63fit = String(Math.round((rounded / userZoom) * 1000) / 1000);
+      changed = true;
+    }
+    if (changed) window.dispatchEvent(new Event('resize'));
   }
   const treeView = document.getElementById('breeding-view');
   if (treeView) new MutationObserver(() => { try { fitTree(); } catch (e) { /* */ } }).observe(treeView, { childList: true, subtree: true });

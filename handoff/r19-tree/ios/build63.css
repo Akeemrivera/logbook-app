@@ -198,4 +198,17 @@
   #breeding-view .b57.b63-compact .b18-h1 { margin: 0 0 2px; }
   #breeding-view .b57.b63-compact .b57-subt { margin: 0 0 4px; }
   #breeding-view .b57.b63-compact .b57-tools { margin-bottom: 4px; }
+  /* Azulejo's fan plus the plant under it is the one style that still
+     crossed the tab bar. Shorter fan, same viewBox, so the arcs stay. */
+  #breeding-view .b57.b63-squeeze[data-b57k="azulejo"] .b57-svgw { display: flex; justify-content: center; max-width: 100%; }
+  #breeding-view .b57.b63-squeeze[data-b57k="azulejo"] svg.b57-svg.fan {
+    width: min(100%, 346px) !important;
+    height: 188px !important;
+    max-height: 188px !important;
+  }
+  #breeding-view .b57.b63-squeeze[data-b57k="azulejo"] .b57-ph.big {
+    width: 72px !important;
+    height: 72px !important;
+    flex-basis: 72px !important;
+  }
 }

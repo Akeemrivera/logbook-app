@@ -8,7 +8,7 @@ const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const ROOT = path.join(__dirname, '..');
-const CSS = '8cd60ad7556fecf054d6446d8ebe9cbdd14738c1ffeb453db7700ae949a920e6';
+const CSS = '3517a759466012ac6fcbbfecc45b83d592790b9a8e0a044f54f13d56424db26a';
 const CSS_PATHS = ['build63.css', 'www/build63.css', 'ios/App/App/public/build63.css'];
 function fail(message) { console.error('FAIL', message); process.exit(1); }
 function sha(rel) {
