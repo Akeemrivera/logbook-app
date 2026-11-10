@@ -1,0 +1,43 @@
+Build 64: b62-based family trees + B-11/13/15/16 ports, Logbook 1.0 (64)
+
+Base: PR 10 head f445cad6 (shipped build 63 source c4f486a5 + B-11 label fix).
+Build 63 is not changed by this package.
+
+Copy into the app, same bytes in root, www/, and ios/App/App/public/:
+  build57.js build57.css build60.js build60.css
+  build13.js build41.js build42.js mobile.js build41-ui.css
+  build63.css app.js service-worker.js
+Copy ios/App/App.xcodeproj/project.pbxproj over the app's project file.
+ios/App/LogbookQAUITests/LogbookQAUITests.swift is updated in place in this repo.
+www/ also needs the public, empty b63-repair.json (same as build 63; the
+build-www.js packing check reports it missing in build 63 too).
+
+What changed
+- Family tree: build57.js / build57.css are the approved b62-based tree
+  (8 styles: walnut, ceiba, roots, azulejo, mobile, cert, river, window),
+  straight lines only. build60.js / build60.css go back to the b62 files
+  (no curved connectors). The b63 tree-layout rules in build63.css are
+  removed; its non-tree rules (inspection table, 248px sidebar, Plants
+  header fit, sidebar theme-match) are unchanged.
+- B-11: Mothers & Fathers clicks are delegated on the document, so
+  "+ Add mother" works after mfpOpen() moves the list (build13.js). The
+  QA UI test dismisses the keyboard, scrolls like a user, and opens the
+  Mothers & Fathers page before "+ Add mother" (LogbookQAUITests.swift).
+  The long-name test value is now a generic name of the same length.
+- B-13: production plants do not get their own tree. A clone opens its
+  linked mother's tree; seed-started plants keep their own tree; crosses
+  and projects link to their mother's and father's trees. Optional
+  "Clone of" picker on a production clone. One approved, backed-up,
+  idempotent migration links one production clone to its mother
+  (record ids are matched by one-way hash, not stored). Siblings exclude
+  self and dedupe by id.
+- B-15: each plant keeps its own saved style (1-8), and the 8 styles are
+  structurally different (b62 layouts restored).
+- B-16: Archive on a mother/father profile is Retire, with a confirm and
+  Restore. Retired plants move to "Retired / Archived" and stay in trees.
+  The round title badge is aligned to the first line of the name
+  (build41.js, build41-ui.css, build42.js, mobile.js, build13.js).
+- Version: APP_BUILD 64, CURRENT_PROJECT_VERSION 64 (CFBundleVersion),
+  MARKETING_VERSION 1.0. Service-worker cache v108 -> v109.
+
+Real records and all real-data screenshots stay on the private machine.

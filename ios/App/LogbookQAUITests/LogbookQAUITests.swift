@@ -7,7 +7,7 @@ final class LogbookQAUITests: XCTestCase {
     private let productionDisplay = "Borikèn Logbook"
     private let qaDisplay = "Borikèn Logbook QA"
     private let productionBundle = "com.borikengenetics.logbookapp"
-    private let longName = "cannalien x afghan landrace"
+    private let longName = "testplant x afghan landrace"
     private let motherName = "QA Landrace Mother"
 
     override func setUpWithError() throws {
@@ -35,6 +35,34 @@ final class LogbookQAUITests: XCTestCase {
         return app
     }
 
+    /// Dismiss the software keyboard the way a person would, so controls under it can become hittable.
+    private func dismissKeyboard(_ app: XCUIApplication) {
+        guard app.keyboards.firstMatch.exists else { return }
+        let done = [
+            app.toolbars.buttons["Done"].firstMatch,
+            app.keyboards.buttons["Done"].firstMatch,
+            app.buttons["Done"].firstMatch,
+            app.keyboards.buttons["Return"].firstMatch,
+            app.keyboards.buttons["return"].firstMatch
+        ]
+        for button in done where button.exists && button.isHittable {
+            button.tap()
+            return
+        }
+        app.keyboards.firstMatch.swipeDown()
+    }
+
+    /// Swipe the web content up like a user, after dismissing the keyboard if it is showing.
+    private func scrollLikeUser(_ app: XCUIApplication) {
+        dismissKeyboard(app)
+        let web = app.webViews.firstMatch
+        if web.exists {
+            web.swipeUp()
+        } else {
+            app.swipeUp()
+        }
+    }
+
     @discardableResult
     private func tap(_ app: XCUIApplication, _ label: String, timeout: TimeInterval = 6) -> Bool {
         let queries = [
@@ -45,11 +73,42 @@ final class LogbookQAUITests: XCTestCase {
             app.webViews.staticTexts[label].firstMatch
         ]
         let end = Date().addingTimeInterval(timeout)
+        var attemptedScroll = false
         while Date() < end {
             for element in queries where element.exists && element.isHittable {
                 element.tap()
                 return true
             }
+            // Off-screen or covered by the keyboard: scroll/dismiss like a user, then require hittable.
+            if attemptedScroll || queries.contains(where: { $0.exists }) {
+                scrollLikeUser(app)
+            }
+            attemptedScroll = true
+            RunLoop.current.run(until: Date().addingTimeInterval(0.25))
+        }
+        return false
+    }
+
+    /// Tap a button whose accessibility label contains `text` (not static text).
+    /// Needed when a row's label is a title plus a subtitle.
+    @discardableResult
+    private func tapButtonContaining(_ app: XCUIApplication, _ text: String, timeout: TimeInterval = 6) -> Bool {
+        let pred = NSPredicate(format: "label CONTAINS %@", text)
+        let queries = [
+            app.webViews.buttons.matching(pred).firstMatch,
+            app.buttons.matching(pred).firstMatch
+        ]
+        let end = Date().addingTimeInterval(timeout)
+        var attemptedScroll = false
+        while Date() < end {
+            for element in queries where element.exists && element.isHittable {
+                element.tap()
+                return true
+            }
+            if attemptedScroll || queries.contains(where: { $0.exists }) {
+                scrollLikeUser(app)
+            }
+            attemptedScroll = true
             RunLoop.current.run(until: Date().addingTimeInterval(0.25))
         }
         return false
@@ -61,6 +120,7 @@ final class LogbookQAUITests: XCTestCase {
         guard field.waitForExistence(timeout: 4), field.isHittable else { return false }
         field.tap()
         field.typeText(text)
+        dismissKeyboard(app)
         return true
     }
 
@@ -90,6 +150,8 @@ final class LogbookQAUITests: XCTestCase {
         let app = launchQA(shot: "10-launch")
         XCTAssertTrue(tap(app, "Breeding"), "Breeding was not hittable.")
         addShot(app, "11-breeding")
+        // "+ Add mother" is on the Mothers & Fathers page, opened from the row at the bottom of Breeding.
+        _ = tapButtonContaining(app, "Mothers & Fathers")
         let opened = tap(app, "+ Add mother") || tap(app, "Add mother or father") || tap(app, "+ Add")
         XCTAssertTrue(opened, "Add mother was not hittable.")
         XCTAssertTrue(typeInField(app, placeholder: "e.g., Strain name", text: motherName), "The mother name field was not hittable.")
