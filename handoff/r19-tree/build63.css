@@ -241,3 +241,40 @@
 }
 #breeding-view .b57 svg.b57-svg { overflow: visible; }
 #breeding-view .b57 .b57-svg text { text-overflow: clip; }
+
+
+/* B-5r2: Plants wide header — let the actions cluster and search shrink so
+   + Add plant stays fully in the viewport on the same row. Title/avatar
+   keep their size. nowrap overrides a later styles.css wrap rule. */
+:root[data-layout='wide'] .topbar {
+  min-width: 0;
+  flex-wrap: nowrap !important;
+}
+:root[data-layout='wide'] .topbar-actions {
+  min-width: 0 !important;
+  flex: 1 1 auto !important;
+  max-width: 100%;
+  flex-wrap: nowrap !important;
+}
+:root[data-layout='wide'] .topbar .w-search {
+  width: 0 !important;
+  max-width: 260px;
+  flex: 1 1 0 !important;
+  min-width: 0 !important;
+  overflow: hidden;
+}
+:root[data-layout='wide'] .topbar #open-plant-modal {
+  flex: 0 0 auto !important;
+  flex-shrink: 0 !important;
+  white-space: nowrap;
+  min-width: max-content !important;
+  max-width: none !important;
+}
+
+/* B-5r2: leave a gap under section labels so the canopy arc and
+   connector braces sit in the margin, not through the words.
+   Must beat .b63-compact .b57-lab { margin: 2px 0 }. */
+#breeding-view .b57[data-b57k="ceiba"] .b57-lab,
+#breeding-view .b57.b63-compact[data-b57k="ceiba"] .b57-lab {
+  margin-bottom: 20px;
+}
