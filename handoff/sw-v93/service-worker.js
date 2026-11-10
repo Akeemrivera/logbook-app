@@ -12,7 +12,7 @@
 // deletes every older cache.
 // iosScheme is https, so this worker registers inside the iOS wrapper (https://localhost).
 // Precache requests use cache:'reload' so a cached localhost response cannot refill the new cache.
-const CACHE_NAME = 'boriken-genetics-logbook-app-v107';
+const CACHE_NAME = 'boriken-genetics-logbook-app-v108';
 const APP_SHELL = [
   './',
   './index.html',

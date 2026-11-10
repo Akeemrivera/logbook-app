@@ -278,3 +278,74 @@
 #breeding-view .b57.b63-compact[data-b57k="ceiba"] .b57-lab {
   margin-bottom: 20px;
 }
+
+/* B-5 theme-match: sidebar follows setThemePref / data-theme
+   (white/cream in light, #111 in dark). Exact rules from
+   b5-theme-match.css, now in the build so they match the approved mockups. */
+/* ---- Light: cream/surface sidebar matching the page ---- */
+:root:root:root[data-theme='light'] body .w-side {
+  background: var(--color-surface, #fbfaf5) !important;
+  background-image: none !important;
+  border-right: 1px solid var(--bk-line, var(--color-border, #d2cfbd)) !important;
+  color: var(--color-text, #222718) !important;
+}
+:root:root:root[data-theme='light'] body .w-side .w-l,
+:root:root:root[data-theme='light'] body .w-side .w-nav,
+:root:root:root[data-theme='light'] body .w-side .w-n {
+  color: var(--color-text, #222718) !important;
+}
+:root:root:root[data-theme='light'] body .w-side .w-sec,
+:root:root:root[data-theme='light'] body .w-side .w-foot,
+:root:root:root[data-theme='light'] body .w-side .w-foot * {
+  color: var(--bk-sub, var(--color-text-muted, #6b705c)) !important;
+  border-color: var(--bk-line, var(--color-border, #d2cfbd)) !important;
+}
+:root:root:root[data-theme='light'] body .w-side .w-nav.on {
+  background: var(--bk-tint, var(--color-primary-soft, #dce9d4)) !important;
+  box-shadow: inset 3px 0 0 var(--color-primary, #2f6f3e) !important;
+}
+:root:root:root[data-theme='light'] body .w-side .w-nav.on .w-l,
+:root:root:root[data-theme='light'] body .w-side .w-nav.on .w-n {
+  color: var(--color-text, #222718) !important;
+}
+:root:root:root[data-theme='light'] body .w-side .w-nav:hover {
+  background: var(--color-surface-2, #f7f3e7) !important;
+}
+
+/* ---- Dark: match build46 black shell (not branded green) ---- */
+:root:root:root[data-theme='dark'] body .w-side {
+  background: #111111 !important;
+  background-image: none !important;
+  border-right: 1px solid #2c2c2e !important;
+  color: #e8e8e8 !important;
+}
+:root:root:root[data-theme='dark'] body .w-side .w-l,
+:root:root:root[data-theme='dark'] body .w-side .w-nav,
+:root:root:root[data-theme='dark'] body .w-side .w-n {
+  color: #e8e8e8 !important;
+}
+:root:root:root[data-theme='dark'] body .w-side .w-sec,
+:root:root:root[data-theme='dark'] body .w-side .w-foot,
+:root:root:root[data-theme='dark'] body .w-side .w-foot * {
+  color: #a8a8a8 !important;
+  border-color: #2c2c2e !important;
+}
+:root:root:root[data-theme='dark'] body .w-side .w-nav.on {
+  background: #2c2c2e !important;
+  box-shadow: inset 3px 0 0 var(--color-primary, #8fcb75) !important;
+}
+:root:root:root[data-theme='dark'] body .w-side .w-nav.on .w-l,
+:root:root:root[data-theme='dark'] body .w-side .w-nav.on .w-n {
+  color: #f5f5f5 !important;
+}
+:root:root:root[data-theme='dark'] body .w-side .w-nav:hover {
+  background: #1c1c1e !important;
+}
+
+/* Brand logo plate stays readable on both themes */
+:root:root:root[data-theme='light'] body .w-side .w-brand img {
+  background: #FFF8EC !important;
+}
+:root:root:root[data-theme='dark'] body .w-side .w-brand img {
+  background: #eef3ea !important;
+}
