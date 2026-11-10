@@ -172,10 +172,10 @@ function judge(row, style) {
     }
   }
   if (!row.badge || !row.glyph) fails.push('title badge glyph is missing');
-  /* b64 (#1): exactly one tab is active, and it is the tab the tree was opened from. */
+  /* b64 (#1): exactly one tab is active, and it is Lineage (the approved mockups), wherever the tree was opened from. */
   if (row.from) {
     if ((row.activeTabs || []).length !== 1) fails.push('active tabs ' + JSON.stringify(row.activeTabs));
-    else if (row.activeTabs[0] !== row.from) fails.push('tab is ' + row.activeTabs[0] + ', opened from ' + row.from);
+    else if (row.activeTabs[0] !== 'lineage') fails.push('tab is ' + row.activeTabs[0] + ', expected lineage (opened from ' + row.from + ')');
   }
   return fails;
 }
@@ -318,7 +318,7 @@ async function runApp() {
               const tr = await evaluate(MEASURE);
               const tb = tr ? [] : ['tree did not render'];
               if (tr && (tr.activeTabs || []).length !== 1) tb.push('active tabs ' + JSON.stringify(tr.activeTabs));
-              else if (tr && tr.activeTabs[0] !== from) tb.push('tab is ' + tr.activeTabs[0] + ', opened from ' + from);
+              else if (tr && tr.activeTabs[0] !== 'lineage') tb.push('tab is ' + tr.activeTabs[0] + ', expected lineage (opened from ' + from + ')');
               if (tb.length) fails.push(theme + ' ' + w + 'x' + h + ' tab from ' + from + ' ' + tb.join('; '));
               else console.log('PASS tab ' + theme + ' ' + w + 'x' + h + ' from ' + from);
             }
