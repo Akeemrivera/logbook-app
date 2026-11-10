@@ -41,3 +41,7 @@ What changed
   MARKETING_VERSION 1.0. Service-worker cache v108 -> v109.
 
 Real records and all real-data screenshots stay on the private machine.
+
+Status label (Elio, Nov 10, 3:37 PM ET): build57.js stat() returns "Retired" for a record whose
+status is Retired (a retired mother or father). No other wording changes: archived still reads
+"Culled · lineage kept", and a dx: parent still reads "Deleted plant (name kept)".

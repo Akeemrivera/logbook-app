@@ -57,6 +57,8 @@
     if (!r) return { t: 'removed', l: 'Deleted plant' };
     if (r.deleted) return { t: 'removed', l: 'Deleted plant (name kept)' };
     if (r.boughtGenetics) return { t: 'bought', l: `Bought genetics · ${r.breeder ? r.breeder : 'From another breeder'}`, br: r.breeder || '' };
+    /* b64 (Elio, Nov 10): a mother/father marked Retired says Retired, as b63 did. */
+    if (/^retired$/i.test(String(r.status || ''))) return { t: 'retired', l: 'Retired' };
     if (r.archived || /archiv|cull/i.test(String(r.status || '')) || (r.grade && r.grade.verdict === 'cull')) return { t: 'culled', l: 'Culled · lineage kept' };
     if (!par2(k)) { const src = String(r.breeder || r.source || r.seedSource || '').replace(/^Promoted from.*/i, '').trim(); /* b58: mother/father 'Source / notes' is free text; only call it bought when it says so (bought, breeder, seed bank, seeds, genetics) */
       if (src && !/^(seed|clone)$/i.test(src) && (r.breeder || /\b(bought|purchased?|breeder|seed ?bank|seeds|genetics)\b/i.test(src))) { const br = String(r.breeder || '').trim() || src.replace(/^bought\s*(?:·|-|from)?\s*/i, '').trim(); return { t: 'bought', l: `Bought genetics · ${br || 'From another breeder'}`, br }; } }
