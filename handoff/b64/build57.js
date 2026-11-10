@@ -48,11 +48,23 @@
     if (!p && r && !k.startsWith('mf:')) { const c = String(r.crossLabel || r.cultivar || '').split(/\s+[×x]\s+/); if (c.length === 2 && (c[0].trim() || c[1].trim())) p = [kbn(c[0].replace(/^.*·\s*/, '')) || 'tx:Unknown', kbn(c[1]) || 'tx:Unknown']; }
     return p;
   }
+  /* b64 (Elio, Nov 10): a parent slot that only says "Not recorded" is missing, not a plant: it never makes an S1 or a backcross. */
+  const isPh = (k) => !k || /^(not recorded|unknown|\?+|none|n\/a)$/i.test(String(name(k) || '').trim());
   const isUnk = (k) => !k || (String(k).startsWith('tx:') && (UNK.test(String(k).slice(3).trim()) || !String(k).slice(3).trim()));
-  function stat(k) {
+  /* b64 (Elio, Nov 10): "Deleted plant (name kept)" only when a deletion of that parent is really on record; otherwise the name was typed in. */
+  function recordedDeletion(k) {
+    const text = String(k || ''); if (!text.startsWith('dx:')) return false; const nm = text.slice(3); if (!nm) return false;
+    return [state.plants, state.breedingPlants, state.motherFatherPlants, state.breedingProjects].some((a) => (a || []).some((r) => {
+      const book = r && r.b58DeletedParents; if (!book || typeof book !== 'object') return false;
+      return ['m', 'f'].some((side) => { const e = book[side]; return !!(e && typeof e === 'object' && e.key && e.name === nm); });
+    }));
+  }
+  /* b64: a typed-in parent of a plant whose seeds are noted as bought reads "Bought seeds, not linked"; its cross line adds "· bought seeds, not linked". */
+  const boughtSeeds = (via) => { const v = String(via || ''); if (!/^(pl|bp):/.test(v)) return false; const r = rec(v); return !!(r && r.source === 'seed' && /\b(bought|purchased?)\b/i.test(String(r.seedSource || ''))); };
+  function stat(k, via) {
     if (isUnk(k)) return { t: 'unknown', l: 'Unknown · open pollination / mixed pollen' };
     /* b58: "Deleted plant" only for a recorded deletion (dx:). A typed name with no plant behind it is bought genetics. */
-    if (String(k).startsWith('dx:')) return { t: 'removed', l: 'Deleted plant (name kept)' };
+    if (String(k).startsWith('dx:')) return recordedDeletion(k) ? { t: 'removed', l: 'Deleted plant (name kept)' } : boughtSeeds(via) ? { t: 'nameonly', l: 'Bought seeds, not linked', seeds: 1 } : { t: 'nameonly', l: 'Name only · not linked' };
     const r = rec(k); if (String(k).startsWith('tx:')) return { t: 'bought', l: 'Bought genetics · From another breeder', br: '' };
     if (!r) return { t: 'removed', l: 'Deleted plant' };
     if (r.deleted) return { t: 'removed', l: 'Deleted plant (name kept)' };
@@ -70,10 +82,10 @@
     const lv = [[{ k: root, role: 'This plant' }]]; const seen = [root];
     for (let g = 1; g <= 40; g++) {
       const row = []; lv[g - 1].forEach((x) => { if (!x.k || x.ref || x.self || isUnk(x.k)) return; const p = par2(x.k); if (!p) return;
-        const s1 = p[0] && p[1] && same(p[0], p[1]);
+        const s1 = p[0] && p[1] && !isPh(p[0]) && same(p[0], p[1]);
         p.forEach((k, i) => { if (s1 && i === 1) { row.push({ k: '', self: 1, via: x.k, side: 'f', role: `Self-pollinated (S1) · same as ${nm2(p[0])}` }); return; }
           if (!k) { row.push({ k: '', none: 1, via: x.k, side: i ? 'f' : 'm', role: `${rl(g, i)} · not recorded` }); return; }
-          if (!isUnk(k) && seen.some((q) => same(q, k))) { if (!row.some((y) => y.ref && same(y.k, k))) row.push({ k, ref: 1, via: x.k, side: i ? 'f' : 'm', role: `${rl(g, i)} · appears again (backcross)` }); return; }
+          if (!isUnk(k) && !isPh(k) && seen.some((q) => same(q, k))) { if (!row.some((y) => y.ref && same(y.k, k))) row.push({ k, ref: 1, via: x.k, side: i ? 'f' : 'm', role: `${rl(g, i)} · appears again (backcross)` }); return; }
           if (!isUnk(k)) seen.push(k); row.push({ k, via: x.k, side: i ? 'f' : 'm', role: rl(g, i) }); }); });
       if (!row.length) break; lv.push(row);
     }
@@ -140,13 +152,13 @@
     if (x.none || x.b62) return pnode(x, cls);
     if (x.self) return `<div class="b57-n ${cls} self"${ofA(x)}><span class="b57-ph mono" aria-hidden="true">S1</span><b>Self</b><small>${esc(x.role)}</small></div>`;
     if (!x.k || isUnk(x.k)) return x.via ? `<button type="button" class="b57-n ${cls} unk" data-st="unknown" data-b58="add"${ofA(x)}><span class="b57-ph mono" aria-hidden="true">?</span><b>Unknown</b><small>${esc(x.role ? x.role + ' · ' : '')}open pollination / mixed pollen · tap to change</small></button>` : `<div class="b57-n ${cls} unk" data-st="unknown"><span class="b57-ph mono" aria-hidden="true">?</span><b>Unknown</b><small>${esc(x.role ? x.role + ' · ' : '')}open pollination / mixed pollen</small></div>`;
-    const st = stat(x.k); const tag = x.ref ? '<em class="b57-tag ref">↺ also above</em>' : st.t === 'culled' ? '<em class="b57-tag cull">Culled</em>' : st.t === 'removed' ? '<em class="b57-tag gone">Deleted plant</em>' : st.t === 'bought' ? `<em class="b57-tag bought" data-b58="info" data-k="${esc(x.k)}" role="button" tabindex="0" aria-label="Bought genetics${st.br ? ' from ' + esc(st.br) : ''}. Tap for details">${esc(window.B58 && B58.boughtBadge ? B58.boughtBadge(st.br) : 'Bought')}</em>` : '';
+    const st = stat(x.k, x.via); const tag = x.ref ? '<em class="b57-tag ref">↺ also above</em>' : st.t === 'culled' ? '<em class="b57-tag cull">Culled</em>' : st.t === 'removed' ? '<em class="b57-tag gone">Deleted plant</em>' : st.t === 'bought' ? `<em class="b57-tag bought" data-b58="info" data-k="${esc(x.k)}" role="button" tabindex="0" aria-label="Bought genetics${st.br ? ' from ' + esc(st.br) : ''}. Tap for details">${esc(window.B58 && B58.boughtBadge ? B58.boughtBadge(st.br) : 'Bought')}</em>` : '';
     return `<button type="button" class="b57-n ${cls}${x.ref ? ' ref' : ''}${st.t ? ' st-' + st.t : ''}" data-b57="sel" data-k="${esc(x.k)}"${ofA(x)}${x.sib ? ' data-sib="1"' : ''} data-st="${st.t}">${ph(x.k)}<b>${esc(name(x.k))}</b><small>${sub(x.k, x.role)}${st.l && !x.ref ? ' · ' + esc(st.l) : ''}</small>${tag}</button>`;
   }
   const candNode = (c) => c.k ? `<button type="button" class="b57-n cand keeper" data-b57="sel" data-k="${esc(c.k)}" data-cand="${c.i}">${ph(c.k)}<b>${esc(c.t)}</b><small>${esc(c.s)}</small><em class="b57-tag keep">★ Keeper</em></button>` : `<div class="b57-n cand${c.cull ? ' st-culled' : ''}" data-cand="${c.i}"><span class="b57-ph mono" aria-hidden="true">#${c.i}</span><b>${esc(c.t)}</b><small>${esc(c.s)}</small>${c.cull ? '<em class="b57-tag cull">Cull</em>' : ''}</div>`;
   const kidNode = (x) => x.add ? `<button type="button" class="b57-n kid add b58-only" data-b58="addkid"><span class="b57-ph mono" aria-hidden="true">+</span><b>Add kid</b><small>link a plant as a child</small></button>` : x.k ? `<button type="button" class="b57-n kid" data-b57="sel" data-kid="1" data-k="${esc(x.k)}">${ph(x.k)}<b>${esc(x.t)}</b><small>${esc(x.s)}</small></button>` : `<div class="b57-n kid clone"><span class="b57-ph mono" aria-hidden="true">C</span><b>${esc(x.t)}</b><small>${esc(x.s)}</small></div>`;
   const me = (k) => `<div class="b57-me" data-k="${esc(k)}" data-node="${esc(k)}">${ph(k, 1)}<div class="b57-ban"><b>${esc(name(k))}${gen(k) ? ` · ${esc(gen(k))}` : ''}</b><small>${esc(crossTxt(k))}</small></div></div>`;
-  const crossTxt = (k) => { const p = par2(k); if (!p) return stat(k).l || 'Starting line'; return same(p[0], p[1]) ? `${nm2(p[0])} selfed (S1)` : p.map((q) => (q ? nm2(q) : 'not recorded')).join(' × '); };
+  const crossTxt = (k) => { const p = par2(k); if (!p) return stat(k).l || 'Starting line'; return (!isPh(p[0]) && same(p[0], p[1])) ? `${nm2(p[0])} selfed (S1)` : p.map((q) => (q ? nm2(q) : 'not recorded')).join(' × ') + ((p.every((q) => q && String(q).startsWith('dx:') && !recordedDeletion(q)) && boughtSeeds(k)) ? ' · bought seeds, not linked' : ''); };
   const lab = (t) => `<div class="b57-lab">${esc(t)}</div>`;
   const row = (arr, f, cls = '') => `<div class="b57-row ${cls}">${arr.map(f).join('')}</div>`;
   /* b64 (Chief, Nov 10): a plant with no parents recorded gets b62's single card, never an empty Mother / Father pair or
@@ -210,6 +222,8 @@
         return kidsH ? (o.up ? `<div class="b59-fam up">${kidsH}${brk}</div>` : `<div class="b59-fam">${brk}${kidsH}</div>`) : '';
       }).join('');
     }
+    /* b64 (Elio, Nov 10): Roots (o.up) keeps its crown on top: with no partner and no kids, the empty Kids heading sits above this plant, so the trunk down to the roots crosses no text. */
+    if (!G.length && o.up && !visibleKids.length && !o.noKids && !o.noMe) return `${o.kidL || lab('Kids')}${kidsBlock(visibleKids)}${o.noLab ? '' : lab('This plant')}${me(k)}`;
     if (!G.length) return `${o.noMe ? '' : `${o.noLab ? '' : lab('This plant')}${me(k)}`}${o.noKids ? '' : `${o.kidL || lab('Kids')}${kidsBlock(visibleKids)}`}`;
     const bredAttach = (g) => {
       /* Partner attached to a this-plant already drawn by the style (walnut hub).
@@ -578,12 +592,17 @@
   /* Fan: equal b62 wedges. With CA on the centre the best possible is 1.12 u (< 4 px), so CA sits below the fan's base line:
      hy 62 puts the hub rim (r 55) 7 u (5.9 CSS px) under the wedges, so CA never covers a wedge. */
   const FAN = { W: 451, cy: 225.5, R: 223, rc: 176, rb: 94, ra: 0.5, hy: 62 };   /* b64: rb 94 / rc 176 (b64-solver/opt-fan62.js) so b62's 'Not recorded · Parents of X' wedge keeps 4 px+ (min 5.29 u = 4.48 CSS px) */   /* ra 0.5: the parents meet at the centre point (no notch now CA is below) */
+  /* b64 (Elio, Nov 10): an outer band (brothers & sisters, candidates, kids) keeps its second line only while every label clears 4 px.
+     Otherwise it shows names only, as the grandparent ring does; the same details stay in the list under the tree. */
+  const ringWorst = (h) => Math.min(...[...h.matchAll(/data-clr="(-?[0-9.]+)"/g)].map((q) => +q[1]));
+  function outerRing(items, cx, cy, r0, r1, a0, a1, cls) { const h = ring(items, cx, cy, r0, r1, a0, a1, cls); return ringWorst(h) >= RS_CLEAR ? h : ring(items, cx, cy, r0, r1, a0, a1, cls, null, null, { titleOnly: true }); }
   function radial(k, lv, P, ks) {
     const [m, f] = parentsRow(lv); const gp = gpItems(lv, m, f); const c = WAL.W / 2;
     const top = P.items.filter((x) => !x.me); const outer = top.length ? top : [{ t: P.hunt ? 'No candidates' : 'No siblings', s: 'same seed pop' }];
     const kk = ks.length ? ks.map((x) => (x.k ? { k: x.k, role: x.s } : { t: x.t, s: x.s })) : [{ t: 'No kids yet', s: 'kids' }];
+    const oR = outerRing(outer, c, c, WAL.rc, WAL.R, -Math.PI, 0, 'r3'), kR = outerRing(kk, c, c, WAL.rc, WAL.R, 0, Math.PI, 'r3 k');
     return `<div class="b57-svgw"><svg viewBox="0 0 ${WAL.W} ${WAL.W}" class="b57-svg radial" data-solved="1" role="group" aria-label="Family tree rings">
-<circle cx="${c}" cy="${c}" r="${WAL.wood}" class="wood"/>${ring(outer, c, c, WAL.rc, WAL.R, -Math.PI, 0, 'r3')}${ring(kk, c, c, WAL.rc, WAL.R, 0, Math.PI, 'r3 k')}${ring(gp, c, c, WAL.rb, WAL.rc, Math.PI / 2, 2.5 * Math.PI, 'r2 short')}${ring([m, f].filter(Boolean), c, c, WAL.ra, WAL.rb, Math.PI / 2, 2.5 * Math.PI, 'r1', null, WAL.hub + 3)}${centre(k, c, c, WAL.hub)}</svg></div>
+<circle cx="${c}" cy="${c}" r="${WAL.wood}" class="wood"/>${oR}${kR}${ring(gp, c, c, WAL.rb, WAL.rc, Math.PI / 2, 2.5 * Math.PI, 'r2 short')}${ring([m, f].filter(Boolean), c, c, WAL.ra, WAL.rb, Math.PI / 2, 2.5 * Math.PI, 'r1', null, WAL.hub + 3)}${centre(k, c, c, WAL.hub)}</svg></div>
 <div class="b57-ban solo"><b>${esc(name(k))}${gen(k) ? ` · ${esc(gen(k))}` : ''}</b><small>${esc(crossTxt(k))}</small></div>
 <p class="b57-key">Centre: this plant · Ring 1: parents · Ring 2: grandparents · Outer ring: ${P.hunt ? 'pheno-hunt candidates' : 'brothers &amp; sisters'} (top), kids (bottom)</p>${fam(k, ks, { noKids: 1, noLab: 1, noMe: 1 })}${P.hunt ? `${lab(popLab(P))}${popRow(P)}` : ''}${nextBranch(P)}`;
   }
@@ -595,7 +614,7 @@
        base wedges get more angle, until every label clears 4 px again. */
     const P2 = [m, f].filter(Boolean), PI = Math.PI;
     const draw = (rb, rc, sk, tOnly) => { const gb = gp.length === 4 ? [PI, PI + PI / 2 * (0.5 + sk), 1.5 * PI, 1.5 * PI + PI / 2 * (0.5 - sk), 2 * PI] : null;
-      return ring(o, c, FAN.cy, rc, FAN.R, PI, 2 * PI, 'r3') + ring(gp, c, FAN.cy, rb, rc, PI, 2 * PI, 'r2', null, null, { bounds: gb, titleOnly: tOnly }) + ring(P2, c, FAN.cy, FAN.ra, rb, PI, 2 * PI, 'r1', null, 55, { hx: c, hy: FAN.cy + FAN.hy }); };
+      return outerRing(o, c, FAN.cy, rc, FAN.R, PI, 2 * PI, 'r3') + ring(gp, c, FAN.cy, rb, rc, PI, 2 * PI, 'r2', null, null, { bounds: gb, titleOnly: tOnly }) + ring(P2, c, FAN.cy, FAN.ra, rb, PI, 2 * PI, 'r1', null, 55, { hx: c, hy: FAN.cy + FAN.hy }); };
     const worst = (h) => Math.min(...[...h.matchAll(/data-clr="(-?[0-9.]+)"/g)].map((q) => +q[1]));
     let rings = draw(FAN.rb, FAN.rc, 0, false);
     if (worst(rings) < RS_CLEAR) { let best = null;
@@ -1362,6 +1381,7 @@ ${pg.edit ? '<div class="b58-banner" role="status">Edit mode · tap any plant to
     root.querySelectorAll('.b57-bar.fl').forEach((el) => shorten(el, 14));
     snapStyleConnectors(root);
     snapAzulejoBracket(root);
+    snapUpPairBracket(root);
     snapLineCards(root);
   }
   /* Ceiba / Mobile / River only: stretch stems, ticks and strings so each end touches a card or bar. */
@@ -1373,10 +1393,10 @@ ${pg.edit ? '<div class="b58-banner" role="status">Edit mode · tap any plant to
       .filter((n) => !skip || (n !== skip && !skip.contains(n) && !n.contains(skip)))
       .map((n) => n.getBoundingClientRect())
       .filter((r) => r.width > 1 && r.height > 1);
-    const searchRect = (x, y0, dir, max, skip) => {
+    const searchRect = (x, y0, dir, max, skip, edge = -2) => {
       let best = null, bestD = max + 0.01;
       targetRects(skip).forEach((r) => {
-        if (x < r.left - 2 || x > r.right + 2) return;
+        if (x < r.left + edge || x > r.right - edge) return;
         const d = dir < 0 ? (y0 - r.bottom) : (r.top - y0);
         if (d > 0.2 && d < bestD) { bestD = d; best = r; }
       });
@@ -1416,7 +1436,9 @@ ${pg.edit ? '<div class="b58-banner" role="status">Edit mode · tap any plant to
       const r = el.getBoundingClientRect();
       if (!(r.height > 0.5)) return;
       const x = (r.left + r.right) / 2;
-      const up = searchRect(x, r.top, -1, MAX, el);
+      /* b64 (Elio, Nov 10): a parent's string reaches up past its bar only to a card it meets squarely, never to the corner of a neighbour's tag */
+      const parStr = el.classList.contains('b57-mob-str') && !!el.closest('.b57-mob-hang.row.pars');
+      const up = searchRect(x, r.top, -1, MAX, el, parStr ? 8 : -2);
       const down = searchRect(x, r.bottom, 1, MAX, el);
       const topGap = up ? (r.top - up.bottom) : 0;
       const botGap = down ? (down.top - r.bottom) : 0;
@@ -1583,11 +1605,17 @@ ${pg.edit ? '<div class="b58-banner" role="status">Edit mode · tap any plant to
           let x = want; if (!free(x)) { let bestX = null; for (let v = lo; v <= hi; v += 1) if (free(v) && (bestX == null || Math.abs(v - want) < Math.abs(bestX - want))) bestX = v; if (bestX != null) x = bestX; }
           return `M${f2(x)} ${f2(uy)}V${f2(c.y)}`; } }
       let ux = Math.min(ux1 - 12, Math.max(ux0 + 12, opts.x != null ? opts.x : (ux0 + ux1) / 2));
-      const my = opts.my != null ? opts.my : Math.min(...K.map((c) => c.y)) - (opts.drop || 9);
-      /* b64 (Elio, Nov 10): the trunk keeps 4 px+ off any heading or empty-state text it passes, as the single-child stem already does */
-      { const tx = []; const tw = document.createTreeWalker(root, NodeFilter.SHOW_TEXT); while (tw.nextNode()) { const n = tw.currentNode; if (!n.nodeValue.trim() || n.parentElement.closest('svg')) continue; const g = document.createRange(); g.selectNodeContents(n); [...g.getClientRects()].map(sc).forEach((b) => { const t = b.top - H.top, bt = b.bottom - H.top; if (b.width && bt > uy + 1 && t < my - 1) tx.push([b.left - H.left - 5, b.right - H.left + 5]); }); }
-        const free = (x) => !tx.some(([a, b]) => x > a && x < b);
-        if (!free(ux)) { let bestX = null; for (let v = ux0 + 12; v <= ux1 - 12; v += 1) if (free(v) && (bestX == null || Math.abs(v - ux) < Math.abs(bestX - ux))) bestX = v; if (bestX != null) ux = bestX; } }
+      let my = opts.my != null ? opts.my : Math.min(...K.map((c) => c.y)) - (opts.drop || 9);
+      /* b64 (Elio, Nov 10): the trunk keeps 4 px+ off any heading or empty-state text it passes, as the single-child stem already does.
+         If it cannot step round a heading, the bracket sits above that heading and its stems pass beside it. */
+      const TX = []; { const tw = document.createTreeWalker(root, NodeFilter.SHOW_TEXT); while (tw.nextNode()) { const n = tw.currentNode; if (!n.nodeValue.trim() || n.parentElement.closest('svg')) continue; const g = document.createRange(); g.selectNodeContents(n); [...g.getClientRects()].map(sc).forEach((b) => { if (b.width) TX.push([b.left - H.left - 5, b.right - H.left + 5, b.top - H.top - 5, b.bottom - H.top + 5]); }); } }
+      const freeAt = (x, y0, y1) => !TX.some(([a, b, t, bt]) => x > a && x < b && bt > y0 && t < y1);
+      let lifted = false;
+      if (!freeAt(ux, uy + 1, my - 1)) { let bestX = null; for (let v = ux0 + 12; v <= ux1 - 12; v += 1) if (freeAt(v, uy + 1, my - 1) && (bestX == null || Math.abs(v - ux) < Math.abs(bestX - ux))) bestX = v;
+        if (bestX != null) ux = bestX;
+        else if (!opts.block) { const hit = TX.filter(([a, b, t, bt]) => ux > a && ux < b && bt > uy + 1 && t < my - 1); const tt = Math.min(...hit.map((h) => h[2])) + 5; const top = tt - 9 > uy + 6 ? tt - 9 : tt - 6;
+          if (top >= uy + 3 && freeAt(ux, uy + 1, top - 1)) { my = top; lifted = true; } } }
+      if (lifted) K.forEach((c) => { if (freeAt(c.x, my, c.y)) return; let bx = null; for (let v = c.l + 12; v <= c.r - 12; v += 1) if (freeAt(v, my, c.y) && (bx == null || Math.abs(v - c.x) < Math.abs(bx - c.x))) bx = v; if (bx != null) c.x = bx; });
       /* b64 (Elio, Nov 10): if another card sits between this card and its own cards (a wrapped grandparent row), the line never runs behind it:
          it steps out to the block's side, 8 px clear of the cards, and comes back in above its own row. */
       const blk = (opts.block || []).filter((b) => b.top > uy && b.bottom < my + 1 && ux > b.left - 6 && ux < b.right + 6);
@@ -1641,6 +1669,23 @@ ${pg.edit ? '<div class="b58-banner" role="status">Edit mode · tap any plant to
       const ya = vy(P.bottom + sp - 1), yb = vy(L.bottom - 1);
       svg.style.overflow = 'visible';
       svg.querySelector('path').setAttribute('d', `M${a} ${ya}V22H${b}V${yb}M150 22V40`);
+    });
+  }
+  /* b64 (Elio, Nov 10): an upward kids bracket over this plant and its partner lands each upright on its circle's centre.
+     On a wide screen the stretched bracket otherwise stops beside the circles. Left alone where it already lands on the circle's crown. */
+  function snapUpPairBracket(root) {
+    root.querySelectorAll('.b59-brk.up').forEach((svg) => {
+      const pair = svg.nextElementSibling; if (!pair || !pair.classList.contains('b59-pair')) return;
+      const pcs = [...pair.querySelectorAll(':scope > .b59-pc')].map((pc) => pc.querySelector('.b57-ph')).filter(Boolean); if (pcs.length !== 2) return;
+      const S = svg.getBoundingClientRect(); if (!S.width || !S.height) return;
+      const PR = pcs.map((ph) => ph.getBoundingClientRect()); const cx = PR.map((P) => (P.left + P.right) / 2);
+      const at = [S.left + S.width * 64 / 300, S.left + S.width * 236 / 300];
+      const spr = (ph) => (String(getComputedStyle(ph).boxShadow || '').match(/(-?[\d.]+)px\s+(-?[\d.]+)px\s+(-?[\d.]+)px\s+(-?[\d.]+)px/g) || []).reduce((a, t) => Math.max(a, parseFloat(t.trim().split(/\s+/)[3]) || 0), 0);
+      const lands = (P, i) => { const r = P.width / 2 + spr(pcs[i]), dx = Math.abs(cx[i] - at[i]); return dx < r && (r - Math.sqrt(r * r - dx * dx)) <= 2; };
+      if (PR.every(lands)) return;
+      const vx = (x) => ((x - S.left) * 300 / S.width).toFixed(2);
+      svg.style.overflow = 'visible';
+      svg.querySelector('path').setAttribute('d', `M150 0V18M${vx(cx[0])} 40V18H${vx(cx[1])}V40`);
     });
   }
   function snapRiverMerge(root) {
@@ -1807,12 +1852,24 @@ ${pg.edit ? '<div class="b58-banner" role="status">Edit mode · tap any plant to
   }
   document.addEventListener('click', (e) => { const o = e.target.closest && e.target.closest('#breeding-view [data-b64origin]'); if (!o) return; const pg = B18.brPage; if (!pg || pg.edit) return; if (window.B60 && B60.openProfile && B60.openProfile(o.getAttribute('data-b64origin'))) { e.preventDefault(); e.stopImmediatePropagation(); } }, true);
   const _rr = renderBreeding;
+  /* b64 (Elio, Nov 10): the page can sit under CSS zoom on <html> (1.28 on a wide window). Some engines give zoomed client rects while
+     style lengths stay unzoomed, so every line-snapping pass measures in unzoomed units. Where rects are already unzoomed this is a no-op. */
+  function inUnzoomed(fn) {
+    const el = document.querySelector('#breeding-view .b57'); const z = parseFloat(document.documentElement.style.zoom) || 1;
+    const ratio = el && el.offsetWidth ? el.getBoundingClientRect().width / el.offsetWidth : 1;
+    if (!(z !== 1 && Math.abs(ratio - z) < 0.03)) return fn();
+    const E = Element.prototype, G = Range.prototype; const eb = E.getBoundingClientRect, ec = E.getClientRects, gb = G.getBoundingClientRect, gc = G.getClientRects;
+    const sc = (r) => new DOMRect(r.x / z, r.y / z, r.width / z, r.height / z); const sl = (l) => { const a = [...l].map(sc); a.item = (i) => a[i] || null; return a; };
+    E.getBoundingClientRect = function () { return sc(eb.call(this)); }; E.getClientRects = function () { return sl(ec.call(this)); };
+    G.getBoundingClientRect = function () { return sc(gb.call(this)); }; G.getClientRects = function () { return sl(gc.call(this)); };
+    try { return fn(); } finally { E.getBoundingClientRect = eb; E.getClientRects = ec; G.getBoundingClientRect = gb; G.getClientRects = gc; }
+  }
   /* trim after each tree paint */
-  const scheduleTrim = () => { requestAnimationFrame(() => { try { fixSeps(document.querySelector('#breeding-view .b57')); trimHangingStrings(); fitSvgTreeLabels(); } catch (e) { /* */ } }); };
+  const scheduleTrim = () => { requestAnimationFrame(() => { try { inUnzoomed(() => { fixSeps(document.querySelector('#breeding-view .b57')); trimHangingStrings(); fitSvgTreeLabels(); }); } catch (e) { /* */ } }); };
   document.addEventListener('click', () => setTimeout(scheduleTrim, 60), true);
   window.addEventListener('resize', scheduleTrim);
   setTimeout(scheduleTrim, 200);
 
-  setInterval(() => { try { addTab(); addSide(); profileBtn(); mark(); cloneOfRow(); fixSeps(document.querySelector('#breeding-view .b57')); trimHangingStrings(); fitSvgTreeLabels(); } catch (e) { console.warn('b57 entry', e); } }, 300);
+  setInterval(() => { try { addTab(); addSide(); profileBtn(); mark(); cloneOfRow(); inUnzoomed(() => { fixSeps(document.querySelector('#breeding-view .b57')); trimHangingStrings(); fitSvgTreeLabels(); }); } catch (e) { console.warn('b57 entry', e); } }, 300);
   window.B57 = { fixSeps, walk, detailKey, resolveKey, partners, rec, name, same, isUnk, ph, mono, rr: () => renderBreeding(), openLineage, lineageList, candidates, par2, stat, popOf, styles: STYLES, styleOf, assign, ancestors, siblings, kids, photo, linkedMotherKey, productionTreeTarget, routeTreePage, migrateCloneMother, b13Mig, cloneOfRow, setCloneOf, isFalseSample, ownsOwnTree, originOf, connectionLinks, connectionPage, ringSolver: { solve: rsSolve, wedge: rsWedge, rect: rsRect, metric: rsMetric, CLEAR: RS_CLEAR, geo: () => ({ WAL, FAN }) } };
 })();

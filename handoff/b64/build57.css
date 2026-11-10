@@ -412,3 +412,7 @@
 /* b64 (Elio, Nov 10): Roots, grandparent cards wrapped below the other parent's: room between the rows for the lower bracket, and on that side for its line. */
 .b64-roots .b57-row.gp.b64-gpgap { row-gap: 26px; }
 .b64-roots .b57-row.gp.b64-gpgap-r { padding-right: 12px; } .b64-roots .b57-row.gp.b64-gpgap-l { padding-left: 12px; }
+
+/* b64 (Elio, Nov 10): one string or stream runs down the middle to a lone this-plant circle, so its heading steps beside it, as Kids and Ceiba already do. */
+.b57[data-b57k="mobile"] .b57-bar.fl + .b57-lab:has(+ .b57-mob-hang.row.pair > .b57-mob-leaf:only-child) { text-align: left; padding-left: calc(50% + 10px); }
+.b57[data-b57k="river"] .b57-riv-flow > .b57-lab:has(+ .b57-me) { text-align: left; padding-left: calc(50% + 10px); }

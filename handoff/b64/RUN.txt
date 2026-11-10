@@ -54,3 +54,23 @@ Tree fixes (Elio, Nov 10, 3:44 PM ET), build57.js + build57.css only:
    second-line role words are dropped) so no text crosses a line.
 3. Hanging mobile: a lone child ribbon spans the full row.
 No wording changes.
+
+Round 2 fixes (Elio, GO Nov 10, 4:58 PM ET), build57.js + build57.css + build49.js only:
+A. Hanging mobile: a lone child's heading moves beside its string (same offset rule as the Kids
+   heading); a parent's string reaches up only to a card it meets squarely; strings are measured in
+   unzoomed units at 1024 px so none end loose.
+B. Roots: with no partner and no kids, the Kids heading sits above this plant; the trunk keeps 4 px+
+   off every heading and empty-state line it passes, or the bracket sits above the heading with its
+   stems beside it; an upward kids bracket lands each upright on its circle at wide widths. River: the
+   "This plant" heading moves beside the line (same offset rule).
+C. Certificate and Window flags were checker false positives (column border rule, pane layout, rose
+   ring, small tree icon); no code change.
+D. A typed-in parent with no recorded deletion reads "Name only · not linked" (no tag). It reads
+   "Bought seeds, not linked" when the child's seed source says the seeds were bought, and the cross
+   line then adds "· bought seeds, not linked". "Deleted plant (name kept)" stays only for a parent
+   whose deletion is on record.
+E. A parent slot that only says "Not recorded" never makes Self/S1 or a backcross (build57 tree and
+   build49 generation label).
+Also: outer bands (siblings, candidates, kids) drop their second line when it cannot clear 4 px, as
+the grandparent ring already does; all line-snapping passes measure in unzoomed units under the
+1024 px zoom. Real-data previews stay on the private machine.
