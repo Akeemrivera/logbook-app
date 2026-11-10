@@ -45,3 +45,12 @@ Real records and all real-data screenshots stay on the private machine.
 Status label (Elio, Nov 10, 3:37 PM ET): build57.js stat() returns "Retired" for a record whose
 status is Retired (a retired mother or father). No other wording changes: archived still reads
 "Culled · lineage kept", and a dx: parent still reads "Deleted plant (name kept)".
+
+Tree fixes (Elio, Nov 10, 3:44 PM ET), build57.js + build57.css only:
+1. Roots: when grandparent cards wrap under the other parent's row, that parent's line steps out to
+   the side (8 px clear) instead of running behind a card; the self (S1) card gets its line; lines
+   are placed correctly under the 1024 px zoom.
+2. Azulejo: with long names the fan widens/adjusts and the grandparent ring shows titles only (the
+   second-line role words are dropped) so no text crosses a line.
+3. Hanging mobile: a lone child ribbon spans the full row.
+No wording changes.

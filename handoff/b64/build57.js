@@ -138,7 +138,7 @@
   const sub = (k, role) => `${esc(role || '')}${gen(k) ? `${role ? ' · ' : ''}${esc(gen(k))}` : ''}`;
   function node(x, cls = '') {
     if (x.none || x.b62) return pnode(x, cls);
-    if (x.self) return `<div class="b57-n ${cls} self"><span class="b57-ph mono" aria-hidden="true">S1</span><b>Self</b><small>${esc(x.role)}</small></div>`;
+    if (x.self) return `<div class="b57-n ${cls} self"${ofA(x)}><span class="b57-ph mono" aria-hidden="true">S1</span><b>Self</b><small>${esc(x.role)}</small></div>`;
     if (!x.k || isUnk(x.k)) return x.via ? `<button type="button" class="b57-n ${cls} unk" data-st="unknown" data-b58="add"${ofA(x)}><span class="b57-ph mono" aria-hidden="true">?</span><b>Unknown</b><small>${esc(x.role ? x.role + ' · ' : '')}open pollination / mixed pollen · tap to change</small></button>` : `<div class="b57-n ${cls} unk" data-st="unknown"><span class="b57-ph mono" aria-hidden="true">?</span><b>Unknown</b><small>${esc(x.role ? x.role + ' · ' : '')}open pollination / mixed pollen</small></div>`;
     const st = stat(x.k); const tag = x.ref ? '<em class="b57-tag ref">↺ also above</em>' : st.t === 'culled' ? '<em class="b57-tag cull">Culled</em>' : st.t === 'removed' ? '<em class="b57-tag gone">Deleted plant</em>' : st.t === 'bought' ? `<em class="b57-tag bought" data-b58="info" data-k="${esc(x.k)}" role="button" tabindex="0" aria-label="Bought genetics${st.br ? ' from ' + esc(st.br) : ''}. Tap for details">${esc(window.B58 && B58.boughtBadge ? B58.boughtBadge(st.br) : 'Bought')}</em>` : '';
     return `<button type="button" class="b57-n ${cls}${x.ref ? ' ref' : ''}${st.t ? ' st-' + st.t : ''}" data-b57="sel" data-k="${esc(x.k)}"${ofA(x)}${x.sib ? ' data-sib="1"' : ''} data-st="${st.t}">${ph(x.k)}<b>${esc(name(x.k))}</b><small>${sub(x.k, x.role)}${st.l && !x.ref ? ' · ' + esc(st.l) : ''}</small>${tag}</button>`;
@@ -557,7 +557,7 @@
       /* Option C: empty grandparent wedges show just "+ Not recorded", no role line. */
       /* Walnut ring 2 is too thin for 'Parents of X' at 11 px with 4 px clear (b64-solver/opt-wal62.js): title only, as Option C */
       const emptyGp = (x.b62 === 'none' && /(?:^|\s)short(?:\s|$)/.test(cls)) || !!(x.none && !x.b62 && /(?:^|\s)r2(?:\s|$)/.test(cls));
-      const roleText = emptyGp ? '' : sb;
+      const roleText = (emptyGp || X.titleOnly) ? '' : sb;
       const G = rsWedge(cx, cy, r0, r1, b0, b1, hub, X.hx, X.hy);
       const best = rsSolve(G, nm, roleText) || rsSolve(Object.assign({}, G, { soft: true }), nm, roleText); /* never drop a word */
       let txt = '', cyTxt = (cy + (r0 + r1) / 2 * Math.sin((b0 + b1) / 2)), clr = -1, maxW = 16;
@@ -590,7 +590,19 @@
   function fan(k, lv, P, ks) {
     const [m, f] = parentsRow(lv); const gp = gpItems(lv, m, f); const c = FAN.W / 2;
     const o0 = P.items.filter((x) => !x.me); const o = o0.length ? o0 : [{ t: P.hunt ? 'No candidates' : 'No siblings', s: 'same seed pop' }];
-    return `${lab(P.hunt ? 'Pheno-hunt candidates · outer band' : 'Brothers & sisters · outer band')}<div class="b57-svgw"><svg viewBox="0 0 ${FAN.W} ${FAN.cy + FAN.hy + 57}" class="b57-svg fan" data-solved="1" role="group" aria-label="Family tree fan">${ring(o, c, FAN.cy, FAN.rc, FAN.R, Math.PI, 2 * Math.PI, 'r3')}${ring(gp, c, FAN.cy, FAN.rb, FAN.rc, Math.PI, 2 * Math.PI, 'r2')}${ring([m, f].filter(Boolean), c, FAN.cy, FAN.ra, FAN.rb, Math.PI, 2 * Math.PI, 'r1', null, 55, { hx: c, hy: FAN.cy + FAN.hy })}${centre(k, c, FAN.cy + FAN.hy, 52)}</svg></div>
+    /* b64 (Elio, Nov 10): long names. The approved geometry is kept whenever every label clears 4 px. Otherwise, inside the same fan,
+       the grandparent ring shows names only (Option C, as Walnut ring 2), the parents/grandparents boundary moves out and the two
+       base wedges get more angle, until every label clears 4 px again. */
+    const P2 = [m, f].filter(Boolean), PI = Math.PI;
+    const draw = (rb, rc, sk, tOnly) => { const gb = gp.length === 4 ? [PI, PI + PI / 2 * (0.5 + sk), 1.5 * PI, 1.5 * PI + PI / 2 * (0.5 - sk), 2 * PI] : null;
+      return ring(o, c, FAN.cy, rc, FAN.R, PI, 2 * PI, 'r3') + ring(gp, c, FAN.cy, rb, rc, PI, 2 * PI, 'r2', null, null, { bounds: gb, titleOnly: tOnly }) + ring(P2, c, FAN.cy, FAN.ra, rb, PI, 2 * PI, 'r1', null, 55, { hx: c, hy: FAN.cy + FAN.hy }); };
+    const worst = (h) => Math.min(...[...h.matchAll(/data-clr="(-?[0-9.]+)"/g)].map((q) => +q[1]));
+    let rings = draw(FAN.rb, FAN.rc, 0, false);
+    if (worst(rings) < RS_CLEAR) { let best = null;
+      for (let rc = FAN.rc; rc >= FAN.rc - 6 && !(best && best.w >= RS_CLEAR); rc -= 2) for (let rb = FAN.rb; rb <= 130 && !(best && best.w >= RS_CLEAR); rb += 2) for (let sk = 0; sk <= 0.3001 && !(best && best.w >= RS_CLEAR); sk += 0.05) {
+        const h = draw(rb, rc, sk, true), w = worst(h); if (!best || w > best.w) best = { w, h }; }
+      if (best) rings = best.h; }
+    return `${lab(P.hunt ? 'Pheno-hunt candidates · outer band' : 'Brothers & sisters · outer band')}<div class="b57-svgw"><svg viewBox="0 0 ${FAN.W} ${FAN.cy + FAN.hy + 57}" class="b57-svg fan" data-solved="1" role="group" aria-label="Family tree fan">${rings}${centre(k, c, FAN.cy + FAN.hy, 52)}</svg></div>
 <div class="b57-sides-row"><span class="b57-sides">◀ Mother's side</span><span class="b57-sides">Father's side ▶</span></div><div class="b57-ban solo"><b>${esc(name(k))}${gen(k) ? ` · ${esc(gen(k))}` : ''}</b><small>${esc(crossTxt(k))}</small></div>
 ${P.hunt ? `${lab(popLab(P))}${popRow(P)}` : ''}${nextBranch(P)}${fam(k, ks, { noMe: 1, noLab: 1 })}`;
   }
@@ -1549,7 +1561,10 @@ ${pg.edit ? '<div class="b58-banner" role="status">Edit mode · tap any plant to
   function snapLineCards(root) {
     const k = root.getAttribute('data-b57k');
     const ns = 'http://www.w3.org/2000/svg';
-    const R = (el) => el.getBoundingClientRect();
+    /* b64 (Elio, Nov 10): the tree can sit under CSS zoom (1.28 at 1024 px). Client rects are zoomed, the overlay's own units are not, so measure in the overlay's units. */
+    const Z = (root.getBoundingClientRect().width / (root.offsetWidth || 1)) || 1;
+    const sc = (r) => (Z === 1 ? r : { left: r.left / Z, right: r.right / Z, top: r.top / Z, bottom: r.bottom / Z, width: r.width / Z, height: r.height / Z });
+    const R = (el) => sc(el.getBoundingClientRect());
     const overlay = (host, cls) => { let svg = host.querySelector(`:scope > svg.${cls}`); if (!svg) { svg = document.createElementNS(ns, 'svg'); svg.setAttribute('class', 'b64-lines ' + cls); svg.setAttribute('aria-hidden', 'true'); svg.appendChild(document.createElementNS(ns, 'path')); host.prepend(svg); }
       if (getComputedStyle(host).position === 'static') host.style.position = 'relative';
       const H0 = R(host); const H = { left: H0.left + host.clientLeft, top: H0.top + host.clientTop, width: host.clientWidth, height: host.clientHeight }; Object.assign(svg.style, { position: 'absolute', left: '0', top: '0', width: H.width + 'px', height: H.height + 'px', overflow: 'visible', pointerEvents: 'none' }); svg.setAttribute('viewBox', `0 0 ${H.width} ${H.height}`); return { svg, H }; };
@@ -1559,15 +1574,27 @@ ${pg.edit ? '<div class="b58-banner" role="status">Edit mode · tap any plant to
       if (!up || !kids.length) return '';
       const U = R(up); const ux0 = U.left - H.left, ux1 = U.right - H.left; const uy = U.bottom - H.top - (opts.inset || 1);
       const K = kids.map((c) => { const r = R(c); return { x: (r.left + r.right) / 2 - H.left, l: r.left - H.left, r: r.right - H.left, y: r.top - H.top + 1 }; });
-      if (K.length === 1) { const c = K[0]; const lo = Math.max(ux0 + 12, c.l + 12), hi = Math.min(ux1 - 12, c.r - 12);
+      const blocked1 = (opts.block || []).some((b) => b.top > uy && b.bottom < K[0].y);
+      if (K.length === 1 && !blocked1) { const c = K[0]; const lo = Math.max(ux0 + 12, c.l + 12), hi = Math.min(ux1 - 12, c.r - 12);
         if (lo <= hi) { const want = Math.min(hi, Math.max(lo, opts.x != null ? opts.x : c.x));
           /* keep 4 px+ off any heading text the stem passes */
-          const tx = []; const tw = document.createTreeWalker(root, NodeFilter.SHOW_TEXT); while (tw.nextNode()) { const n = tw.currentNode; if (!n.nodeValue.trim() || n.parentElement.closest('svg')) continue; const g = document.createRange(); g.selectNodeContents(n); [...g.getClientRects()].forEach((b) => { const t = b.top - H.top, bt = b.bottom - H.top; if (b.width && bt > uy + 1 && t < c.y - 1) tx.push([b.left - H.left - 5, b.right - H.left + 5]); }); }
+          const tx = []; const tw = document.createTreeWalker(root, NodeFilter.SHOW_TEXT); while (tw.nextNode()) { const n = tw.currentNode; if (!n.nodeValue.trim() || n.parentElement.closest('svg')) continue; const g = document.createRange(); g.selectNodeContents(n); [...g.getClientRects()].map(sc).forEach((b) => { const t = b.top - H.top, bt = b.bottom - H.top; if (b.width && bt > uy + 1 && t < c.y - 1) tx.push([b.left - H.left - 5, b.right - H.left + 5]); }); }
           const free = (x) => !tx.some(([a, b]) => x > a && x < b);
           let x = want; if (!free(x)) { let bestX = null; for (let v = lo; v <= hi; v += 1) if (free(v) && (bestX == null || Math.abs(v - want) < Math.abs(bestX - want))) bestX = v; if (bestX != null) x = bestX; }
           return `M${f2(x)} ${f2(uy)}V${f2(c.y)}`; } }
-      const ux = Math.min(ux1 - 12, Math.max(ux0 + 12, opts.x != null ? opts.x : (ux0 + ux1) / 2));
-      const my = Math.min(...K.map((c) => c.y)) - (opts.drop || 9);
+      let ux = Math.min(ux1 - 12, Math.max(ux0 + 12, opts.x != null ? opts.x : (ux0 + ux1) / 2));
+      const my = opts.my != null ? opts.my : Math.min(...K.map((c) => c.y)) - (opts.drop || 9);
+      /* b64 (Elio, Nov 10): the trunk keeps 4 px+ off any heading or empty-state text it passes, as the single-child stem already does */
+      { const tx = []; const tw = document.createTreeWalker(root, NodeFilter.SHOW_TEXT); while (tw.nextNode()) { const n = tw.currentNode; if (!n.nodeValue.trim() || n.parentElement.closest('svg')) continue; const g = document.createRange(); g.selectNodeContents(n); [...g.getClientRects()].map(sc).forEach((b) => { const t = b.top - H.top, bt = b.bottom - H.top; if (b.width && bt > uy + 1 && t < my - 1) tx.push([b.left - H.left - 5, b.right - H.left + 5]); }); }
+        const free = (x) => !tx.some(([a, b]) => x > a && x < b);
+        if (!free(ux)) { let bestX = null; for (let v = ux0 + 12; v <= ux1 - 12; v += 1) if (free(v) && (bestX == null || Math.abs(v - ux) < Math.abs(bestX - ux))) bestX = v; if (bestX != null) ux = bestX; } }
+      /* b64 (Elio, Nov 10): if another card sits between this card and its own cards (a wrapped grandparent row), the line never runs behind it:
+         it steps out to the block's side, 8 px clear of the cards, and comes back in above its own row. */
+      const blk = (opts.block || []).filter((b) => b.top > uy && b.bottom < my + 1 && ux > b.left - 6 && ux < b.right + 6);
+      if (blk.length) { const right = ux > (H.width / 2); const cards = blk;
+        const xm = right ? Math.max(...cards.map((b) => b.right)) + 8 : Math.min(...cards.map((b) => b.left)) - 8;
+        const yj = Math.min(...blk.map((b) => b.top)) - (opts.drop || 9); const xs = K.map((c) => c.x);
+        let d = `M${f2(ux)} ${f2(uy)}V${f2(yj)}H${f2(xm)}V${f2(my)}`; const lo = Math.min(xm, ...xs), hi = Math.max(xm, ...xs); d += `M${f2(lo)} ${f2(my)}H${f2(hi)}`; K.forEach((c) => { d += `M${f2(c.x)} ${f2(my)}V${f2(c.y)}`; }); return d; }
       let d = `M${f2(ux)} ${f2(uy)}V${f2(my)}`; const xs = K.map((c) => c.x); const lo = Math.min(ux, ...xs), hi = Math.max(ux, ...xs); d += `M${f2(lo)} ${f2(my)}H${f2(hi)}`; K.forEach((c) => { d += `M${f2(c.x)} ${f2(my)}V${f2(c.y)}`; }); return d;
     };
     if (k === 'roots') {
@@ -1577,8 +1604,17 @@ ${pg.edit ? '<div class="b58-banner" role="status">Edit mode · tap any plant to
       const { svg, H } = overlay(box, 'roots');
       /* the banner sits above this block: measure it in the block's own frame */
       let d = '';
-      if (ban && pars.length) { const B = R(ban); const fake = { getBoundingClientRect: () => B }; d += link(H, fake, pars, { x: pars.length === 1 ? undefined : (B.left + B.right) / 2 - H.left }); }
-      pars.forEach((p) => { const key = p.getAttribute('data-k'); if (!key) return; const gps = [...box.querySelectorAll('.b57-row.gp > .b57-n')].filter((g) => g.getAttribute('data-of') === key); d += link(H, p, gps); });
+      /* b64 (Elio, Nov 10): a parent whose grandparent cards wrap below another parent's gets room between the rows for its bracket (gp row-gap), and its line steps round the cards in between. */
+      const gpRow = box.querySelector('.b57-row.gp'); const gpAll = gpRow ? [...gpRow.querySelectorAll(':scope > .b57-n')] : [];
+      const ofK = (p) => gpAll.filter((g) => g.getAttribute('data-of') === p.getAttribute('data-k'));
+      const rel = (el) => { const r = R(el); return { left: r.left - H.left, right: r.right - H.left, top: r.top - H.top, bottom: r.bottom - H.top }; };
+      const blockers = (p) => { const own = ofK(p); if (!own.length) return []; const top = Math.min(...own.map((g) => rel(g).top)); const pr = rel(p); return gpAll.filter((g) => !own.includes(g) && rel(g).bottom <= top + 1 && rel(g).top >= pr.bottom && rel(g).left < pr.right && rel(g).right > pr.left).map(rel); };
+      const sideOf = (p) => { const r = rel(p); return (r.left + r.right) / 2 > H.width / 2 ? 'r' : 'l'; };
+      const bp = pars.filter((p) => blockers(p).length);
+      if (gpRow && bp.length) { gpRow.classList.add('b64-gpgap'); bp.forEach((p) => gpRow.classList.add('b64-gpgap-' + sideOf(p))); Object.assign(H, overlay(box, 'roots').H); }
+      if (ban && pars.length) { const B = R(ban); const fake = { getBoundingClientRect: () => ban.getBoundingClientRect() }; d += link(H, fake, pars, { x: pars.length === 1 ? undefined : (B.left + B.right) / 2 - H.left }); }
+      pars.forEach((p) => { const key = p.getAttribute('data-k'); if (!key) return; const gps = ofK(p); const bl = blockers(p);
+        const pr = rel(p); const opts = bl.length ? { block: bl, my: Math.min(...gps.map((g) => rel(g).top)) - 13, x: sideOf(p) === 'r' ? pr.right - 12 : pr.left + 12 } : {}; d += link(H, p, gps, opts); });
       svg.querySelector('path').setAttribute('d', d);
     }
     if (k === 'cert') {
