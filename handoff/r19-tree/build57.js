@@ -449,11 +449,223 @@ ${pg.edit ? '<div class="b58-banner" role="status">Edit mode · tap any plant to
   /* Keep the tree's own block clear of the fixed tab bar, and on a tall
      phone bring the grandparents, parents, plant, and name ribbon above it. */
   let fitting = false;
-  /* Fit every Azulejo label inside its own wedge. The usable width is the
-     horizontal opening at that line's radius, inset from the rim and the
-     dashed edges. Words wrap. The role line is dropped before the type
-     goes under 9px. A name that still cannot fit keeps a whole-word form;
-     the full wording stays on the wedge's accessible name. */
+  /* Fit every Azulejo label inside its own wedge. Horizontal openings are
+     measured from the arc; baselines are spaced so tspans never AABB-overlap.
+     Empty slots always keep "+ Not" / "recorded" (never a lone "Not"). Role
+     lines drop before type goes under 9 CSS px. A final pass drops leftover
+     detail lines when two wedges still collide. */
+
+  function fanBisectX(geom, y) {
+    const midA = (geom.a0 + geom.a1) / 2;
+    const s = Math.sin(midA);
+    if (Math.abs(s) < 1e-4) return geom.cx + ((geom.r0 + geom.r1) / 2) * Math.cos(midA);
+    return geom.cx + ((y - geom.cy) / s) * Math.cos(midA);
+  }
+  function fanUnifyX(placements, measure) {
+    placements.forEach((P) => {
+      const lines = P.placed.lines;
+      if (lines.length < 2) return;
+      const fs = P.placed.fs, geom = P.geom, cache = {};
+      const isNR = fanIsNotRecorded(P.g.dataset.name);
+      const inset = 4.0;
+      let xLo = -1e9, xHi = 1e9, ok = true;
+      lines.forEach((l) => {
+        const slot = fanOpen(fanSlot(geom, l.y, fs, cache, inset), fs, geom);
+        if (!slot) { ok = false; return; }
+        const half = measure(l.text, fs) / 2 + (isNR ? 1.0 : 0);
+        xLo = Math.max(xLo, slot.x - slot.w / 2 + half);
+        xHi = Math.min(xHi, slot.x + slot.w / 2 - half);
+      });
+      if (!ok || xHi < xLo - 0.05) {
+        /* Empty slots: still force a shared numeric x from the average.
+           Named parents: keep per-line x when a shared column cannot clear
+           every chord (diagonal wedges); otherwise the AABB gate fails. */
+        if (!isNR) return;
+        const x = lines.reduce((s, l) => s + l.x, 0) / lines.length;
+        lines.forEach((l) => { l.x = x; });
+        return;
+      }
+      const yMid = lines.reduce((s, l) => s + l.y, 0) / lines.length;
+      let x = fanBisectX(geom, yMid);
+      if (x < xLo) x = xLo;
+      if (x > xHi) x = xHi;
+      lines.forEach((l) => { l.x = x; });
+    });
+  }
+
+  function fanIsOuterSideGrand(geom) {
+    const mid = (geom.a0 + geom.a1) / 2;
+    const span = geom.a1 - geom.a0;
+    const thick = geom.r1 - geom.r0;
+    return thick < 55 && geom.r0 > 90 && span > 0.4 && span < 1.0 && Math.abs(Math.cos(mid)) > 0.7;
+  }
+  function fanOuterAddPlace(geom, floor, measure) {
+    const CLEAR = 4;
+    const midA = (geom.a0 + geom.a1) / 2;
+    const fs = Math.max(9, Math.round(Math.max(floor, 10) * 10) / 10);
+    const r = (geom.r0 + geom.r1) / 2;
+    let x = geom.cx + r * Math.cos(midA);
+    let y = geom.cy + r * Math.sin(midA);
+    const cache = {};
+    const slot = fanOpen(fanSlot(geom, y, fs, cache, CLEAR), fs, geom);
+    const half = measure('+ Add', fs) * 1.25 / 2 + 2;
+    if (slot) {
+      const lo = slot.x - slot.w / 2 + half, hi = slot.x + slot.w / 2 - half;
+      if (hi >= lo) { if (x < lo) x = lo; if (x > hi) x = hi; }
+    }
+    return { fs, shown: '+ Add', lines: [{ text: '+ Add', x, y }], addShort: true };
+  }
+  /* Nudge empty/sibling labels until approx CLEAR=4 annulus holds; compress line gap if needed. */
+  function fanNudgeInBand(P, measure) {
+    const CLEAR = 4, geom = P.geom, fs = P.placed.fs;
+    const asc = fs * 1.15, desc = fs * 0.35;
+    const minGap = fs * 1.45;
+    const midA = (geom.a0 + geom.a1) / 2;
+    const s = Math.sin(midA);
+    for (let n = 0; n < 64; n++) {
+      let out = 0, inn = 0;
+      P.placed.lines.forEach((l) => {
+        const half = measure(l.text, fs) * 1.1 / 2 + 2;
+        [[l.x - half, l.y - asc], [l.x + half, l.y - asc], [l.x - half, l.y + desc], [l.x + half, l.y + desc]].forEach((pt) => {
+          const r = Math.hypot(pt[0] - geom.cx, pt[1] - geom.cy);
+          if (r > geom.r1 - CLEAR) out = Math.max(out, r - (geom.r1 - CLEAR));
+          if (r < geom.r0 + CLEAR) inn = Math.max(inn, (geom.r0 + CLEAR) - r);
+        });
+      });
+      if (out < 0.1 && inn < 0.1) break;
+      /* Both arcs tight: compress toward the block mid while keeping minGap (AABB-safe). */
+      if (inn > 0.1 && out > 0.1 && P.placed.lines.length >= 2) {
+        const ys = P.placed.lines.map((l) => l.y).sort((a, b) => a - b);
+        const span = ys[ys.length - 1] - ys[0];
+        if (span > minGap + 0.5) {
+          const mid = (ys[0] + ys[ys.length - 1]) / 2;
+          P.placed.lines.forEach((l) => { l.y += (l.y < mid ? 0.5 : -0.5); });
+          continue;
+        }
+        /* Span already minimal — cannot clear both arcs by translating; stop. */
+        break;
+      }
+      /* Upper fan (s<0): decreasing y moves outward (away from parent ring). */
+      let dy;
+      if (inn >= out) dy = (s < 0 ? -1 : 1) * Math.max(1, Math.ceil(inn));
+      else dy = (s < 0 ? 1 : -1) * Math.max(1, Math.ceil(out));
+      P.placed.lines.forEach((l) => { l.y += dy; });
+      const x = P.placed.lines.reduce((sum, l) => sum + l.x, 0) / P.placed.lines.length;
+      P.placed.lines.forEach((l) => { l.x = x; });
+    }
+  }
+  /* Sibling (outer) band: leave exactly as placed — single-line, centred.
+     Do not run divider reflow / band nudge on this ring (r7 behaviour). */
+  function fanIsSiblingBand(P) {
+    const n = String(P.g.dataset.name || '');
+    if (/^No siblings$/i.test(n) || /^No candidates$/i.test(n)) return true;
+    if (/sibling/i.test(n)) return true;
+    const geom = P.geom;
+    const thick = geom.r1 - geom.r0;
+    const midA = (geom.a0 + geom.a1) / 2;
+    return geom.r0 >= 140 && thick <= 55 && Math.sin(midA) < -0.45;
+  }
+
+  /* Keep every parent/sibling line ≥ gap from the vertical centre divider (x = cx).
+     Never drop words: if a clamp would clip a line, reflow the full source name
+     with earlier wraps (e.g. "With A" on its own line) so every word stays. */
+  function fanClearCentreDivider(placements, measure) {
+    const GAP = 6;
+    placements.forEach((P) => {
+      if (fanIsNotRecorded(P.g.dataset.name)) return;
+      if (P.placed.addShort) return;
+      if (fanIsSiblingBand(P)) return;
+      const fs = P.placed.fs, geom = P.geom;
+      const words = String(P.g.dataset.name || '').split(/\s+/).filter(Boolean);
+      if (!words.length) return;
+      const joinedNow = P.placed.lines.map((l) => l.text).join(' ').split(/\s+/).filter(Boolean);
+      const wordsIntact = joinedNow.join(' ') === words.join(' ');
+      const cache = {};
+      let needReflow = !wordsIntact;
+      P.placed.lines.forEach((l) => {
+        const half = measure(l.text, fs) * 1.15 / 2 + 1.5;
+        if (l.x <= geom.cx) {
+          const maxX = geom.cx - GAP - half;
+          if (l.x > maxX) l.x = maxX;
+        } else {
+          const minX = geom.cx + GAP + half;
+          if (l.x < minX) l.x = minX;
+        }
+        const slot = fanOpen(fanSlot(geom, l.y, fs, cache, 2.0), fs, geom);
+        if (!slot) { needReflow = true; return; }
+        const lo = slot.x - slot.w / 2, hi = slot.x + slot.w / 2;
+        if (l.x - half < lo - 0.5 || l.x + half > hi + 0.5) needReflow = true;
+      });
+      if (!needReflow) return;
+      const reflowed = fanReflowForDivider(words, fs, geom, measure, P.placed.lines);
+      if (reflowed && reflowed.length) {
+        P.placed.lines = reflowed;
+        P.placed.shown = words.join(' ');
+      }
+    });
+  }
+  /* Pack every source word onto lines that each clear GAP=6 from cx and fit the chord. */
+  function fanReflowForDivider(words, fs, geom, measure, seedLines) {
+    const GAP = 6;
+    const lineH = fanLineH(fs);
+    const midA = (geom.a0 + geom.a1) / 2;
+    const s = Math.sin(midA);
+    /* Upper fan: subsequent lines go downward (larger y). */
+    const yStep = (s < 0 ? 1 : -1) * lineH;
+    let y0 = seedLines && seedLines.length ? seedLines[0].y
+      : geom.cy + ((geom.r0 + geom.r1) / 2) * s;
+    const preferLeft = Math.cos(midA) < 0;
+    const cache = {};
+    const lines = [];
+    let i = 0;
+    let y = y0;
+    let guard = 0;
+    while (i < words.length && guard++ < 40) {
+      const slot = fanOpen(fanSlot(geom, y, fs, cache, 2.0), fs, geom);
+      if (!slot) { y += yStep; continue; }
+      const lo = slot.x - slot.w / 2, hi = slot.x + slot.w / 2;
+      let take = 0;
+      let bestText = '';
+      let bestX = preferLeft ? Math.min(fanBisectX(geom, y), (lo + hi) / 2) : Math.max(fanBisectX(geom, y), (lo + hi) / 2);
+      for (let j = i; j < words.length; j++) {
+        const cand = words.slice(i, j + 1).join(' ');
+        const half = measure(cand, fs) * 1.15 / 2 + 1.5;
+        let x = preferLeft ? geom.cx - GAP - half : geom.cx + GAP + half;
+        /* Stay on the wedge side of cx; also prefer bisector when it already clears GAP. */
+        const bis = fanBisectX(geom, y);
+        if (preferLeft) {
+          x = Math.min(bis, geom.cx - GAP - half);
+          if (x - half < lo - 0.5) break;
+          if (x + half > Math.min(hi, geom.cx - GAP) + 0.5) break;
+        } else {
+          x = Math.max(bis, geom.cx + GAP + half);
+          if (x + half > hi + 0.5) break;
+          if (x - half < Math.max(lo, geom.cx + GAP) - 0.5) break;
+        }
+        take = j - i + 1;
+        bestText = cand;
+        bestX = x;
+      }
+      if (!take) {
+        /* Single word must still be emitted (never drop); clamp into the chord as well as possible. */
+        bestText = words[i];
+        take = 1;
+        const half = measure(bestText, fs) * 1.15 / 2 + 1.5;
+        if (preferLeft) {
+          bestX = Math.min(fanBisectX(geom, y), geom.cx - GAP - half, hi - half);
+          bestX = Math.max(bestX, lo + half);
+        } else {
+          bestX = Math.max(fanBisectX(geom, y), geom.cx + GAP + half, lo + half);
+          bestX = Math.min(bestX, hi - half);
+        }
+      }
+      lines.push({ text: bestText, x: bestX, y: y });
+      i += take;
+      y += yStep;
+    }
+    return i >= words.length ? lines : null;
+  }
+
   function fitFanText() {
     const svg = document.querySelector('#breeding-view svg.b57-svg.fan');
     if (!svg) return;
@@ -465,9 +677,93 @@ ${pg.edit ? '<div class="b58-banner" role="status">Edit mode · tap any plant to
     const ctx = document.createElement('canvas').getContext('2d');
     const measure = (text, fs) => { ctx.font = fs + 'px ' + family; return ctx.measureText(String(text)).width; };
     const ns = 'http://www.w3.org/2000/svg';
-    [...svg.querySelectorAll('g.b57-seg[data-fan]')].forEach((g) => {
+    const groups = [...svg.querySelectorAll('g.b57-seg[data-fan]')];
+    const placements = groups.map((g) => {
       const geom = { cx: +g.dataset.cx, cy: +g.dataset.cy, r0: +g.dataset.r0, r1: +g.dataset.r1, a0: +g.dataset.a0, a1: +g.dataset.a1 };
-      const placed = fanPlace(g.dataset.name || '', g.dataset.detail || '', geom, floor, measure);
+      return { g, geom, placed: fanPlace(g.dataset.name || '', g.dataset.detail || '', geom, floor, measure) };
+    });
+    fanResolve(placements, measure);
+    fanUnifyX(placements, measure);
+    fanTightenEmpty(placements, floor, measure);
+    placements.forEach((P) => {
+      if (fanIsOuterSideGrand(P.geom) && fanIsNotRecorded(P.g.dataset.name)) {
+        P.placed = fanOuterAddPlace(P.geom, floor, measure);
+        const detail = P.g.dataset.detail || '';
+        const aria = detail ? ('+ Not recorded · ' + detail) : '+ Not recorded';
+        P.g.setAttribute('aria-label', aria);
+        P.g.setAttribute('title', 'Not recorded');
+        return;
+      }
+      if (fanIsSiblingBand(P)) return;
+      if (fanIsNotRecorded(P.g.dataset.name) || (P.geom.r1 - P.geom.r0) > 70) {
+        fanNudgeInBand(P, measure);
+      }
+    });
+    /* If an empty two-line block still breaches CLEAR, shrink type and re-seat;
+       at floor, fall back to a single mid-band line so both arcs clear CLEAR=4. */
+    placements.forEach((P) => {
+      if (!fanIsNotRecorded(P.g.dataset.name) || P.placed.addShort) return;
+      const geom = P.geom;
+      const plus = fanIsEmpty(P.g.dataset.name);
+      const radBad = () => {
+        const fs = P.placed.fs;
+        const asc = fs * 1.15, desc = fs * 0.35;
+        let bad = false;
+        P.placed.lines.forEach((l) => {
+          const half = measure(l.text, fs) * 1.1 / 2 + 2;
+          [[l.x - half, l.y - asc], [l.x + half, l.y - asc], [l.x - half, l.y + desc], [l.x + half, l.y + desc]].forEach((pt) => {
+            const r = Math.hypot(pt[0] - geom.cx, pt[1] - geom.cy);
+            if (r < geom.r0 + 4 - 0.05 || r > geom.r1 - 4 + 0.05) bad = true;
+          });
+        });
+        return bad;
+      };
+      for (let guard = 0; guard < 6; guard++) {
+        if (!radBad()) break;
+        if (P.placed.fs <= floor + 0.05) break;
+        const next = Math.max(floor, Math.round((P.placed.fs - 0.5) * 10) / 10);
+        const hit = fanEmpty(geom, next, measure, plus);
+        if (hit) P.placed = hit;
+        else { P.placed.fs = next; }
+        fanNudgeInBand(P, measure);
+      }
+      if (radBad()) {
+        const fs = Math.max(floor, P.placed.fs);
+        const hit = fanEmpty(geom, fs, measure, false);
+        if (hit) {
+          /* shown must match concatenated tspan text (space-insensitive) for the cut gate. */
+          P.placed = hit;
+          fanNudgeInBand(P, measure);
+        }
+      }
+      /* Walk empty block along y to maximise min(clearIn, clearOut). */
+      if (!P.placed.addShort && P.placed.lines.length) {
+        const fs = P.placed.fs;
+        const asc = fs * 1.15, desc = fs * 0.35;
+        const clearance = () => {
+          let cIn = 1e9, cOut = 1e9;
+          P.placed.lines.forEach((l) => {
+            const half = measure(l.text, fs) * 1.1 / 2 + 2;
+            [[l.x - half, l.y - asc], [l.x + half, l.y - asc], [l.x - half, l.y + desc], [l.x + half, l.y + desc]].forEach((pt) => {
+              const r = Math.hypot(pt[0] - geom.cx, pt[1] - geom.cy);
+              cIn = Math.min(cIn, r - geom.r0);
+              cOut = Math.min(cOut, geom.r1 - r);
+            });
+          });
+          return Math.min(cIn, cOut);
+        };
+        const base = P.placed.lines.map((l) => l.y);
+        let best = clearance(), bestDy = 0;
+        for (let dy = -14; dy <= 14; dy++) {
+          P.placed.lines.forEach((l, i) => { l.y = base[i] + dy; });
+          const sc = clearance();
+          if (sc > best) { best = sc; bestDy = dy; }
+        }
+        P.placed.lines.forEach((l, i) => { l.y = base[i] + bestDy; });
+      }
+    });
+        fanClearCentreDivider(placements, measure);
+    placements.forEach(({ g, placed }) => {
       const sig = placed.fs.toFixed(2) + '|' + placed.lines.map((l) => l.text + '@' + l.x.toFixed(1) + ',' + l.y.toFixed(1)).join('/');
       if (g.dataset.fit === sig) return;
       [...g.querySelectorAll('text')].forEach((n) => n.remove());
@@ -488,49 +784,167 @@ ${pg.edit ? '<div class="b58-banner" role="status">Edit mode · tap any plant to
       g.dataset.fit = sig;
     });
   }
+
+  /* Shrink empty-slot type until each line's measured width clears the
+     CLEAR=4 chord at that baseline (canvas + pad approximates getBBox). */
+  function fanTightenEmpty(placements, floor, measure) {
+    const CLEAR = 4;
+    placements.forEach((P) => {
+      if (!fanIsNotRecorded(P.g.dataset.name)) return;
+      let guard = 0;
+      while (guard++ < 10) {
+        const cache = {};
+        let ok = true;
+        P.placed.lines.forEach((l) => {
+          const slot = fanOpen(fanSlot(P.geom, l.y, P.placed.fs, cache, CLEAR), P.placed.fs, P.geom);
+          if (!slot) { ok = false; return; }
+          const half = measure(l.text, P.placed.fs) * 1.12 / 2 + 1.5;
+          if (l.x - half < slot.x - slot.w / 2 - 0.2 || l.x + half > slot.x + slot.w / 2 + 0.2) ok = false;
+        });
+        if (ok) break;
+        if (P.placed.fs <= floor + 0.05) break;
+        P.placed.fs = Math.max(floor, Math.round((P.placed.fs - 0.5) * 10) / 10);
+      }
+    });
+  }
+  function fanLineH(fs) { return fs * 1.72; }
+  function fanIsEmpty(name) { return String(name || '') === '+ Not recorded'; }
+  function fanIsNotRecorded(name) {
+    const n = String(name || '');
+    return n === '+ Not recorded' || n === 'Not recorded';
+  }
   function fanPlace(name, detail, geom, floor, measure) {
     const wordsOf = (t) => String(t || '').split(/\s+/).filter(Boolean);
-    const preferred = Math.max(floor, 10);
     const sizes = [];
-    for (let fs = Math.max(11, Math.ceil(preferred * 2) / 2); fs >= floor - 0.05; fs -= 0.5) sizes.push(Math.round(fs * 10) / 10);
-    if (!sizes.length) sizes.push(Math.round(floor * 10) / 10);
+    for (let fs = Math.max(11, Math.ceil(Math.max(floor, 10) * 2) / 2); fs >= floor - 0.05; fs -= 0.5) sizes.push(Math.round(fs * 10) / 10);
+    if (!sizes.length || sizes[sizes.length - 1] > floor + 0.05) sizes.push(Math.round(floor * 10) / 10);
+    const empty = fanIsEmpty(name);
+    const notRec = fanIsNotRecorded(name);
+    if (notRec) {
+      const plus = empty;
+      for (let i = 0; i < sizes.length; i++) {
+        const hit = fanEmpty(geom, sizes[i], measure, plus);
+        if (hit) return hit;
+      }
+      return fanEmptyForced(geom, sizes[sizes.length - 1], measure, plus);
+    }
     const nameWords = wordsOf(name);
+    const detailTries = [];
     const detailWords = wordsOf(detail);
-    const detailTries = [detailWords];
     const role = String(detail || '').split(' · ')[0];
     const roleWords = wordsOf(role);
+    if (detailWords.length) detailTries.push(detailWords);
     if (roleWords.length && roleWords.join(' ') !== detailWords.join(' ')) detailTries.push(roleWords);
     detailTries.push([]);
-    function tryFit(fs, primary, secondary) {
-      return fanSearch(primary, secondary, fs, geom, measure);
-    }
     let found = null;
     sizes.forEach((fs) => {
       if (found) return;
       for (let d = 0; d < detailTries.length; d++) {
-        found = tryFit(fs, nameWords, detailTries[d]);
+        found = fanSearch(nameWords, detailTries[d], fs, geom, measure);
         if (found) return;
       }
     });
     if (found) return found;
-    const forms = [];
-    if (/Not recorded/.test(name)) forms.push('Not recorded', 'Not');
-    for (let n = nameWords.length - 1; n >= 1; n--) forms.push(nameWords.slice(0, n).join(' '));
-    const shortest = nameWords.slice().sort((a, b) => a.length - b.length)[0];
-    if (shortest && shortest !== '+') forms.push(shortest);
-    const fs = sizes[sizes.length - 1];
-    for (let i = 0; i < forms.length; i++) {
-      found = tryFit(fs, wordsOf(forms[i]), []);
-      if (found) return found;
+    for (let n = nameWords.length - 1; n >= 1; n--) {
+      const shortened = nameWords.slice(0, n);
+      shortened[shortened.length - 1] = shortened[shortened.length - 1].replace(/…$/, '') + '…';
+      found = fanSearch(shortened, [], sizes[sizes.length - 1], geom, measure);
+      if (found) { found.shown = shortened.join(' '); return found; }
     }
-    const fallback = (shortest && shortest !== '+') ? shortest : (nameWords[0] || name || 'Not');
+    const fs = sizes[sizes.length - 1];
     const midA = (geom.a0 + geom.a1) / 2;
     const midR = (geom.r0 + geom.r1) / 2;
-    return { fs, shown: fallback, lines: [{ text: fallback, x: geom.cx + midR * Math.cos(midA), y: geom.cy + midR * Math.sin(midA) }] };
+    const word = (nameWords[0] || name).replace(/…$/, '') + (nameWords.length > 1 ? '…' : '');
+    return { fs, shown: word, lines: [{ text: word, x: geom.cx + midR * Math.cos(midA), y: geom.cy + midR * Math.sin(midA) }] };
   }
+  function fanEmpty(geom, fs, measure, plus) {
+    plus = plus !== false;
+    /* lineH keeps same-label AABBs from overlapping (visual gate); CLEAR=4 on both arcs. */
+    const lineH = fs * 1.45;
+    const line0 = plus ? '+ Not' : 'Not';
+    const line1 = 'recorded';
+    const shown = plus ? '+ Not recorded' : 'Not recorded';
+    const half0 = measure(line0, fs) * 1.1 / 2 + 2;
+    const half1 = measure(line1, fs) * 1.1 / 2 + 2;
+    const need = [half0 * 2, half1 * 2];
+    const cache = {};
+    const CLEAR = 4;
+    const asc = fs * 1.15, desc = fs * 0.35;
+    const midA = (geom.a0 + geom.a1) / 2;
+    const midR = (geom.r0 + geom.r1) / 2;
+    const top0 = geom.cy - geom.r1 + fs;
+    const top1 = geom.cy - lineH - 4;
+    let best = null;
+    for (let top = top0; top <= top1; top += 1) {
+      const y0 = top;
+      const y1 = top + lineH;
+      const s0 = fanOpen(fanSlot(geom, y0, fs, cache, CLEAR), fs, geom);
+      const s1 = fanOpen(fanSlot(geom, y1, fs, cache, CLEAR), fs, geom);
+      if (!s0 || !s1) continue;
+      if (s0.w < need[0] + 0.5 || s1.w < need[1] + 0.5) continue;
+      const xLo = Math.max(s0.x - s0.w / 2 + half0, s1.x - s1.w / 2 + half1);
+      const xHi = Math.min(s0.x + s0.w / 2 - half0, s1.x + s1.w / 2 - half1);
+      if (xHi < xLo - 0.05) continue;
+      let x = fanBisectX(geom, (y0 + y1) / 2);
+      if (x < xLo) x = xLo;
+      if (x > xHi) x = xHi;
+      const corners = [
+        [x - half0, y0 - asc], [x + half0, y0 - asc], [x - half0, y0 + desc], [x + half0, y0 + desc],
+        [x - half1, y1 - asc], [x + half1, y1 - asc], [x - half1, y1 + desc], [x + half1, y1 + desc]
+      ];
+      let radOk = true;
+      for (let i = 0; i < corners.length; i++) {
+        const r = Math.hypot(corners[i][0] - geom.cx, corners[i][1] - geom.cy);
+        if (r < geom.r0 + CLEAR - 0.05 || r > geom.r1 - CLEAR + 0.05) { radOk = false; break; }
+      }
+      if (!radOk) continue;
+      const lines = [{ text: line0, x, y: y0 }, { text: line1, x, y: y1 }];
+      if (!fanClear(lines, fs, geom, measure)) continue;
+      const yMid = (y0 + y1) / 2;
+      const ty = geom.cy + midR * Math.sin(midA);
+      const low = (Math.sin(midA) < 0) ? Math.max(0, yMid - ty) : Math.max(0, ty - yMid);
+      const score = Math.abs(yMid - ty) + low * 1.25;
+      if (!best || score < best.score) best = { score, fs, lines, shown };
+    }
+    return best;
+  }
+
+  function fanEmptyForced(geom, fs, measure, plus) {
+    plus = plus !== false;
+    const lineH = fs * 1.45;
+    const line0 = plus ? '+ Not' : 'Not';
+    const shown = plus ? '+ Not recorded' : 'Not recorded';
+    const CLEAR = 4;
+    const midA = (geom.a0 + geom.a1) / 2;
+    const midR = (geom.r0 + geom.r1) / 2;
+    /* Prefer mid-band so both arcs have room; nudge will refine. */
+    let yMid = geom.cy + midR * Math.sin(midA);
+    const y0 = yMid - lineH / 2;
+    const y1 = yMid + lineH / 2;
+    let x = fanBisectX(geom, yMid);
+    const cache = {};
+    const s0 = fanOpen(fanSlot(geom, y0, fs, cache, CLEAR), fs, geom);
+    const s1 = fanOpen(fanSlot(geom, y1, fs, cache, CLEAR), fs, geom);
+    if (s0 && s1) {
+      const half0 = measure(line0, fs) * 1.1 / 2 + 2;
+      const half1 = measure('recorded', fs) * 1.1 / 2 + 2;
+      const xLo = Math.max(s0.x - s0.w / 2 + half0, s1.x - s1.w / 2 + half1);
+      const xHi = Math.min(s0.x + s0.w / 2 - half0, s1.x + s1.w / 2 - half1);
+      if (xHi >= xLo) { if (x < xLo) x = xLo; if (x > xHi) x = xHi; }
+    }
+    return {
+      fs, shown: shown,
+      lines: [
+        { text: line0, x, y: y0 },
+        { text: 'recorded', x, y: y1 }
+      ]
+    };
+  }
+
+
   function fanSearch(primary, secondary, fs, geom, measure) {
-    const lineH = fs * 1.32;
-    const maxLines = Math.min(5, primary.length + (secondary.length ? 1 : 0));
+    const lineH = fanLineH(fs);
+    const maxLines = Math.min(6, primary.length + (secondary.length ? 2 : 0));
     const midA = (geom.a0 + geom.a1) / 2;
     const midR = (geom.r0 + geom.r1) / 2;
     const tx = geom.cx + midR * Math.cos(midA);
@@ -538,31 +952,30 @@ ${pg.edit ? '<div class="b58-banner" role="status">Edit mode · tap any plant to
     const cache = {};
     let best = null;
     for (let detailLines = 0; detailLines <= (secondary.length ? 2 : 0); detailLines++) {
-      for (let nameLines = 1; nameLines <= Math.min(4, primary.length); nameLines++) {
+      for (let nameLines = 1; nameLines <= Math.min(5, primary.length); nameLines++) {
         if (nameLines + detailLines > maxLines) continue;
-        const top0 = geom.cy - geom.r1;
-        const top1 = geom.cy + 4;
-        for (let top = top0; top <= top1; top += 3) {
+        const top0 = geom.cy - geom.r1 + fs;
+        const top1 = geom.cy - 8;
+        for (let top = top0; top <= top1; top += 2) {
           const slots = [];
           let ok = true;
           for (let i = 0; i < nameLines + detailLines; i++) {
-            const y = top + fs * 0.8 + i * lineH;
-            const slot = fanOpen(fanSlot(geom, y, fs, cache), fs, geom);
+            const y = top + i * lineH;
+            const slot = fanOpen(fanSlot(geom, y, fs, cache, 2.0), fs, geom);
             if (!slot) { ok = false; break; }
             slots.push(slot);
           }
           if (!ok) continue;
-          const nameSlots = slots.slice(0, nameLines);
-          const detailSlots = slots.slice(nameLines);
-          const nameLinesOut = fanPour(primary, nameSlots, fs, measure);
-          if (!nameLinesOut) continue;
-          const detailOut = detailLines ? fanPour(secondary, detailSlots, fs, measure) : [];
+          const nameOut = fanPour(primary, slots.slice(0, nameLines), fs, measure);
+          if (!nameOut) continue;
+          const detailOut = detailLines ? fanPour(secondary, slots.slice(nameLines), fs, measure) : [];
           if (detailLines && !detailOut) continue;
-          const lines = nameLinesOut.concat(detailOut || []);
+          const lines = nameOut.concat(detailOut || []);
           if (!fanClear(lines, fs, geom, measure)) continue;
+          if (!fanInside(lines, fs, geom, measure, cache)) continue;
           const cyb = lines.reduce((s, l) => s + l.y, 0) / lines.length;
           const cxb = lines.reduce((s, l) => s + l.x, 0) / lines.length;
-          const score = Math.hypot(cxb - tx, cyb - ty) + detailLines * 0.01;
+          const score = Math.hypot(cxb - tx, cyb - ty) + detailLines * 0.01 - nameLines * 0.02;
           if (!best || score < best.score) best = { score, fs, lines, shown: lines.map((l) => l.text).join(' ') };
         }
       }
@@ -573,31 +986,36 @@ ${pg.edit ? '<div class="b58-banner" role="status">Edit mode · tap any plant to
     if (!slot) return null;
     let L = slot.x - slot.w / 2;
     let R = slot.x + slot.w / 2;
-    const top = slot.y - fs;
-    const bot = slot.y + fs * 0.45;
-    const guard = 56;
+    const top = slot.y - fs * 0.95;
+    const bot = slot.y + fs * 0.35;
+    const guard = 58;
     if (bot > geom.cy - guard && top < geom.cy + guard) {
       const cL = geom.cx - guard;
       const cR = geom.cx + guard;
       if (L < cR && R > cL) {
-        if (slot.x < geom.cx) R = Math.min(R, cL - 2);
-        else L = Math.max(L, cR + 2);
+        if (slot.x < geom.cx) R = Math.min(R, cL - 3);
+        else L = Math.max(L, cR + 3);
       }
     }
-    if (R - L < 10) return null;
+    if (R - L < Math.max(10, fs)) return null;
     return { x: (L + R) / 2, y: slot.y, w: R - L };
   }
   function fanClear(lines, fs, geom, measure) {
-    const guard = 56;
-    const cL = geom.cx - guard;
-    const cR = geom.cx + guard;
-    const cT = geom.cy - guard;
-    const cB = geom.cy + guard;
+    const guard = 58;
+    const cL = geom.cx - guard, cR = geom.cx + guard, cT = geom.cy - guard, cB = geom.cy + guard;
     return lines.every((l) => {
       const half = measure(l.text, fs) / 2 + 2;
-      const top = l.y - fs;
-      const bot = l.y + fs * 0.45;
+      const top = l.y - fs * 0.95;
+      const bot = l.y + fs * 0.35;
       return !(l.x - half < cR && l.x + half > cL && top < cB && bot > cT);
+    });
+  }
+  function fanInside(lines, fs, geom, measure, cache) {
+    return lines.every((l) => {
+      const slot = fanSlot(geom, l.y, fs, cache, 2.0);
+      if (!slot) return false;
+      const half = measure(l.text, fs) / 2 + 1.2;
+      return (l.x - half) >= (slot.x - slot.w / 2) - 0.8 && (l.x + half) <= (slot.x + slot.w / 2) + 0.8;
     });
   }
   function fanPour(words, slots, fs, measure) {
@@ -609,61 +1027,101 @@ ${pg.edit ? '<div class="b58-banner" role="status">Edit mode · tap any plant to
       while (i < words.length) {
         const next = cur ? cur + ' ' + words[i] : words[i];
         if (measure(next, fs) > slots[s].w - 1) break;
-        cur = next;
-        i++;
+        cur = next; i++;
       }
       if (!cur) return null;
       lines.push({ text: cur, x: slots[s].x, y: slots[s].y });
     }
     return i >= words.length ? lines : null;
   }
-  function fanSlot(geom, y, fs, cache) {
-    const inset = 1.5;
+  function fanSlot(geom, y, fs, cache, inset) {
+    inset = inset == null ? 2.0 : inset;
     const rIn = geom.r0 + inset;
     const rOut = geom.r1 - inset;
     if (rOut <= rIn + 1) return null;
-    const ang = inset / ((rIn + rOut) / 2);
+    const ang = inset / Math.max(12, (rIn + rOut) / 2);
     const b0 = geom.a0 + ang;
     const b1 = geom.a1 - ang;
-    if (b1 <= b0 + 0.04) return null;
-    const ys = [y - fs * 0.9, y, y + fs * 0.28];
-    let L = -1e9;
-    let R = 1e9;
+    if (b1 <= b0 + 0.03) return null;
+    const ys = [y - fs * 0.95, y, y + fs * 0.3];
+    let L = -1e9, R = 1e9;
     for (let k = 0; k < ys.length; k++) {
-      const key = Math.round(ys[k]);
-      if (!Object.prototype.hasOwnProperty.call(cache, key)) cache[key] = fanSlice(geom.cx, geom.cy, rIn, rOut, b0, b1, key) || 0;
+      const key = inset.toFixed(1) + ':' + (Math.round(ys[k] * 2) / 2);
+      if (!Object.prototype.hasOwnProperty.call(cache, key)) cache[key] = fanSlice(geom.cx, geom.cy, rIn, rOut, b0, b1, ys[k]) || 0;
       const span = cache[key];
       if (!span) return null;
       L = Math.max(L, span[0]);
       R = Math.min(R, span[1]);
     }
-    if (R - L < 10) return null;
+    if (R - L < 8) return null;
     return { x: (L + R) / 2, y, w: R - L };
   }
   function fanSlice(cx, cy, rIn, rOut, b0, b1, y) {
-    let left = null;
-    let right = null;
-    const x0 = cx - rOut;
-    const x1 = cx + rOut;
-    for (let x = x0; x <= x1; x += 1) {
-      const dx = x - cx;
-      const dy = y - cy;
-      const r = Math.hypot(dx, dy);
+    let left = null, right = null;
+    for (let x = cx - rOut; x <= cx + rOut; x += 0.5) {
+      const dx = x - cx, dy = y - cy, r = Math.hypot(dx, dy);
       if (r < rIn || r > rOut) continue;
-      let a = Math.atan2(dy, dx);
-      if (a < 0) a += Math.PI * 2;
-      if (a < b0 - 0.03 || a > b1 + 0.03) continue;
+      let a = Math.atan2(dy, dx); if (a < 0) a += Math.PI * 2;
+      if (a < b0 - 0.015 || a > b1 + 0.015) continue;
       if (left == null) left = x;
       right = x;
     }
-    if (left == null || right - left < 8) return null;
-    return [left + 1, right - 1];
+    if (left == null || right - left < 6) return null;
+    return [left + 1.2, right - 1.2];
   }
+  function fanBoxes(placed, measure) {
+    const fs = placed.fs;
+    return placed.lines.map((l) => {
+      const w = measure(l.text, fs);
+      return { l: l.x - w / 2, r: l.x + w / 2, t: l.y - fs * 0.95, b: l.y + fs * 0.35 };
+    });
+  }
+  function fanHits(a, b) {
+    return a.l < b.r - 0.8 && a.r > b.l + 0.8 && a.t < b.b - 0.8 && a.b > b.t + 0.8;
+  }
+  function fanResolve(placements, measure) {
+    const isNR = (P) => fanIsNotRecorded(P.g.dataset.name);
+    const dropLine = (P) => {
+      /* Never drop name words (sibling/parent labels must stay word-intact). */
+      if (isNR(P)) return false;
+      return false;
+    };
+    const nudgeUp = (P, dy) => {
+      if (!isNR(P)) return false;
+      P.placed.lines.forEach((l) => { l.y -= dy; });
+      return true;
+    };
+    for (let pass = 0; pass < 8; pass++) {
+      let moved = false;
+      for (let i = 0; i < placements.length; i++) {
+        for (let j = i + 1; j < placements.length; j++) {
+          const A = placements[i], B = placements[j];
+          const boxesA = fanBoxes(A.placed, measure);
+          const boxesB = fanBoxes(B.placed, measure);
+          let hit = false;
+          boxesA.forEach((a) => boxesB.forEach((b) => { if (fanHits(a, b)) hit = true; }));
+          if (!hit) continue;
+          /* Prefer shortening the longer parent/sibling label; nudge Not-recorded up if needed. */
+          const parentish = !isNR(A) ? A : !isNR(B) ? B : null;
+          const nr = isNR(A) ? A : isNR(B) ? B : null;
+          if (parentish && dropLine(parentish)) { moved = true; continue; }
+          if (nr && nudgeUp(nr, fanLineH(nr.placed.fs) * 0.55)) { moved = true; continue; }
+          if (dropLine(A) || dropLine(B)) moved = true;
+        }
+      }
+      if (!moved) break;
+    }
+  }
+
   function fitTree() {
     if (fitting) return;
     fitting = true;
-    try { fitTreeNow(); } catch (e) { /* */ } finally { fitting = false; }
-    try { fitFanText(); } catch (e) { /* */ }
+    try {
+      fitTreeNow();
+      fitFanText();
+    } catch (e) { /* */ } finally {
+      setTimeout(() => { fitting = false; }, 0);
+    }
   }
   function fitTreeNow() {
     const root = document.querySelector('#breeding-view .b57[data-b57s]');
