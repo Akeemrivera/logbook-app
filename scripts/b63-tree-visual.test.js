@@ -38,8 +38,12 @@ function sleep(ms) { return new Promise((r) => setTimeout(r, ms)); }
 const MEASURE = `(() => {
   const root = document.querySelector('#breeding-view .b57');
   const k = root && root.getAttribute('data-b57k');
-  const circles = root ? root.querySelectorAll('.b57-ctr, .b57-me, .b57-rose .b57-ph').length : 0;
+  /* b64 (check-replacements #2): this plant is counted with the b64 selectors, including the hanging .b59-pc.me circle. */
+  const circles = root ? root.querySelectorAll('.b57-ctr, .b57-me, .b59-pc.me, .b57-rose .b57-ph').length : 0;
   const ribbons = root ? root.querySelectorAll('.b57-ban').length : 0;
+  /* b64 (#3): the Certificate shows this plant as one card (.b57-pme) or as one joined pair. */
+  const certMe = root ? root.querySelectorAll('.b57-pme').length : 0;
+  const certPair = root ? root.querySelectorAll('.b59-pair').length : 0;
   const h = root && root.querySelector('.b18-h1');
   const hr = h ? h.getBoundingClientRect() : null;
   const imgs = [...(root ? root.querySelectorAll('img.mz-inline') : [])].filter((img) => {
@@ -69,7 +73,8 @@ const MEASURE = `(() => {
       text, full,
       cut: full && text.replace(/\\s/g, '') !== full.replace(/\\s/g, ''),
       ellipsis: /\\u2026|\\.\\.\\./.test(text) || cs.textOverflow === 'ellipsis',
-      outside: r.width > 0 && (r.left < -1 || r.right > window.innerWidth + 1 || r.top < -1 || r.bottom > window.innerHeight + 1),
+      /* b64 (#7): no label is cut by the page edge sideways, and every label can be reached by scrolling (full-page box, not the first screen). */
+      outside: r.width > 0 && (r.left < -1 || r.right > window.innerWidth + 1 || r.top + window.scrollY < -1 || r.bottom + window.scrollY > (document.scrollingElement || document.documentElement).scrollHeight + 1),
     };
   });
   function boxOf(el) { const r = el.getBoundingClientRect(); return { l: r.left, r: r.right, t: r.top, b: r.bottom, w: r.width, h: r.height }; }
@@ -106,21 +111,30 @@ const MEASURE = `(() => {
       });
       return { pb, bits, aria: g.getAttribute('aria-label') || '' };
     });
-    const pieces = segs.flatMap((seg) => seg.bits.map((bit) => bit.b));
+    /* b64 (#6): lines inside one label sit at 1.0 leading, so they are not compared with each other.
+       Two different labels must stay 4 CSS px apart. */
+    const near = (a, b, g) => a.w > 0.4 && b.w > 0.4 && a.l < b.r + g && a.r > b.l - g && a.t < b.b + g && a.b > b.t - g;
     let overlap = false;
-    for (let i = 0; i < pieces.length; i++) for (let j = i + 1; j < pieces.length; j++) if (hits(pieces[i], pieces[j])) overlap = true;
+    for (let i = 0; i < segs.length; i++) for (let j = i + 1; j < segs.length; j++) segs[i].bits.forEach((a) => segs[j].bits.forEach((b) => { if (near(a.b, b.b, 4)) overlap = true; }));
     const outside = segs.some((seg) => seg.pb && seg.bits.some((bit) => bit.b.w > 0.4 && (bit.b.l < seg.pb.l - 1.5 || bit.b.r > seg.pb.r + 1.5 || bit.b.t < seg.pb.t - 1.5 || bit.b.b > seg.pb.b + 1.5)));
     const centreHit = !!(cr && segs.some((seg) => seg.bits.some((bit) => hits(bit.b, cr))));
     const clipped = segs.some((seg) => seg.bits.some((bit) => bit.crushed));
     const small = segs.some((seg) => seg.bits.some((bit) => bit.fs && bit.fs < (window.innerWidth >= 380 && window.innerWidth <= 430 ? 9 : 8.2)));
+    /* b64 (#5): the solver's size bar, every fan label at least 11 CSS px (its 4 px seam/arc/hub clearance is measured on pixels by pixel_verify) */
+    const fsMin = Math.min(...segs.flatMap((seg) => seg.bits.map((bit) => bit.fs || 99))); const under11 = fsMin < 11 - 0.05;
     const short = segs.filter((seg) => /\\+ Not recorded/.test(seg.aria)).length;
-    fan = { segments: segs.length, overlap, outside, centreHit, clipped, small, short };
+    /* b64 (#8): an empty grandparent slot reads "Not recorded" (b64 wording "Not recorded · tap to add"), and no missing slot is ever Self (S1). */
+    const empty = segs.filter((seg) => /^\\+? ?Not recorded\\b/.test(seg.aria)).length;
+    const selfMissing = segs.some((seg) => /Self|\\bS1\\b|same as Not recorded/i.test(seg.aria));
+    fan = { segments: segs.length, overlap, outside, centreHit, clipped, small, under11, fsMin, short, empty, selfMissing };
   }
   const de = document.scrollingElement || document.documentElement;
   const breed = document.querySelector('#tabbar [data-tab-view="breeding"]');
   const lin = document.querySelector('#tabbar [data-tab-view="lineage"]');
   const on = (el) => !!(el && (el.classList.contains('active') || el.classList.contains('on') || el.getAttribute('aria-current') === 'page'));
+  const activeTabs = [...document.querySelectorAll('#tabbar [data-tab-view]')].filter(on).map((el) => el.getAttribute('data-tab-view'));
   return {
+    activeTabs, certMe, certPair,
     k, circles, ribbons, badge, glyph, labels, fan,
     pan: de.scrollWidth > de.clientWidth + 2,
     breed: on(breed), lineage: on(lin),
@@ -131,8 +145,13 @@ const MEASURE = `(() => {
 function judge(row, style) {
   const fails = [];
   if (!row || !row.k) return ['tree did not render'];
-  if (row.circles !== 1) fails.push('plant circles ' + row.circles);
-  if (row.ribbons !== 1) fails.push('ribbons ' + row.ribbons);
+  if (row.k === 'cert') {
+    if (row.certMe + row.certPair !== 1) fails.push('this-plant card or pair ' + (row.certMe + row.certPair));
+    if (row.certPair ? row.ribbons !== 1 : row.ribbons > 1) fails.push('ribbons ' + row.ribbons);
+  } else {
+    if (row.circles !== 1) fails.push('plant circles ' + row.circles);
+    if (row.ribbons !== 1) fails.push('ribbons ' + row.ribbons);
+  }
   if (row.pan) fails.push('page scrolls sideways');
   if (row.k === 'azulejo') {
     (row.labels || []).forEach((label) => {
@@ -147,11 +166,17 @@ function judge(row, style) {
       if (row.fan.centreHit) fails.push('a fan label hits the centre circle');
       if (row.fan.clipped) fails.push('a fan label is clipped');
       if (row.fan.small) fails.push('a fan label is under 9px');
-      if (row.fan.short < 4) fails.push('an empty slot is not + Not recorded');
+      if (row.fan.under11) fails.push('a fan label is under 11 CSS px (' + row.fan.fsMin.toFixed(2) + ')');
+      if (row.fan.empty < (row.expectEmpty || 0)) fails.push('an empty slot is not Not recorded (' + row.fan.empty + ' of ' + row.expectEmpty + ')');
+      if (row.fan.selfMissing) fails.push('a missing slot is shown as Self (S1)');
     }
   }
   if (!row.badge || !row.glyph) fails.push('title badge glyph is missing');
-  if (row.k === 'ceiba' && (!row.breed || row.lineage)) fails.push('tab is not Breeding');
+  /* b64 (#1): exactly one tab is active, and it is the tab the tree was opened from. */
+  if (row.from) {
+    if ((row.activeTabs || []).length !== 1) fails.push('active tabs ' + JSON.stringify(row.activeTabs));
+    else if (row.activeTabs[0] !== row.from) fails.push('tab is ' + row.activeTabs[0] + ', opened from ' + row.from);
+  }
   return fails;
 }
 
@@ -278,9 +303,26 @@ async function runApp() {
           await evaluate('(() => { switchView("breeding"); B49.openPage({ type: "b49tree", key: "pl:p-nophoto", forceStyle: ' + style + ' }); return true; })()');
           await sleep(420);
           const row = await evaluate(MEASURE);
+          /* both fixture parents have no recorded parents: one empty grandparent slot per parent side */
+          if (row) row.expectEmpty = 2;
           const bad = judge(row, style);
           if (bad.length) fails.push(theme + ' ' + w + 'x' + h + ' style ' + style + ' ' + (row && row.k) + ' ' + bad.join('; '));
           else console.log('PASS visual ' + theme + ' ' + row.k + ' ' + w + 'x' + h);
+          if (style === 2) {
+            for (const from of ['lineage', 'breeding']) {
+              const open = from === 'lineage'
+                ? '(() => { document.querySelector("#tabbar [data-tab-view=\\"lineage\\"]").click(); B49.openPage({ type: "b49tree", key: "pl:p-nophoto", forceStyle: 2, fromLin: true }); return true; })()'
+                : '(() => { switchView("breeding"); B18.brPage = null; renderBreeding(); B49.openPage({ type: "b49tree", key: "pl:p-nophoto", forceStyle: 2 }); return true; })()';
+              await evaluate(open);
+              await sleep(420);
+              const tr = await evaluate(MEASURE);
+              const tb = tr ? [] : ['tree did not render'];
+              if (tr && (tr.activeTabs || []).length !== 1) tb.push('active tabs ' + JSON.stringify(tr.activeTabs));
+              else if (tr && tr.activeTabs[0] !== from) tb.push('tab is ' + tr.activeTabs[0] + ', opened from ' + from);
+              if (tb.length) fails.push(theme + ' ' + w + 'x' + h + ' tab from ' + from + ' ' + tb.join('; '));
+              else console.log('PASS tab ' + theme + ' ' + w + 'x' + h + ' from ' + from);
+            }
+          }
         }
       }
     }

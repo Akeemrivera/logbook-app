@@ -74,3 +74,11 @@ E. A parent slot that only says "Not recorded" never makes Self/S1 or a backcros
 Also: outer bands (siblings, candidates, kids) drop their second line when it cannot clear 4 px, as
 the grandparent ring already does; all line-snapping passes measure in unzoomed units under the
 1024 px zoom. Real-data previews stay on the private machine.
+
+Test replacements (check-replacements.md), tests only, no app file changed:
+scripts/b63-tree-visual.test.js: #1 one active tab = the tab the tree was opened from (Lineage and
+Breeding both exercised); #2/#3 b64 this-plant selectors, Certificate card-or-pair, ribbon only
+with a pair; #5 fan labels at least 11 CSS px added (4 px seam clearance stays with pixel_verify);
+#6 different labels 4 px apart, lines inside one label not compared; #7 full-page box for labels;
+#8 each empty grandparent slot reads "Not recorded" and no missing slot is Self (S1).
+Box-only scripts (ribbon, acceptance) got #9-#13 and #15; see the box gate logs.
