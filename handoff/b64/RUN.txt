@@ -82,3 +82,12 @@ with a pair; #5 fan labels at least 11 CSS px added (4 px seam clearance stays w
 #6 different labels 4 px apart, lines inside one label not compared; #7 full-page box for labels;
 #8 each empty grandparent slot reads "Not recorded" and no missing slot is Self (S1).
 Box-only scripts (ribbon, acceptance) got #9-#13 and #15; see the box gate logs.
+
+Round 3 (two fixes only, build57.js):
+1. Azulejo on a card narrower than 382 CSS px (375 x 667): the 13-unit second line would render at
+   10.6 px, so on that width every fan ring shows names only (the approved titles-only rule) and the
+   4 px clearance is checked at that scale. Names stay 14 units (11.4 px at 375). 390/430/1024 unchanged.
+2. Tree connectors: a freshly drawn tree runs its title, badge and connector passes in the same task,
+   before the first paint, repeating until the lines stop changing, so the first frame equals the
+   settled frame (no snap about half a second after opening).
+Tests: the tree tab check expects Lineage when a tree is opened from Lineage or Breeding.

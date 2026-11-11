@@ -606,6 +606,9 @@
 <div class="b57-ban solo"><b>${esc(name(k))}${gen(k) ? ` · ${esc(gen(k))}` : ''}</b><small>${esc(crossTxt(k))}</small></div>
 <p class="b57-key">Centre: this plant · Ring 1: parents · Ring 2: grandparents · Outer ring: ${P.hunt ? 'pheno-hunt candidates' : 'brothers &amp; sisters'} (top), kids (bottom)</p>${fam(k, ks, { noKids: 1, noLab: 1, noMe: 1 })}${P.hunt ? `${lab(popLab(P))}${popRow(P)}` : ''}${nextBranch(P)}`;
   }
+  /* b64 round 3: rendered fan scale (CSS px per SVG unit). First guess from the window; checked against the drawn svg before the first paint. */
+  const fanFit = { s: (typeof innerWidth === 'number' && innerWidth < 600 ? (innerWidth - 8) : FAN.W) / FAN.W };
+  const fanNarrow = () => 13 * fanFit.s < 11;
   function fan(k, lv, P, ks) {
     const [m, f] = parentsRow(lv); const gp = gpItems(lv, m, f); const c = FAN.W / 2;
     const o0 = P.items.filter((x) => !x.me); const o = o0.length ? o0 : [{ t: P.hunt ? 'No candidates' : 'No siblings', s: 'same seed pop' }];
@@ -613,12 +616,15 @@
        the grandparent ring shows names only (Option C, as Walnut ring 2), the parents/grandparents boundary moves out and the two
        base wedges get more angle, until every label clears 4 px again. */
     const P2 = [m, f].filter(Boolean), PI = Math.PI;
+    /* b64 round 3: on a card narrower than 382 CSS px (e.g. 375 x 667) the 13-unit second line would render under 11 CSS px.
+       There every ring shows names only (the approved titles-only rule) and the 4 px clearance is checked at that scale. */
+    const nar = fanNarrow(), need = nar ? Math.max(RS_CLEAR, 4 / fanFit.s) : RS_CLEAR;
     const draw = (rb, rc, sk, tOnly) => { const gb = gp.length === 4 ? [PI, PI + PI / 2 * (0.5 + sk), 1.5 * PI, 1.5 * PI + PI / 2 * (0.5 - sk), 2 * PI] : null;
-      return outerRing(o, c, FAN.cy, rc, FAN.R, PI, 2 * PI, 'r3') + ring(gp, c, FAN.cy, rb, rc, PI, 2 * PI, 'r2', null, null, { bounds: gb, titleOnly: tOnly }) + ring(P2, c, FAN.cy, FAN.ra, rb, PI, 2 * PI, 'r1', null, 55, { hx: c, hy: FAN.cy + FAN.hy }); };
+      return (nar ? ring(o, c, FAN.cy, rc, FAN.R, PI, 2 * PI, 'r3', null, null, { titleOnly: true }) : outerRing(o, c, FAN.cy, rc, FAN.R, PI, 2 * PI, 'r3')) + ring(gp, c, FAN.cy, rb, rc, PI, 2 * PI, 'r2', null, null, { bounds: gb, titleOnly: tOnly || nar }) + ring(P2, c, FAN.cy, FAN.ra, rb, PI, 2 * PI, 'r1', null, 55, { hx: c, hy: FAN.cy + FAN.hy, titleOnly: nar }); };
     const worst = (h) => Math.min(...[...h.matchAll(/data-clr="(-?[0-9.]+)"/g)].map((q) => +q[1]));
     let rings = draw(FAN.rb, FAN.rc, 0, false);
-    if (worst(rings) < RS_CLEAR) { let best = null;
-      for (let rc = FAN.rc; rc >= FAN.rc - 6 && !(best && best.w >= RS_CLEAR); rc -= 2) for (let rb = FAN.rb; rb <= 130 && !(best && best.w >= RS_CLEAR); rb += 2) for (let sk = 0; sk <= 0.3001 && !(best && best.w >= RS_CLEAR); sk += 0.05) {
+    if (worst(rings) < need) { let best = null;
+      for (let rc = FAN.rc; rc >= FAN.rc - 6 && !(best && best.w >= need); rc -= 2) for (let rb = FAN.rb; rb <= 130 && !(best && best.w >= need); rb += 2) for (let sk = 0; sk <= 0.3001 && !(best && best.w >= need); sk += 0.05) {
         const h = draw(rb, rc, sk, true), w = worst(h); if (!best || w > best.w) best = { w, h }; }
       if (best) rings = best.h; }
     return `${lab(P.hunt ? 'Pheno-hunt candidates · outer band' : 'Brothers & sisters · outer band')}<div class="b57-svgw"><svg viewBox="0 0 ${FAN.W} ${FAN.cy + FAN.hy + 57}" class="b57-svg fan" data-solved="1" role="group" aria-label="Family tree fan">${rings}${centre(k, c, FAN.cy + FAN.hy, 52)}</svg></div>
@@ -1869,6 +1875,25 @@ ${pg.edit ? '<div class="b58-banner" role="status">Edit mode · tap any plant to
   document.addEventListener('click', () => setTimeout(scheduleTrim, 60), true);
   window.addEventListener('resize', scheduleTrim);
   setTimeout(scheduleTrim, 200);
+  /* b64 round 3: settle a freshly drawn tree in the same task, before the first paint, so its connectors are drawn once, in their final
+     place (no snap after the page has shown). Runs the same title, badge and connector passes the timers run later. */
+  const settledTrees = new WeakSet();
+  function fanRecheck(t) { const sv = t && t.querySelector('svg.b57-svg.fan'); if (!sv || !sv.clientWidth) return false;
+    const s = sv.clientWidth / FAN.W, was = fanNarrow(), used = fanFit.s; fanFit.s = s;
+    return was !== fanNarrow() || (was && Math.abs(used - s) > 0.002); }
+  function settleTree() {
+    const t = document.querySelector('#breeding-view .b57'); if (!t || settledTrees.has(t)) return; settledTrees.add(t);
+    if (fanRecheck(t)) { try { renderBreeding(); } catch (e) { /* */ } return; }
+    try { if (window.__mzPlace) window.__mzPlace(); } catch (e) { /* */ }
+    try { if (window.B58 && B58.decorate) B58.decorate(); } catch (e) { /* */ }
+    try { addTab(); addSide(); profileBtn(); mark(); cloneOfRow(); } catch (e) { /* */ }
+    /* one pass can move what the next pass measures (label fitting after the lines), so repeat until the lines stop changing */
+    const sig = () => [...t.querySelectorAll('svg')].filter((v) => !v.closest('.b57-svgw')).map((v) => (v.getAttribute('style') || '') + (v.getAttribute('viewBox') || '') + [...v.querySelectorAll('path')].map((q) => q.getAttribute('d')).join(';')).join('|') + [...t.querySelectorAll('[style]')].map((e) => e.getAttribute('style')).join('|');
+    for (let i = 0; i < 4; i++) { const was = i ? sig() : null; try { inUnzoomed(() => { fixSeps(t); trimHangingStrings(); fitSvgTreeLabels(); }); } catch (e) { /* */ } if (was !== null && sig() === was) break; }
+  }
+  try { new MutationObserver(settleTree).observe(document.getElementById('breeding-view') || document.body, { childList: true, subtree: true }); } catch (e) { /* */ }
+  window.addEventListener('resize', () => { const t = document.querySelector('#breeding-view .b57'); if (fanRecheck(t)) { try { renderBreeding(); } catch (e) { /* */ } } });
+  try { if (document.fonts && document.fonts.ready) document.fonts.ready.then(scheduleTrim); } catch (e) { /* */ }
 
   setInterval(() => { try { addTab(); addSide(); profileBtn(); mark(); cloneOfRow(); inUnzoomed(() => { fixSeps(document.querySelector('#breeding-view .b57')); trimHangingStrings(); fitSvgTreeLabels(); }); } catch (e) { console.warn('b57 entry', e); } }, 300);
   window.B57 = { fixSeps, walk, detailKey, resolveKey, partners, rec, name, same, isUnk, ph, mono, rr: () => renderBreeding(), openLineage, lineageList, candidates, par2, stat, popOf, styles: STYLES, styleOf, assign, ancestors, siblings, kids, photo, linkedMotherKey, productionTreeTarget, routeTreePage, migrateCloneMother, b13Mig, cloneOfRow, setCloneOf, isFalseSample, ownsOwnTree, originOf, connectionLinks, connectionPage, ringSolver: { solve: rsSolve, wedge: rsWedge, rect: rsRect, metric: rsMetric, CLEAR: RS_CLEAR, geo: () => ({ WAL, FAN }) } };
