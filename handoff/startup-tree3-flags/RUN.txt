@@ -13,7 +13,7 @@ Run once:
   node scripts/b63-tree3-flags.test.js
   node scripts/b63-real-mockup.test.js
 
-The guard requires build63.css, www/build63.css, and ios/App/App/public/build63.css to be f2c40c6d036a66681440b646064c4442386739992e35ff3be8216a5275cdad28.
+The guard requires build63.css, www/build63.css, and ios/App/App/public/build63.css to be a5d3be09a872055377fdf49988d2caa50bf38aa48b43aedaecdb0201e827abbf.
 If the acceptance command fails, keep that failure.
 Classification: test-isolation change. The boot-failure cause is unknown.
 A pass is not phone QA and does not clear appearance or upload.

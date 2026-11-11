@@ -99,24 +99,121 @@
   document.addEventListener('click', (e) => { const b = e.target.closest('[data-b60="stub-close"]'); if (!b) return; e.preventDefault(); e.stopPropagation(); document.querySelectorAll('.b60-stub').forEach((x) => x.remove()); }, true);
   /* ---------- connector lines (SVG overlay per tree): each card to the plant it is a parent of ---------- */
   const xs0 = (R, cx) => R.map((r) => Math.round(cx(r)));
+  /* Start/end connector paths just outside a card's border and text, so the
+     stroke cannot run across the words (Ceiba grandparents were the reported case).
+     Map getBoundingClientRect (includes html zoom) into the host's offset box
+     so lines line up at 1.28 wide zoom as well as at 1. */
+  const LINE_PAD = 4;
+  function unionBox(el) {
+    const r = el.getBoundingClientRect();
+    const box = { left: r.left, right: r.right, top: r.top, bottom: r.bottom };
+    el.querySelectorAll('b, small, span, em').forEach((n) => {
+      const t = n.getBoundingClientRect();
+      if (t.width < 0.4 || t.height < 0.4) return;
+      if (t.top < box.top) box.top = t.top;
+      if (t.bottom > box.bottom) box.bottom = t.bottom;
+      if (t.left < box.left) box.left = t.left;
+      if (t.right > box.right) box.right = t.right;
+    });
+    return box;
+  }
+  function space(host) {
+    const F = host.getBoundingClientRect();
+    const w = host.offsetWidth || F.width;
+    const h = host.offsetHeight || F.height;
+    const sx = F.width ? (w / F.width) : 1;
+    const sy = F.height ? (h / F.height) : 1;
+    return { F, w, h, sx, sy, x: (v) => (v - F.left) * sx, y: (v) => (v - F.top) * sy, pad: LINE_PAD * ((sx + sy) / 2) };
+  }
+  function yOutside(el, S, fromBottom) {
+    const b = unionBox(el);
+    return fromBottom ? S.y(b.bottom) + S.pad : S.y(b.top) - S.pad;
+  }
+  function textRects(host) {
+    const out = [];
+    if (!host) return out;
+    const tw = document.createTreeWalker(host, NodeFilter.SHOW_TEXT, null);
+    let n;
+    while ((n = tw.nextNode())) {
+      const str = (n.nodeValue || '').replace(/\s+/g, ' ').trim();
+      if (!str) continue;
+      const el = n.parentElement;
+      if (!el || el.tagName === 'SCRIPT' || el.tagName === 'STYLE') continue;
+      const range = document.createRange();
+      range.selectNodeContents(n);
+      const r = range.getBoundingClientRect();
+      if (r.width < 0.4 || r.height < 0.4) continue;
+      out.push(r);
+    }
+    return out;
+  }
+  /* Split a parent-to-child cubic around any intervening text (section
+     labels, ribbons, motto) so the stroke stops above the words and
+     resumes below them. */
+  function aroundText(x1, y1, tx, ty, S, host) {
+    const pad = S.pad;
+    const yLo = Math.min(y1, ty), yHi = Math.max(y1, ty);
+    const xLo = Math.min(x1, tx) - pad, xHi = Math.max(x1, tx) + pad;
+    const blocks = [];
+    textRects(host).forEach((r) => {
+      const top = S.y(r.top) - pad, bot = S.y(r.bottom) + pad;
+      const left = S.x(r.left) - pad, right = S.x(r.right) + pad;
+      if (bot <= yLo + 0.5 || top >= yHi - 0.5) return;
+      if (right < xLo || left > xHi) return;
+      blocks.push({ top, bot });
+    });
+    if (!blocks.length) {
+      const my = (y1 + ty) / 2;
+      return `M${x1} ${y1}C${x1} ${my} ${tx} ${my} ${tx} ${ty}`;
+    }
+    blocks.sort((a, b) => a.top - b.top);
+    const merged = [];
+    blocks.forEach((b) => {
+      const last = merged[merged.length - 1];
+      if (last && b.top <= last.bot) last.bot = Math.max(last.bot, b.bot);
+      else merged.push({ top: b.top, bot: b.bot });
+    });
+    const dir = ty >= y1 ? 1 : -1;
+    const cuts = dir > 0 ? merged : merged.slice().reverse();
+    let d = '';
+    let ya = y1;
+    const emit = (a, b, toTarget) => {
+      if (Math.abs(b - a) < 1) return;
+      if (toTarget) {
+        const my = (a + b) / 2;
+        d += `M${x1} ${a}C${x1} ${my} ${tx} ${my} ${tx} ${b}`;
+      } else {
+        d += `M${x1} ${a}V${b}`;
+      }
+    };
+    cuts.forEach((b, i) => {
+      const edge = dir > 0 ? b.top : b.bot;
+      const after = dir > 0 ? b.bot : b.top;
+      if ((edge - ya) * dir > 1) emit(ya, edge, false);
+      ya = after;
+    });
+    if ((ty - ya) * dir > 1) emit(ya, ty, true);
+    return d;
+  }
   function draw() {
     document.querySelectorAll('#breeding-view .b59-fam').forEach((fam) => { if (!fam.querySelector('.b60-full')) return; let svg = fam.querySelector(':scope > svg.b60-lines');
       if (!svg) { svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); svg.setAttribute('class', 'b60-lines'); svg.setAttribute('aria-hidden', 'true'); fam.prepend(svg); }
-      const F = fam.getBoundingClientRect(); const z = Number((document.querySelector('.b57-canvas') || {}).style && document.querySelector('.b57-canvas').style.zoom) || 1;
-      svg.setAttribute('width', F.width / z); svg.setAttribute('height', F.height / z); svg.setAttribute('viewBox', `0 0 ${F.width} ${F.height}`);
+      const S = space(fam);
+      svg.setAttribute('width', S.w); svg.setAttribute('height', S.h); svg.setAttribute('viewBox', `0 0 ${S.w} ${S.h}`);
       const groups = new Map(); fam.querySelectorAll('[data-up]').forEach((c) => { const u = c.dataset.up; if (!groups.has(u)) groups.set(u, []); groups.get(u).push(c); });
       let d = ''; const links = [];
       groups.forEach((cells, up) => { const t = [...fam.querySelectorAll('[data-node]')].find((n) => n.dataset.node === up && !cells.includes(n)); if (!t) return; const T = t.getBoundingClientRect();
-        const col = cells[0].closest('.b60-col'); const C = col ? col.getBoundingClientRect() : F; const cx = (r) => Math.max(C.left + 6, Math.min(C.right - 6, r.left + r.width / 2)) - F.left;
-        const R = cells.map((c) => c.getBoundingClientRect()); const below = R[0].top > T.bottom; const tx = T.left + T.width / 2 - F.left;
-        const py = below ? Math.min(...R.map((r) => r.top)) - F.top : Math.max(...R.map((r) => r.bottom)) - F.top; const ty = below ? T.bottom - F.top : T.top - F.top; const my = (py + ty) / 2;
-        links.push([up, cells.length, Math.round(tx), Math.round(ty), xs0(R, cx)]);
+        const col = cells[0].closest('.b60-col'); const C = col ? col.getBoundingClientRect() : S.F;
+        const cx = (r) => Math.max(S.x(C.left) + 6, Math.min(S.x(C.right) - 6, S.x(r.left + r.width / 2)));
+        const R = cells.map((c) => c.getBoundingClientRect()); const below = R[0].top > T.bottom; const tx = S.x(T.left + T.width / 2);
+        const py = below ? Math.min(...cells.map((c) => yOutside(c, S, false))) : Math.max(...cells.map((c) => yOutside(c, S, true))); const ty = yOutside(t, S, below); const my = (py + ty) / 2;
+        links.push([up, cells.length, Math.round(tx), Math.round(ty), xs0(R, (r) => S.x(r.left + r.width / 2))]);
         const xs = R.map(cx);
         const kind = ((fam.closest('.b57') || {}).getAttribute && fam.closest('.b57').getAttribute('data-b57k')) || '';
         if (kind === 'ceiba' || kind === 'roots' || kind === 'river') {
-          R.forEach((r, i) => { const y1 = (below ? r.top : r.bottom) - F.top; d += `M${xs[i]} ${y1}C${xs[i]} ${my} ${tx} ${my} ${tx} ${ty}`; });
+          cells.forEach((c, i) => { const y1 = yOutside(c, S, !below); d += aroundText(xs[i], y1, tx, ty, S, fam); });
         } else {
-          R.forEach((r, i) => { d += `M${xs[i]} ${(below ? r.top : r.bottom) - F.top}V${my}`; });
+          cells.forEach((c, i) => { d += `M${xs[i]} ${yOutside(c, S, !below)}V${my}`; });
           const lo = Math.min(...xs, tx), hi = Math.max(...xs, tx); if (hi - lo > 0.5) d += `M${lo} ${my}H${hi}`; d += `M${tx} ${my}V${ty}`;
         } });
       let path = svg.querySelector('path'); if (!path) { path = document.createElementNS('http://www.w3.org/2000/svg', 'path'); svg.appendChild(path); } path.setAttribute('d', d); fam.dataset.b60links = JSON.stringify(links); });
@@ -129,28 +226,61 @@
       let svg = canvas.querySelector(':scope > svg.b60-lines');
       if (!cards.length) { if (svg) svg.remove(); return; }
       if (!svg) { svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); svg.setAttribute('class', 'b60-lines'); svg.setAttribute('aria-hidden', 'true'); canvas.prepend(svg); }
-      const F = canvas.getBoundingClientRect(); const z = Number(canvas.style && canvas.style.zoom) || 1;
-      svg.setAttribute('width', F.width / z); svg.setAttribute('height', F.height / z); svg.setAttribute('viewBox', `0 0 ${F.width} ${F.height}`);
+      const S = space(canvas);
+      svg.setAttribute('width', S.w); svg.setAttribute('height', S.h); svg.setAttribute('viewBox', `0 0 ${S.w} ${S.h}`);
       const groups = new Map();
       cards.forEach((c) => { const u = c.dataset.of; if (!u) return; if (!groups.has(u)) groups.set(u, []); groups.get(u).push(c); });
       let d = ''; let arc = '';
       const tops = [];
       groups.forEach((cells, up) => {
-        const t = [...canvas.querySelectorAll('[data-node], [data-k]')].find((n) => !cells.includes(n) && !n.closest('.b59-fam') && (n.dataset.node === up || n.dataset.k === up));
-        if (!t) return;
+        const hits = [...canvas.querySelectorAll('[data-node], [data-k]')].filter((n) => !cells.includes(n) && !n.closest('.b59-fam') && (n.dataset.node === up || n.dataset.k === up));
+        if (!hits.length) return;
+        /* Prefer the nearest copy of the target plant so a curve does not
+           run through a closer card (Roots crown: parents sit below the
+           pop-row "this plant", with the main .b57-me further up). */
+        const cellTop = Math.min(...cells.map((c) => c.getBoundingClientRect().top));
+        const cellBot = Math.max(...cells.map((c) => c.getBoundingClientRect().bottom));
+        const gap = (n) => { const r = n.getBoundingClientRect(); if (r.bottom <= cellTop) return cellTop - r.bottom; if (r.top >= cellBot) return r.top - cellBot; return 0; };
+        hits.sort((a, b) => gap(a) - gap(b) || a.getBoundingClientRect().height - b.getBoundingClientRect().height);
+        const t = hits[0];
         const T = t.getBoundingClientRect(); const R = cells.map((c) => c.getBoundingClientRect());
-        const cx = (r) => r.left + r.width / 2 - F.left; const below = R[0].top > T.bottom; const tx = cx(T);
-        const ty = below ? T.bottom - F.top : T.top - F.top;
-        R.forEach((r) => {
-          const x1 = cx(r); const y1 = (below ? r.top : r.bottom) - F.top; const my = (y1 + ty) / 2;
-          d += `M${x1} ${y1}C${x1} ${my} ${tx} ${my} ${tx} ${ty}`;
+        const cx = (r) => S.x(r.left + r.width / 2); const below = R[0].top > T.bottom; const tx = cx(T);
+        const ty = yOutside(t, S, below);
+        cells.forEach((c, i) => {
+          const r = R[i]; const x1 = cx(r); const y1 = yOutside(c, S, !below);
+          d += aroundText(x1, y1, tx, ty, S, canvas);
           tops.push(r);
         });
       });
       if (kind === 'ceiba' && tops.length) {
-        const left = Math.min(...tops.map((r) => r.left)) - F.left; const right = Math.max(...tops.map((r) => r.right)) - F.left;
-        const y = Math.min(...tops.map((r) => r.top)) - F.top - 10; const rx = Math.max(12, (right - left) / 2);
-        arc = `M${left} ${y}A${rx} 16 0 0 1 ${right} ${y}`;
+        const left = S.x(Math.min(...tops.map((r) => r.left))); const right = S.x(Math.max(...tops.map((r) => r.right)));
+        /* Place the canopy in the gap under the GRANDPARENTS label and
+           above the card tops. Shrink ry so the bulge cannot enter the
+           label or the zoom controls. */
+        const cardTopY = S.y(Math.min(...tops.map((r) => r.top)));
+        const root = canvas.closest('.b57');
+        const tools = root && root.querySelector('.b57-tools, .b57-z');
+        const gpRow = canvas.querySelector('.b57-row.gp');
+        const lab = gpRow && gpRow.previousElementSibling;
+        let labBotY = -1e9;
+        if (lab && /b57-lab/.test(lab.className || '')) {
+          const tr = textRects(lab);
+          labBotY = tr.length ? Math.max(...tr.map((r) => S.y(r.bottom))) : S.y(lab.getBoundingClientRect().bottom);
+        }
+        const gap = Math.max(S.pad, 6 * S.sy);
+        let y = cardTopY - Math.max(S.pad, 8 * S.sy);
+        if (labBotY > -1e8) y = Math.max(y, labBotY + gap);
+        /* Never lower the baseline back into the label if the gap is tight. */
+        if (y > cardTopY - Math.max(2, S.pad * 0.5)) y = Math.min(y, cardTopY - Math.max(2, S.pad * 0.5));
+        if (labBotY > -1e8 && y < labBotY + gap) y = labBotY + gap;
+        const rx = Math.max(12, (right - left) / 2);
+        let ry = Math.max(8, 16 * S.sy);
+        const clear = Math.max(
+          tools ? S.y(tools.getBoundingClientRect().bottom) + gap : -1e9,
+          labBotY + gap
+        );
+        if (y - ry < clear) ry = Math.max(3, y - clear);
+        arc = `M${left} ${y}A${rx} ${ry} 0 0 1 ${right} ${y}`;
       }
       let path = svg.querySelector('path.branch'); if (!path) { path = document.createElementNS('http://www.w3.org/2000/svg', 'path'); path.setAttribute('class', 'branch'); svg.appendChild(path); } path.setAttribute('d', d);
       let arcPath = svg.querySelector('path.arc');
@@ -158,7 +288,7 @@
       else if (arcPath) arcPath.remove();
     });
   }
-  let dq = 0; const redraw = () => { cancelAnimationFrame(dq); dq = requestAnimationFrame(() => { try { draw(); drawStack(); } catch (e) { console.warn('b60 lines', e); } }); };
+    let dq = 0; const redraw = () => { cancelAnimationFrame(dq); dq = requestAnimationFrame(() => { try { draw(); drawStack(); } catch (e) { console.warn('b60 lines', e); } }); };
   const bv = document.getElementById('breeding-view'); if (bv) new MutationObserver((m) => { if (m.some((x) => [...x.addedNodes].some((n) => n.nodeType === 1 && !(n.matches && n.matches('svg.b60-lines, path'))))) redraw(); }).observe(bv, { childList: true, subtree: true });
   document.addEventListener('scroll', (e) => { if (e.target && e.target.closest && e.target.closest('.b60-col, .b57-scroll')) redraw(); }, true); window.addEventListener('resize', redraw); document.addEventListener('click', () => setTimeout(redraw, 50));
   setInterval(redraw, 1000);

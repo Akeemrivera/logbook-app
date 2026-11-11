@@ -194,16 +194,55 @@
   const P_ = (cx, cy, r, a) => [cx + r * Math.cos(a), cy + r * Math.sin(a)];
   function seg(cx, cy, r0, r1, a0, a1) { const [x0, y0] = P_(cx, cy, r1, a0), [x1, y1] = P_(cx, cy, r1, a1), [x2, y2] = P_(cx, cy, r0, a1), [x3, y3] = P_(cx, cy, r0, a0); const L = a1 - a0 > Math.PI ? 1 : 0; return `M${x0} ${y0}A${r1} ${r1} 0 ${L} 1 ${x1} ${y1}L${x2} ${y2}A${r0} ${r0} 0 ${L} 0 ${x3} ${y3}Z`; }
   function fit(t, len) { const max = Math.max(3, Math.floor(len / 6.6)); t = String(t || ''); return t.length > max ? t.slice(0, max - 1) + '…' : t; }
-  function lbl(t, x, y, arc) { t = String(t || ''); const cpl = Math.max(4, Math.floor(arc / 6.2)); let L = [t];
-    if (t.length > cpl) { const w = t.split(' '); if (w.length > 1) { let a = ''; let i = 0; while (i < w.length && (a + (a ? ' ' : '') + w[i]).length <= Math.max(cpl, w[0].length)) { a += (a ? ' ' : '') + w[i]; i++; } L = [a, w.slice(i).join(' ')].filter(Boolean); } }
-    const lg = Math.max(...L.map((l) => l.length)); const fs = Math.max(6.2, Math.min(10.5, 10.5 * cpl / lg)); const y0 = y - (L.length - 1) * fs * 0.55;
-    return `<text x="${x.toFixed(1)}" y="${y0.toFixed(1)}" text-anchor="middle" class="t1" data-full="${esc(t)}" style="font-size:${fs.toFixed(1)}px"${lg * fs * 0.56 > arc ? ` textLength="${arc.toFixed(0)}" lengthAdjust="spacingAndGlyphs"` : ''}>${L.map((l, i) => `<tspan x="${x.toFixed(1)}" dy="${i ? (fs * 1.05).toFixed(1) : 0}">${esc(l)}</tspan>`).join('')}</text>`; }
-  function ring(items, cx, cy, r0, r1, a0, a1, cls) {
+  function lbl(t, x, y, arc, boxW, boxH, cls) {
+    t = String(t || '').replace(/\s+/g, ' ').trim();
+    if (!t) return '';
+    const words = t.split(' ');
+    const widthOf = (s, size) => Math.max(size, s.length * size * 0.62);
+    let fs = 10.5;
+    let lines = [t];
+    const maxW0 = Math.max(36, (arc || 80) * 0.9);
+    while (fs > 6) {
+      lines = [];
+      let cur = '';
+      words.forEach((w) => {
+        const next = cur ? cur + ' ' + w : w;
+        if (!cur || widthOf(next, fs) <= maxW0) cur = next;
+        else { lines.push(cur); cur = w; }
+      });
+      if (cur) lines.push(cur);
+      const widest = Math.max.apply(null, lines.map((l) => widthOf(l, fs)));
+      if (widest <= maxW0 || fs <= 6.4) break;
+      fs -= 0.4;
+    }
+    const widest = Math.max.apply(null, lines.map((l) => widthOf(l, fs)));
+    const half = widest / 2;
+    if (boxW) x = Math.max(4 + half, Math.min(boxW - 4 - half, x));
+    let y0 = y - (lines.length - 1) * fs * 0.52;
+    if (boxH) {
+      const bot = y0 + Math.max(0, lines.length - 1) * fs * 1.05 + fs * 0.25;
+      if (bot > boxH - 3) y0 -= bot - (boxH - 3);
+      if (y0 < fs) y0 = fs;
+    }
+    const xAt = x.toFixed(1);
+    return `<text x="${xAt}" y="${y0.toFixed(1)}" text-anchor="middle" class="${cls || 't1'}" data-full="${esc(t)}" style="font-size:${fs.toFixed(1)}px">${lines.map((l, i) => `<tspan x="${xAt}" dy="${i ? (fs * 1.05).toFixed(1) : 0}">${esc(l)}</tspan>`).join('')}</text>`;
+  }
+  /* Each fan label is fitted after layout, into the wedge's own arc.
+     The strings travel on the segment until that measurement runs. */
+  function ring(items, cx, cy, r0, r1, a0, a1, cls, boxW, boxH) {
     if (!items.length) return ''; const step = (a1 - a0) / items.length; let s = '';
+    const fan = !!(boxH && boxH <= 220);
     items.forEach((x, i) => { const b0 = a0 + i * step, b1 = b0 + step, m = (b0 + b1) / 2, rm = (r0 + r1) / 2; const [tx, ty] = P_(cx, cy, rm, m); const arc = Math.min(step * rm * 0.92, 120);
       const nm = x.cand ? x.t : x.self ? 'Self (S1)' : x.none ? (x.via ? '+ Not recorded' : 'Not recorded') : x.k ? nm2(x.k) : (x.t || 'Not recorded'); const sb = x.cand ? x.s : x.k ? (x.ref ? 'also above' : (stat(x.k).t === 'culled' ? 'Culled' : stat(x.k).t === 'archived' ? 'Archived' : stat(x.k).t === 'retired' ? 'Retired' : stat(x.k).t === 'removed' ? 'Deleted plant' : stat(x.k).t === 'nameonly' ? 'Name only' : stat(x.k).t === 'bought' ? (window.B58 && B58.boughtBadge ? B58.boughtBadge(stat(x.k).br) : 'Bought') : (x.role || gen(x.k)))) : (x.s || x.role || '');
       const one = step * rm < 34; const tap = x.k && !isUnk(x.k); const add = !tap && x.via && x.side;
-      s += `<g class="b57-seg ${cls}${tap ? '' : add ? ' none add' : ' none'}${x.keeper ? ' keeper' : ''}${x.me ? ' is-me' : ''}"${tap ? ` data-b57="sel" data-k="${esc(x.k)}" role="button" tabindex="0" aria-label="${esc(nm)}"` : add ? ` data-b58="add" role="button" tabindex="0" aria-label="${esc(nm)} · tap to add"` : ''}${ofA(x)}${add ? ' data-add="1"' : ''}${x.cand ? ` data-cand="${x.i}"` : ''}><path d="${seg(cx, cy, r0, r1, b0, b1)}"/>${lbl(nm, tx, ty + (one ? 4 : -2), arc)}${one ? '' : `<text x="${tx.toFixed(1)}" y="${(ty + 10).toFixed(1)}" text-anchor="middle" class="t2">${esc(fit(sb, arc))}</text>`}</g>`; });
+      const detail = sb && String(sb) !== String(nm) ? String(sb) : '';
+      const aria = detail ? `${nm} · ${detail}` : nm;
+      if (fan) {
+        s += `<g class="b57-seg ${cls}${tap ? '' : add ? ' none add' : ' none'}${x.keeper ? ' keeper' : ''}${x.me ? ' is-me' : ''}" data-fan="1" data-cx="${cx}" data-cy="${cy}" data-r0="${r0}" data-r1="${r1}" data-a0="${b0}" data-a1="${b1}" data-name="${esc(nm)}" data-detail="${esc(detail)}"${tap ? ` data-b57="sel" data-k="${esc(x.k)}" role="button" tabindex="0" aria-label="${esc(aria)}"` : add ? ` data-b58="add" role="button" tabindex="0" aria-label="${esc(aria)}"` : ` aria-label="${esc(aria)}"`}${ofA(x)}${add ? ' data-add="1"' : ''}${x.cand ? ` data-cand="${x.i}"` : ''}><path d="${seg(cx, cy, r0, r1, b0, b1)}"/></g>`;
+      } else {
+        s += `<g class="b57-seg ${cls}${tap ? '' : add ? ' none add' : ' none'}${x.keeper ? ' keeper' : ''}${x.me ? ' is-me' : ''}"${tap ? ` data-b57="sel" data-k="${esc(x.k)}" role="button" tabindex="0" aria-label="${esc(nm)}"` : add ? ` data-b58="add" role="button" tabindex="0" aria-label="${esc(aria)}"` : ` aria-label="${esc(aria)}"`}${ofA(x)}${add ? ' data-add="1"' : ''}${x.cand ? ` data-cand="${x.i}"` : ''}><path d="${seg(cx, cy, r0, r1, b0, b1)}"/>${lbl(nm, tx, ty + (one ? 4 : -2), arc, boxW, boxH, 't1')}${one || x.none ? '' : lbl(sb, tx, ty + 11, arc, boxW, boxH, 't2')}</g>`;
+      }
+    });
     return s;
   }
   let cid = 0;
@@ -217,18 +256,18 @@
     const top = P.items.filter((x) => !x.me); const outer = top.length ? top : [{ t: P.hunt ? 'No candidates' : 'No siblings', s: 'same seed pop' }];
     const kk = ks.length ? ks.map((x) => (x.k ? { k: x.k, role: x.s } : { t: x.t, s: x.s })) : [{ t: 'No kids yet', s: 'kids' }];
     return `<div class="b57-svgw"><svg viewBox="0 0 380 380" class="b57-svg radial" role="group" aria-label="Family tree rings">
-<circle cx="190" cy="190" r="187" class="wood"/>${ring(outer, 190, 190, 140, 184, -Math.PI, 0, 'r3')}${ring(kk, 190, 190, 140, 184, 0, Math.PI, 'r3 k')}${ring(gp, 190, 190, 98, 140, -Math.PI / 2, 1.5 * Math.PI, 'r2')}${ring([m, f], 190, 190, 56, 98, Math.PI / 2, 2.5 * Math.PI, 'r1')}${centre(k, 190, 190, 52)}</svg></div>
+<circle cx="190" cy="190" r="187" class="wood"/>${ring(outer, 190, 190, 140, 184, -Math.PI, 0, 'r3', 380, 380)}${ring(kk, 190, 190, 140, 184, 0, Math.PI, 'r3 k', 380, 380)}${ring(gp, 190, 190, 98, 140, -Math.PI / 2, 1.5 * Math.PI, 'r2', 380, 380)}${ring([m, f], 190, 190, 56, 98, Math.PI / 2, 2.5 * Math.PI, 'r1', 380, 380)}${centre(k, 190, 190, 52)}</svg></div>
 <div class="b57-ban solo"><b>${esc(name(k))}${gen(k) ? ` · ${esc(gen(k))}` : ''}</b><small>${esc(crossTxt(k))}</small></div>
-<p class="b57-key">Centre: this plant · Ring 1: parents · Ring 2: grandparents · Outer ring: ${P.hunt ? 'pheno-hunt candidates' : 'brothers &amp; sisters'} (top), kids (bottom)</p>${fam(k, ks)}${P.hunt ? `${lab(popLab(P))}${popRow(P)}` : ''}${nextBranch(P)}`;
+<p class="b57-key">Centre: this plant · Ring 1: parents · Ring 2: grandparents · Outer ring: ${P.hunt ? 'pheno-hunt candidates' : 'brothers &amp; sisters'} (top), kids (bottom)</p>${fam(k, ks, { noMe: 1 })}${P.hunt ? `${lab(popLab(P))}${popRow(P)}` : ''}${nextBranch(P)}`;
   }
   function fan(k, lv, P, ks) {
     /* b60.1: with a partner the one-sided ring / fan art is replaced by the both-sides tree */
     if (window.B60 && partners(k, ks).length) return `<div class="b60-ring-swap" data-b60swap="fan">${fam(k, ks)}</div>${P.hunt ? `${lab(popLab(P))}${popRow(P)}` : ''}${nextBranch(P)}`;
     const [m, f] = parentsRow(lv); const gp = gpItems(lv, m, f);
     const o0 = P.items.filter((x) => !x.me); const o = o0.length ? o0 : [{ t: P.hunt ? 'No candidates' : 'No siblings', s: 'same seed pop' }];
-    return `${lab(P.hunt ? 'Pheno-hunt candidates · outer band' : 'Brothers & sisters · outer band')}<div class="b57-svgw"><svg viewBox="0 0 380 206" class="b57-svg fan" role="group" aria-label="Family tree fan">${ring(o, 190, 198, 150, 190, Math.PI, 2 * Math.PI, 'r3')}${ring(gp, 190, 198, 104, 150, Math.PI, 2 * Math.PI, 'r2')}${ring([m, f], 190, 198, 58, 104, Math.PI, 2 * Math.PI, 'r1')}${centre(k, 190, 198, 52)}</svg></div>
+    return `${lab(P.hunt ? 'Pheno-hunt candidates · outer band' : 'Brothers & sisters · outer band')}<div class="b57-svgw"><svg viewBox="0 0 380 206" class="b57-svg fan" role="group" aria-label="Family tree fan">${ring(o, 190, 198, 150, 190, Math.PI, 2 * Math.PI, 'r3', 380, 206)}${ring(gp, 190, 198, 104, 150, Math.PI, 2 * Math.PI, 'r2', 380, 206)}${ring([m, f], 190, 198, 58, 104, Math.PI, 2 * Math.PI, 'r1', 380, 206)}${centre(k, 190, 198, 52)}</svg></div>
 <div class="b57-sides"><span>◀ Mother's side</span><span>Father's side ▶</span></div><div class="b57-ban solo"><b>${esc(name(k))}${gen(k) ? ` · ${esc(gen(k))}` : ''}</b><small>${esc(crossTxt(k))}</small></div>
-${P.hunt ? `${lab(popLab(P))}${popRow(P)}` : ''}${nextBranch(P)}${fam(k, ks)}`;
+${P.hunt ? `${lab(popLab(P))}${popRow(P)}` : ''}${nextBranch(P)}${fam(k, ks, { noMe: 1 })}`;
   }
   function cert(k, lv, P, ks) {
     const [m, f] = parentsRow(lv);
@@ -307,14 +346,87 @@ ${pg.edit ? '<div class="b58-banner" role="status">Edit mode · tap any plant to
     const b = document.createElement('button'); b.type = 'button'; b.className = 'tab b57-tab'; b.dataset.tabView = 'lineage'; b.setAttribute('aria-label', 'Lineage'); b.innerHTML = `${TREE_SVG}<span>Lineage</span>`; br.after(b);
   }
   function addSide() { try { if (typeof W_NAV !== 'undefined' && !W_NAV.some((x) => x.id === 'lineage')) { const i = W_NAV.findIndex((x) => x.id === 'breeding'); W_NAV.splice(i + 1, 0, { id: 'lineage', label: 'Lineage', ico: '🌳', views: ['b57-lineage'] }); if (typeof wCurrentView === 'function') { const _wc = wCurrentView; wCurrentView = function () { return onLin() ? 'b57-lineage' : _wc.apply(this, arguments); }; } if (typeof wRenderSidebar === 'function') wRenderSidebar(); } } catch (e) { /* */ } }
-  const onLin = () => typeof activeView !== 'undefined' && activeView === 'breeding' && B18.brPage && (B18.brPage.type === 'b57lin' || B18.brPage.type === 'b49tree');
+  const onLin = () => typeof activeView !== 'undefined' && activeView === 'breeding' && B18.brPage && (B18.brPage.type === 'b57lin' || (B18.brPage.type === 'b49tree' && B18.brPage.fromLin));
   function mark() {
     const on = onLin();
     document.querySelectorAll('#tabbar [data-tab-view="lineage"], [data-w-nav="lineage"]').forEach((b) => { b.classList.toggle('active', on); b.classList.toggle('on', on); if (on) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
     if (on) document.querySelectorAll('#tabbar [data-tab-view="breeding"], [data-w-nav="breeding"]').forEach((b) => { b.classList.remove('active', 'on'); b.removeAttribute('aria-current'); });
   }
   document.addEventListener('click', (e) => { const b = e.target.closest('#tabbar [data-tab-view="lineage"], [data-w-nav="lineage"]'); if (!b) return; e.preventDefault(); e.stopImmediatePropagation(); openLineage(); }, true);
-  document.addEventListener('click', (e) => { const b = e.target.closest('[data-b57="tree"]'); if (!b) return; e.preventDefault(); const lin = B18.brPage && B18.brPage.type === 'b57lin'; B49.openPage({ type: 'b49tree', key: resolveKey(b.dataset.k), fromLin: lin }); mark(); });
+  document.addEventListener('click', (e) => { const b = e.target.closest('[data-b57="tree"]'); if (!b) return; e.preventDefault(); const lin = B18.brPage && B18.brPage.type === 'b57lin'; B49.openPage({ type: 'b49tree', key: resolveKey(b.dataset.k), fromLin: lin }); if (B18.brPage && B18.brPage.type === 'b49tree') B18.brPage.fromLin = !!lin; mark(); });
+  if (window.B49 && B49.openPage && !B49.openPage.b63from) {
+    const _openPage = B49.openPage;
+    B49.openPage = function (pg) {
+      const lin = !!(pg && pg.fromLin);
+      const out = _openPage.apply(this, arguments);
+      try { if (B18.brPage && B18.brPage.type === 'b49tree') B18.brPage.fromLin = lin; mark(); keepTitleGlyph(); } catch (err) { /* */ }
+      return out;
+    };
+    B49.openPage.b63from = 1;
+  }
+  /* The round title badge stays. Its plant glyph is img.mz-inline. A record
+     with no photo, or a dark-theme asset that fails, leaves that circle
+     empty. Use a glyph that already loaded, else the light seedling. */
+  const GLYPHS = ['mascots/light/seedling.png', 'mascots/cartoon/sprout.png', 'mascots/coqui-flag-icon.png'];
+  function glyphUrl(rel) { try { return new URL(rel, document.baseURI).href; } catch (e) { return rel; } }
+  function titleGlyphs() {
+    const root = document.querySelector('#breeding-view .b57[data-b57k]');
+    const h = root && root.querySelector('.b18-h1');
+    if (!h) return [];
+    const hr = h.getBoundingClientRect();
+    return [...root.querySelectorAll('img.mz-inline')].filter((img) => {
+      if (img.closest('.b57-canvas, .b57-scroll, .b57-ban, .b57-svgw, #tabbar')) return false;
+      if (h.contains(img)) return true;
+      const r = img.getBoundingClientRect();
+      if (!r.width && !r.height) return h.contains(img) || !!(img.parentElement && h.contains(img.parentElement));
+      return r.bottom >= hr.top - 12 && r.top <= hr.bottom + 12;
+    });
+  }
+  function glyphShown(img) {
+    if (!img.complete || img.naturalWidth < 1) return false;
+    const cs = getComputedStyle(img);
+    if (cs.display === 'none' || cs.visibility === 'hidden' || parseFloat(cs.opacity) === 0) return false;
+    const r = img.getBoundingClientRect();
+    return r.width >= 8 && r.height >= 8;
+  }
+  function revealGlyph(img) {
+    const parent = img.parentElement;
+    const pr = parent && parent.getBoundingClientRect();
+    const round = pr && pr.width >= 18 && pr.width <= 96 && Math.abs(pr.width - pr.height) < 12;
+    const size = round ? Math.max(16, Math.round(pr.width * 0.62)) : 22;
+    img.hidden = false;
+    img.removeAttribute('hidden');
+    img.style.setProperty('display', 'inline-block', 'important');
+    img.style.setProperty('visibility', 'visible', 'important');
+    img.style.setProperty('opacity', '1', 'important');
+    img.style.setProperty('width', size + 'px', 'important');
+    img.style.setProperty('height', size + 'px', 'important');
+    img.style.setProperty('max-width', 'none', 'important');
+    img.style.setProperty('object-fit', 'contain', 'important');
+  }
+  function keepTitleGlyph() {
+    titleGlyphs().forEach((img) => {
+      if (glyphShown(img)) {
+        const src = img.currentSrc || img.src || '';
+        if (/mascots\/|coqui|sprout|seedling/i.test(src)) window.__b63Glyph = src;
+        return;
+      }
+      const cur = img.getAttribute('src') || '';
+      if (!img.complete && cur) return;
+      if (img.complete && img.naturalWidth > 0) { revealGlyph(img); return; }
+      let next = window.__b63Glyph || '';
+      if ((!next || next === cur) && cur.indexOf('/dark/') >= 0) next = cur.replace('/dark/', '/light/');
+      if (!next || next === cur) {
+        const tried = img.dataset.b63try || '';
+        next = glyphUrl(GLYPHS[tried === glyphUrl(GLYPHS[0]) ? 1 : tried === glyphUrl(GLYPHS[1]) ? 2 : 0]);
+      }
+      if (img.dataset.b63try === next) return;
+      img.dataset.b63try = next;
+      img.addEventListener('error', function onErr() { img.removeEventListener('error', onErr); keepTitleGlyph(); }, { once: true });
+      img.src = next;
+      revealGlyph(img);
+    });
+  }
   /* b59: the profile's own key. detailColl is 'plants', 'breedingPlants' or 'mf' (b42 mother / father profiles); b57 sent every
      mf profile as pl:<id>, which has no record, so the tree drew 'Deleted plant'. */
   function detailKey() { if (typeof detailPlantId !== 'function') return ''; const id = detailPlantId(); if (!id) return ''; const c = typeof detailColl !== 'undefined' ? detailColl : 'plants';
@@ -337,10 +449,679 @@ ${pg.edit ? '<div class="b58-banner" role="status">Edit mode · tap any plant to
   /* Keep the tree's own block clear of the fixed tab bar, and on a tall
      phone bring the grandparents, parents, plant, and name ribbon above it. */
   let fitting = false;
+  /* Fit every Azulejo label inside its own wedge. Horizontal openings are
+     measured from the arc; baselines are spaced so tspans never AABB-overlap.
+     Empty slots always keep "+ Not" / "recorded" (never a lone "Not"). Role
+     lines drop before type goes under 9 CSS px. A final pass drops leftover
+     detail lines when two wedges still collide. */
+
+  function fanBisectX(geom, y) {
+    const midA = (geom.a0 + geom.a1) / 2;
+    const s = Math.sin(midA);
+    if (Math.abs(s) < 1e-4) return geom.cx + ((geom.r0 + geom.r1) / 2) * Math.cos(midA);
+    return geom.cx + ((y - geom.cy) / s) * Math.cos(midA);
+  }
+  function fanUnifyX(placements, measure) {
+    placements.forEach((P) => {
+      const lines = P.placed.lines;
+      if (lines.length < 2) return;
+      const fs = P.placed.fs, geom = P.geom, cache = {};
+      const isNR = fanIsNotRecorded(P.g.dataset.name);
+      const inset = 4.0;
+      let xLo = -1e9, xHi = 1e9, ok = true;
+      lines.forEach((l) => {
+        const slot = fanOpen(fanSlot(geom, l.y, fs, cache, inset), fs, geom);
+        if (!slot) { ok = false; return; }
+        const half = measure(l.text, fs) / 2 + (isNR ? 1.0 : 0);
+        xLo = Math.max(xLo, slot.x - slot.w / 2 + half);
+        xHi = Math.min(xHi, slot.x + slot.w / 2 - half);
+      });
+      if (!ok || xHi < xLo - 0.05) {
+        /* Empty slots: still force a shared numeric x from the average.
+           Named parents: keep per-line x when a shared column cannot clear
+           every chord (diagonal wedges); otherwise the AABB gate fails. */
+        if (!isNR) return;
+        const x = lines.reduce((s, l) => s + l.x, 0) / lines.length;
+        lines.forEach((l) => { l.x = x; });
+        return;
+      }
+      const yMid = lines.reduce((s, l) => s + l.y, 0) / lines.length;
+      let x = fanBisectX(geom, yMid);
+      if (x < xLo) x = xLo;
+      if (x > xHi) x = xHi;
+      lines.forEach((l) => { l.x = x; });
+    });
+  }
+
+  function fanIsOuterSideGrand(geom) {
+    const mid = (geom.a0 + geom.a1) / 2;
+    const span = geom.a1 - geom.a0;
+    const thick = geom.r1 - geom.r0;
+    return thick < 55 && geom.r0 > 90 && span > 0.4 && span < 1.0 && Math.abs(Math.cos(mid)) > 0.7;
+  }
+  function fanOuterAddPlace(geom, floor, measure) {
+    const CLEAR = 4;
+    const midA = (geom.a0 + geom.a1) / 2;
+    const fs = Math.max(9, Math.round(Math.max(floor, 10) * 10) / 10);
+    const r = (geom.r0 + geom.r1) / 2;
+    let x = geom.cx + r * Math.cos(midA);
+    let y = geom.cy + r * Math.sin(midA);
+    const cache = {};
+    const slot = fanOpen(fanSlot(geom, y, fs, cache, CLEAR), fs, geom);
+    const half = measure('+ Add', fs) * 1.25 / 2 + 2;
+    if (slot) {
+      const lo = slot.x - slot.w / 2 + half, hi = slot.x + slot.w / 2 - half;
+      if (hi >= lo) { if (x < lo) x = lo; if (x > hi) x = hi; }
+    }
+    return { fs, shown: '+ Add', lines: [{ text: '+ Add', x, y }], addShort: true };
+  }
+  /* Nudge empty/sibling labels until approx CLEAR=4 annulus holds; compress line gap if needed. */
+  function fanNudgeInBand(P, measure) {
+    const CLEAR = 4, geom = P.geom, fs = P.placed.fs;
+    const asc = fs * 1.15, desc = fs * 0.35;
+    const minGap = fs * 1.45;
+    const midA = (geom.a0 + geom.a1) / 2;
+    const s = Math.sin(midA);
+    for (let n = 0; n < 64; n++) {
+      let out = 0, inn = 0;
+      P.placed.lines.forEach((l) => {
+        const half = measure(l.text, fs) * 1.1 / 2 + 2;
+        [[l.x - half, l.y - asc], [l.x + half, l.y - asc], [l.x - half, l.y + desc], [l.x + half, l.y + desc]].forEach((pt) => {
+          const r = Math.hypot(pt[0] - geom.cx, pt[1] - geom.cy);
+          if (r > geom.r1 - CLEAR) out = Math.max(out, r - (geom.r1 - CLEAR));
+          if (r < geom.r0 + CLEAR) inn = Math.max(inn, (geom.r0 + CLEAR) - r);
+        });
+      });
+      if (out < 0.1 && inn < 0.1) break;
+      /* Both arcs tight: compress toward the block mid while keeping minGap (AABB-safe). */
+      if (inn > 0.1 && out > 0.1 && P.placed.lines.length >= 2) {
+        const ys = P.placed.lines.map((l) => l.y).sort((a, b) => a - b);
+        const span = ys[ys.length - 1] - ys[0];
+        if (span > minGap + 0.5) {
+          const mid = (ys[0] + ys[ys.length - 1]) / 2;
+          P.placed.lines.forEach((l) => { l.y += (l.y < mid ? 0.5 : -0.5); });
+          continue;
+        }
+        /* Span already minimal — cannot clear both arcs by translating; stop. */
+        break;
+      }
+      /* Upper fan (s<0): decreasing y moves outward (away from parent ring). */
+      let dy;
+      if (inn >= out) dy = (s < 0 ? -1 : 1) * Math.max(1, Math.ceil(inn));
+      else dy = (s < 0 ? 1 : -1) * Math.max(1, Math.ceil(out));
+      P.placed.lines.forEach((l) => { l.y += dy; });
+      const x = P.placed.lines.reduce((sum, l) => sum + l.x, 0) / P.placed.lines.length;
+      P.placed.lines.forEach((l) => { l.x = x; });
+    }
+  }
+  /* Sibling (outer) band: leave exactly as placed — single-line, centred.
+     Do not run divider reflow / band nudge on this ring (r7 behaviour). */
+  function fanIsSiblingBand(P) {
+    const n = String(P.g.dataset.name || '');
+    if (/^No siblings$/i.test(n) || /^No candidates$/i.test(n)) return true;
+    if (/sibling/i.test(n)) return true;
+    const geom = P.geom;
+    const thick = geom.r1 - geom.r0;
+    const midA = (geom.a0 + geom.a1) / 2;
+    return geom.r0 >= 140 && thick <= 55 && Math.sin(midA) < -0.45;
+  }
+
+  /* Keep every parent/sibling line ≥ gap from the vertical centre divider (x = cx).
+     Never drop words: if a clamp would clip a line, reflow the full source name
+     with earlier wraps (e.g. "With A" on its own line) so every word stays. */
+  function fanClearCentreDivider(placements, measure) {
+    const GAP = 6;
+    placements.forEach((P) => {
+      if (fanIsNotRecorded(P.g.dataset.name)) return;
+      if (P.placed.addShort) return;
+      if (fanIsSiblingBand(P)) return;
+      const fs = P.placed.fs, geom = P.geom;
+      const words = String(P.g.dataset.name || '').split(/\s+/).filter(Boolean);
+      if (!words.length) return;
+      const joinedNow = P.placed.lines.map((l) => l.text).join(' ').split(/\s+/).filter(Boolean);
+      const wordsIntact = joinedNow.join(' ') === words.join(' ');
+      const cache = {};
+      let needReflow = !wordsIntact;
+      P.placed.lines.forEach((l) => {
+        const half = measure(l.text, fs) * 1.15 / 2 + 1.5;
+        if (l.x <= geom.cx) {
+          const maxX = geom.cx - GAP - half;
+          if (l.x > maxX) l.x = maxX;
+        } else {
+          const minX = geom.cx + GAP + half;
+          if (l.x < minX) l.x = minX;
+        }
+        const slot = fanOpen(fanSlot(geom, l.y, fs, cache, 2.0), fs, geom);
+        if (!slot) { needReflow = true; return; }
+        const lo = slot.x - slot.w / 2, hi = slot.x + slot.w / 2;
+        if (l.x - half < lo - 0.5 || l.x + half > hi + 0.5) needReflow = true;
+      });
+      if (!needReflow) return;
+      const reflowed = fanReflowForDivider(words, fs, geom, measure, P.placed.lines);
+      if (reflowed && reflowed.length) {
+        P.placed.lines = reflowed;
+        P.placed.shown = words.join(' ');
+      }
+    });
+  }
+  /* Pack every source word onto lines that each clear GAP=6 from cx and fit the chord. */
+  function fanReflowForDivider(words, fs, geom, measure, seedLines) {
+    const GAP = 6;
+    const lineH = fanLineH(fs);
+    const midA = (geom.a0 + geom.a1) / 2;
+    const s = Math.sin(midA);
+    /* Upper fan: subsequent lines go downward (larger y). */
+    const yStep = (s < 0 ? 1 : -1) * lineH;
+    let y0 = seedLines && seedLines.length ? seedLines[0].y
+      : geom.cy + ((geom.r0 + geom.r1) / 2) * s;
+    const preferLeft = Math.cos(midA) < 0;
+    const cache = {};
+    const lines = [];
+    let i = 0;
+    let y = y0;
+    let guard = 0;
+    while (i < words.length && guard++ < 40) {
+      const slot = fanOpen(fanSlot(geom, y, fs, cache, 2.0), fs, geom);
+      if (!slot) { y += yStep; continue; }
+      const lo = slot.x - slot.w / 2, hi = slot.x + slot.w / 2;
+      let take = 0;
+      let bestText = '';
+      let bestX = preferLeft ? Math.min(fanBisectX(geom, y), (lo + hi) / 2) : Math.max(fanBisectX(geom, y), (lo + hi) / 2);
+      for (let j = i; j < words.length; j++) {
+        const cand = words.slice(i, j + 1).join(' ');
+        const half = measure(cand, fs) * 1.15 / 2 + 1.5;
+        let x = preferLeft ? geom.cx - GAP - half : geom.cx + GAP + half;
+        /* Stay on the wedge side of cx; also prefer bisector when it already clears GAP. */
+        const bis = fanBisectX(geom, y);
+        if (preferLeft) {
+          x = Math.min(bis, geom.cx - GAP - half);
+          if (x - half < lo - 0.5) break;
+          if (x + half > Math.min(hi, geom.cx - GAP) + 0.5) break;
+        } else {
+          x = Math.max(bis, geom.cx + GAP + half);
+          if (x + half > hi + 0.5) break;
+          if (x - half < Math.max(lo, geom.cx + GAP) - 0.5) break;
+        }
+        take = j - i + 1;
+        bestText = cand;
+        bestX = x;
+      }
+      if (!take) {
+        /* Single word must still be emitted (never drop); clamp into the chord as well as possible. */
+        bestText = words[i];
+        take = 1;
+        const half = measure(bestText, fs) * 1.15 / 2 + 1.5;
+        if (preferLeft) {
+          bestX = Math.min(fanBisectX(geom, y), geom.cx - GAP - half, hi - half);
+          bestX = Math.max(bestX, lo + half);
+        } else {
+          bestX = Math.max(fanBisectX(geom, y), geom.cx + GAP + half, lo + half);
+          bestX = Math.min(bestX, hi - half);
+        }
+      }
+      lines.push({ text: bestText, x: bestX, y: y });
+      i += take;
+      y += yStep;
+    }
+    return i >= words.length ? lines : null;
+  }
+
+  function fitFanText() {
+    const svg = document.querySelector('#breeding-view svg.b57-svg.fan');
+    if (!svg) return;
+    const vb = (svg.viewBox && svg.viewBox.baseVal && svg.viewBox.baseVal.width) || 380;
+    const scale = svg.getBoundingClientRect().width / vb;
+    if (!(scale > 0.05)) return;
+    const floor = 9 / scale;
+    const family = getComputedStyle(svg).fontFamily || 'sans-serif';
+    const ctx = document.createElement('canvas').getContext('2d');
+    const measure = (text, fs) => { ctx.font = fs + 'px ' + family; return ctx.measureText(String(text)).width; };
+    const ns = 'http://www.w3.org/2000/svg';
+    const groups = [...svg.querySelectorAll('g.b57-seg[data-fan]')];
+    const placements = groups.map((g) => {
+      const geom = { cx: +g.dataset.cx, cy: +g.dataset.cy, r0: +g.dataset.r0, r1: +g.dataset.r1, a0: +g.dataset.a0, a1: +g.dataset.a1 };
+      return { g, geom, placed: fanPlace(g.dataset.name || '', g.dataset.detail || '', geom, floor, measure) };
+    });
+    fanResolve(placements, measure);
+    fanUnifyX(placements, measure);
+    fanTightenEmpty(placements, floor, measure);
+    placements.forEach((P) => {
+      if (fanIsOuterSideGrand(P.geom) && fanIsNotRecorded(P.g.dataset.name)) {
+        P.placed = fanOuterAddPlace(P.geom, floor, measure);
+        const detail = P.g.dataset.detail || '';
+        const aria = detail ? ('+ Not recorded · ' + detail) : '+ Not recorded';
+        P.g.setAttribute('aria-label', aria);
+        P.g.setAttribute('title', 'Not recorded');
+        return;
+      }
+      if (fanIsSiblingBand(P)) return;
+      if (fanIsNotRecorded(P.g.dataset.name) || (P.geom.r1 - P.geom.r0) > 70) {
+        fanNudgeInBand(P, measure);
+      }
+    });
+    /* If an empty two-line block still breaches CLEAR, shrink type and re-seat;
+       at floor, fall back to a single mid-band line so both arcs clear CLEAR=4. */
+    placements.forEach((P) => {
+      if (!fanIsNotRecorded(P.g.dataset.name) || P.placed.addShort) return;
+      const geom = P.geom;
+      const plus = fanIsEmpty(P.g.dataset.name);
+      const radBad = () => {
+        const fs = P.placed.fs;
+        const asc = fs * 1.15, desc = fs * 0.35;
+        let bad = false;
+        P.placed.lines.forEach((l) => {
+          const half = measure(l.text, fs) * 1.1 / 2 + 2;
+          [[l.x - half, l.y - asc], [l.x + half, l.y - asc], [l.x - half, l.y + desc], [l.x + half, l.y + desc]].forEach((pt) => {
+            const r = Math.hypot(pt[0] - geom.cx, pt[1] - geom.cy);
+            if (r < geom.r0 + 4 - 0.05 || r > geom.r1 - 4 + 0.05) bad = true;
+          });
+        });
+        return bad;
+      };
+      for (let guard = 0; guard < 6; guard++) {
+        if (!radBad()) break;
+        if (P.placed.fs <= floor + 0.05) break;
+        const next = Math.max(floor, Math.round((P.placed.fs - 0.5) * 10) / 10);
+        const hit = fanEmpty(geom, next, measure, plus);
+        if (hit) P.placed = hit;
+        else { P.placed.fs = next; }
+        fanNudgeInBand(P, measure);
+      }
+      if (radBad()) {
+        const fs = Math.max(floor, P.placed.fs);
+        const hit = fanEmpty(geom, fs, measure, false);
+        if (hit) {
+          /* shown must match concatenated tspan text (space-insensitive) for the cut gate. */
+          P.placed = hit;
+          fanNudgeInBand(P, measure);
+        }
+      }
+      /* Walk empty block along y to maximise min(clearIn, clearOut). */
+      if (!P.placed.addShort && P.placed.lines.length) {
+        const fs = P.placed.fs;
+        const asc = fs * 1.15, desc = fs * 0.35;
+        const clearance = () => {
+          let cIn = 1e9, cOut = 1e9;
+          P.placed.lines.forEach((l) => {
+            const half = measure(l.text, fs) * 1.1 / 2 + 2;
+            [[l.x - half, l.y - asc], [l.x + half, l.y - asc], [l.x - half, l.y + desc], [l.x + half, l.y + desc]].forEach((pt) => {
+              const r = Math.hypot(pt[0] - geom.cx, pt[1] - geom.cy);
+              cIn = Math.min(cIn, r - geom.r0);
+              cOut = Math.min(cOut, geom.r1 - r);
+            });
+          });
+          return Math.min(cIn, cOut);
+        };
+        const base = P.placed.lines.map((l) => l.y);
+        let best = clearance(), bestDy = 0;
+        for (let dy = -14; dy <= 14; dy++) {
+          P.placed.lines.forEach((l, i) => { l.y = base[i] + dy; });
+          const sc = clearance();
+          if (sc > best) { best = sc; bestDy = dy; }
+        }
+        P.placed.lines.forEach((l, i) => { l.y = base[i] + bestDy; });
+      }
+    });
+        fanClearCentreDivider(placements, measure);
+    placements.forEach(({ g, placed }) => {
+      const sig = placed.fs.toFixed(2) + '|' + placed.lines.map((l) => l.text + '@' + l.x.toFixed(1) + ',' + l.y.toFixed(1)).join('/');
+      if (g.dataset.fit === sig) return;
+      [...g.querySelectorAll('text')].forEach((n) => n.remove());
+      const text = document.createElementNS(ns, 'text');
+      text.setAttribute('text-anchor', 'middle');
+      text.setAttribute('class', 't1');
+      text.setAttribute('data-full', placed.shown);
+      text.style.fontSize = placed.fs + 'px';
+      text.style.fontFamily = family;
+      placed.lines.forEach((l) => {
+        const sp = document.createElementNS(ns, 'tspan');
+        sp.setAttribute('x', l.x.toFixed(1));
+        sp.setAttribute('y', l.y.toFixed(1));
+        sp.textContent = l.text;
+        text.appendChild(sp);
+      });
+      g.appendChild(text);
+      g.dataset.fit = sig;
+    });
+  }
+
+  /* Shrink empty-slot type until each line's measured width clears the
+     CLEAR=4 chord at that baseline (canvas + pad approximates getBBox). */
+  function fanTightenEmpty(placements, floor, measure) {
+    const CLEAR = 4;
+    placements.forEach((P) => {
+      if (!fanIsNotRecorded(P.g.dataset.name)) return;
+      let guard = 0;
+      while (guard++ < 10) {
+        const cache = {};
+        let ok = true;
+        P.placed.lines.forEach((l) => {
+          const slot = fanOpen(fanSlot(P.geom, l.y, P.placed.fs, cache, CLEAR), P.placed.fs, P.geom);
+          if (!slot) { ok = false; return; }
+          const half = measure(l.text, P.placed.fs) * 1.12 / 2 + 1.5;
+          if (l.x - half < slot.x - slot.w / 2 - 0.2 || l.x + half > slot.x + slot.w / 2 + 0.2) ok = false;
+        });
+        if (ok) break;
+        if (P.placed.fs <= floor + 0.05) break;
+        P.placed.fs = Math.max(floor, Math.round((P.placed.fs - 0.5) * 10) / 10);
+      }
+    });
+  }
+  function fanLineH(fs) { return fs * 1.72; }
+  function fanIsEmpty(name) { return String(name || '') === '+ Not recorded'; }
+  function fanIsNotRecorded(name) {
+    const n = String(name || '');
+    return n === '+ Not recorded' || n === 'Not recorded';
+  }
+  function fanPlace(name, detail, geom, floor, measure) {
+    const wordsOf = (t) => String(t || '').split(/\s+/).filter(Boolean);
+    const sizes = [];
+    for (let fs = Math.max(11, Math.ceil(Math.max(floor, 10) * 2) / 2); fs >= floor - 0.05; fs -= 0.5) sizes.push(Math.round(fs * 10) / 10);
+    if (!sizes.length || sizes[sizes.length - 1] > floor + 0.05) sizes.push(Math.round(floor * 10) / 10);
+    const empty = fanIsEmpty(name);
+    const notRec = fanIsNotRecorded(name);
+    if (notRec) {
+      const plus = empty;
+      for (let i = 0; i < sizes.length; i++) {
+        const hit = fanEmpty(geom, sizes[i], measure, plus);
+        if (hit) return hit;
+      }
+      return fanEmptyForced(geom, sizes[sizes.length - 1], measure, plus);
+    }
+    const nameWords = wordsOf(name);
+    const detailTries = [];
+    const detailWords = wordsOf(detail);
+    const role = String(detail || '').split(' · ')[0];
+    const roleWords = wordsOf(role);
+    if (detailWords.length) detailTries.push(detailWords);
+    if (roleWords.length && roleWords.join(' ') !== detailWords.join(' ')) detailTries.push(roleWords);
+    detailTries.push([]);
+    let found = null;
+    sizes.forEach((fs) => {
+      if (found) return;
+      for (let d = 0; d < detailTries.length; d++) {
+        found = fanSearch(nameWords, detailTries[d], fs, geom, measure);
+        if (found) return;
+      }
+    });
+    if (found) return found;
+    for (let n = nameWords.length - 1; n >= 1; n--) {
+      const shortened = nameWords.slice(0, n);
+      shortened[shortened.length - 1] = shortened[shortened.length - 1].replace(/…$/, '') + '…';
+      found = fanSearch(shortened, [], sizes[sizes.length - 1], geom, measure);
+      if (found) { found.shown = shortened.join(' '); return found; }
+    }
+    const fs = sizes[sizes.length - 1];
+    const midA = (geom.a0 + geom.a1) / 2;
+    const midR = (geom.r0 + geom.r1) / 2;
+    const word = (nameWords[0] || name).replace(/…$/, '') + (nameWords.length > 1 ? '…' : '');
+    return { fs, shown: word, lines: [{ text: word, x: geom.cx + midR * Math.cos(midA), y: geom.cy + midR * Math.sin(midA) }] };
+  }
+  function fanEmpty(geom, fs, measure, plus) {
+    plus = plus !== false;
+    /* lineH keeps same-label AABBs from overlapping (visual gate); CLEAR=4 on both arcs. */
+    const lineH = fs * 1.45;
+    const line0 = plus ? '+ Not' : 'Not';
+    const line1 = 'recorded';
+    const shown = plus ? '+ Not recorded' : 'Not recorded';
+    const half0 = measure(line0, fs) * 1.1 / 2 + 2;
+    const half1 = measure(line1, fs) * 1.1 / 2 + 2;
+    const need = [half0 * 2, half1 * 2];
+    const cache = {};
+    const CLEAR = 4;
+    const asc = fs * 1.15, desc = fs * 0.35;
+    const midA = (geom.a0 + geom.a1) / 2;
+    const midR = (geom.r0 + geom.r1) / 2;
+    const top0 = geom.cy - geom.r1 + fs;
+    const top1 = geom.cy - lineH - 4;
+    let best = null;
+    for (let top = top0; top <= top1; top += 1) {
+      const y0 = top;
+      const y1 = top + lineH;
+      const s0 = fanOpen(fanSlot(geom, y0, fs, cache, CLEAR), fs, geom);
+      const s1 = fanOpen(fanSlot(geom, y1, fs, cache, CLEAR), fs, geom);
+      if (!s0 || !s1) continue;
+      if (s0.w < need[0] + 0.5 || s1.w < need[1] + 0.5) continue;
+      const xLo = Math.max(s0.x - s0.w / 2 + half0, s1.x - s1.w / 2 + half1);
+      const xHi = Math.min(s0.x + s0.w / 2 - half0, s1.x + s1.w / 2 - half1);
+      if (xHi < xLo - 0.05) continue;
+      let x = fanBisectX(geom, (y0 + y1) / 2);
+      if (x < xLo) x = xLo;
+      if (x > xHi) x = xHi;
+      const corners = [
+        [x - half0, y0 - asc], [x + half0, y0 - asc], [x - half0, y0 + desc], [x + half0, y0 + desc],
+        [x - half1, y1 - asc], [x + half1, y1 - asc], [x - half1, y1 + desc], [x + half1, y1 + desc]
+      ];
+      let radOk = true;
+      for (let i = 0; i < corners.length; i++) {
+        const r = Math.hypot(corners[i][0] - geom.cx, corners[i][1] - geom.cy);
+        if (r < geom.r0 + CLEAR - 0.05 || r > geom.r1 - CLEAR + 0.05) { radOk = false; break; }
+      }
+      if (!radOk) continue;
+      const lines = [{ text: line0, x, y: y0 }, { text: line1, x, y: y1 }];
+      if (!fanClear(lines, fs, geom, measure)) continue;
+      const yMid = (y0 + y1) / 2;
+      const ty = geom.cy + midR * Math.sin(midA);
+      const low = (Math.sin(midA) < 0) ? Math.max(0, yMid - ty) : Math.max(0, ty - yMid);
+      const score = Math.abs(yMid - ty) + low * 1.25;
+      if (!best || score < best.score) best = { score, fs, lines, shown };
+    }
+    return best;
+  }
+
+  function fanEmptyForced(geom, fs, measure, plus) {
+    plus = plus !== false;
+    const lineH = fs * 1.45;
+    const line0 = plus ? '+ Not' : 'Not';
+    const shown = plus ? '+ Not recorded' : 'Not recorded';
+    const CLEAR = 4;
+    const midA = (geom.a0 + geom.a1) / 2;
+    const midR = (geom.r0 + geom.r1) / 2;
+    /* Prefer mid-band so both arcs have room; nudge will refine. */
+    let yMid = geom.cy + midR * Math.sin(midA);
+    const y0 = yMid - lineH / 2;
+    const y1 = yMid + lineH / 2;
+    let x = fanBisectX(geom, yMid);
+    const cache = {};
+    const s0 = fanOpen(fanSlot(geom, y0, fs, cache, CLEAR), fs, geom);
+    const s1 = fanOpen(fanSlot(geom, y1, fs, cache, CLEAR), fs, geom);
+    if (s0 && s1) {
+      const half0 = measure(line0, fs) * 1.1 / 2 + 2;
+      const half1 = measure('recorded', fs) * 1.1 / 2 + 2;
+      const xLo = Math.max(s0.x - s0.w / 2 + half0, s1.x - s1.w / 2 + half1);
+      const xHi = Math.min(s0.x + s0.w / 2 - half0, s1.x + s1.w / 2 - half1);
+      if (xHi >= xLo) { if (x < xLo) x = xLo; if (x > xHi) x = xHi; }
+    }
+    return {
+      fs, shown: shown,
+      lines: [
+        { text: line0, x, y: y0 },
+        { text: 'recorded', x, y: y1 }
+      ]
+    };
+  }
+
+
+  function fanSearch(primary, secondary, fs, geom, measure) {
+    const lineH = fanLineH(fs);
+    const maxLines = Math.min(6, primary.length + (secondary.length ? 2 : 0));
+    const midA = (geom.a0 + geom.a1) / 2;
+    const midR = (geom.r0 + geom.r1) / 2;
+    const tx = geom.cx + midR * Math.cos(midA);
+    const ty = geom.cy + midR * Math.sin(midA);
+    const cache = {};
+    let best = null;
+    for (let detailLines = 0; detailLines <= (secondary.length ? 2 : 0); detailLines++) {
+      for (let nameLines = 1; nameLines <= Math.min(5, primary.length); nameLines++) {
+        if (nameLines + detailLines > maxLines) continue;
+        const top0 = geom.cy - geom.r1 + fs;
+        const top1 = geom.cy - 8;
+        for (let top = top0; top <= top1; top += 2) {
+          const slots = [];
+          let ok = true;
+          for (let i = 0; i < nameLines + detailLines; i++) {
+            const y = top + i * lineH;
+            const slot = fanOpen(fanSlot(geom, y, fs, cache, 2.0), fs, geom);
+            if (!slot) { ok = false; break; }
+            slots.push(slot);
+          }
+          if (!ok) continue;
+          const nameOut = fanPour(primary, slots.slice(0, nameLines), fs, measure);
+          if (!nameOut) continue;
+          const detailOut = detailLines ? fanPour(secondary, slots.slice(nameLines), fs, measure) : [];
+          if (detailLines && !detailOut) continue;
+          const lines = nameOut.concat(detailOut || []);
+          if (!fanClear(lines, fs, geom, measure)) continue;
+          if (!fanInside(lines, fs, geom, measure, cache)) continue;
+          const cyb = lines.reduce((s, l) => s + l.y, 0) / lines.length;
+          const cxb = lines.reduce((s, l) => s + l.x, 0) / lines.length;
+          const score = Math.hypot(cxb - tx, cyb - ty) + detailLines * 0.01 - nameLines * 0.02;
+          if (!best || score < best.score) best = { score, fs, lines, shown: lines.map((l) => l.text).join(' ') };
+        }
+      }
+    }
+    return best;
+  }
+  function fanOpen(slot, fs, geom) {
+    if (!slot) return null;
+    let L = slot.x - slot.w / 2;
+    let R = slot.x + slot.w / 2;
+    const top = slot.y - fs * 0.95;
+    const bot = slot.y + fs * 0.35;
+    const guard = 58;
+    if (bot > geom.cy - guard && top < geom.cy + guard) {
+      const cL = geom.cx - guard;
+      const cR = geom.cx + guard;
+      if (L < cR && R > cL) {
+        if (slot.x < geom.cx) R = Math.min(R, cL - 3);
+        else L = Math.max(L, cR + 3);
+      }
+    }
+    if (R - L < Math.max(10, fs)) return null;
+    return { x: (L + R) / 2, y: slot.y, w: R - L };
+  }
+  function fanClear(lines, fs, geom, measure) {
+    const guard = 58;
+    const cL = geom.cx - guard, cR = geom.cx + guard, cT = geom.cy - guard, cB = geom.cy + guard;
+    return lines.every((l) => {
+      const half = measure(l.text, fs) / 2 + 2;
+      const top = l.y - fs * 0.95;
+      const bot = l.y + fs * 0.35;
+      return !(l.x - half < cR && l.x + half > cL && top < cB && bot > cT);
+    });
+  }
+  function fanInside(lines, fs, geom, measure, cache) {
+    return lines.every((l) => {
+      const slot = fanSlot(geom, l.y, fs, cache, 2.0);
+      if (!slot) return false;
+      const half = measure(l.text, fs) / 2 + 1.2;
+      return (l.x - half) >= (slot.x - slot.w / 2) - 0.8 && (l.x + half) <= (slot.x + slot.w / 2) + 0.8;
+    });
+  }
+  function fanPour(words, slots, fs, measure) {
+    if (!words.length || !slots.length) return null;
+    const lines = [];
+    let i = 0;
+    for (let s = 0; s < slots.length && i < words.length; s++) {
+      let cur = '';
+      while (i < words.length) {
+        const next = cur ? cur + ' ' + words[i] : words[i];
+        if (measure(next, fs) > slots[s].w - 1) break;
+        cur = next; i++;
+      }
+      if (!cur) return null;
+      lines.push({ text: cur, x: slots[s].x, y: slots[s].y });
+    }
+    return i >= words.length ? lines : null;
+  }
+  function fanSlot(geom, y, fs, cache, inset) {
+    inset = inset == null ? 2.0 : inset;
+    const rIn = geom.r0 + inset;
+    const rOut = geom.r1 - inset;
+    if (rOut <= rIn + 1) return null;
+    const ang = inset / Math.max(12, (rIn + rOut) / 2);
+    const b0 = geom.a0 + ang;
+    const b1 = geom.a1 - ang;
+    if (b1 <= b0 + 0.03) return null;
+    const ys = [y - fs * 0.95, y, y + fs * 0.3];
+    let L = -1e9, R = 1e9;
+    for (let k = 0; k < ys.length; k++) {
+      const key = inset.toFixed(1) + ':' + (Math.round(ys[k] * 2) / 2);
+      if (!Object.prototype.hasOwnProperty.call(cache, key)) cache[key] = fanSlice(geom.cx, geom.cy, rIn, rOut, b0, b1, ys[k]) || 0;
+      const span = cache[key];
+      if (!span) return null;
+      L = Math.max(L, span[0]);
+      R = Math.min(R, span[1]);
+    }
+    if (R - L < 8) return null;
+    return { x: (L + R) / 2, y, w: R - L };
+  }
+  function fanSlice(cx, cy, rIn, rOut, b0, b1, y) {
+    let left = null, right = null;
+    for (let x = cx - rOut; x <= cx + rOut; x += 0.5) {
+      const dx = x - cx, dy = y - cy, r = Math.hypot(dx, dy);
+      if (r < rIn || r > rOut) continue;
+      let a = Math.atan2(dy, dx); if (a < 0) a += Math.PI * 2;
+      if (a < b0 - 0.015 || a > b1 + 0.015) continue;
+      if (left == null) left = x;
+      right = x;
+    }
+    if (left == null || right - left < 6) return null;
+    return [left + 1.2, right - 1.2];
+  }
+  function fanBoxes(placed, measure) {
+    const fs = placed.fs;
+    return placed.lines.map((l) => {
+      const w = measure(l.text, fs);
+      return { l: l.x - w / 2, r: l.x + w / 2, t: l.y - fs * 0.95, b: l.y + fs * 0.35 };
+    });
+  }
+  function fanHits(a, b) {
+    return a.l < b.r - 0.8 && a.r > b.l + 0.8 && a.t < b.b - 0.8 && a.b > b.t + 0.8;
+  }
+  function fanResolve(placements, measure) {
+    const isNR = (P) => fanIsNotRecorded(P.g.dataset.name);
+    const dropLine = (P) => {
+      /* Never drop name words (sibling/parent labels must stay word-intact). */
+      if (isNR(P)) return false;
+      return false;
+    };
+    const nudgeUp = (P, dy) => {
+      if (!isNR(P)) return false;
+      P.placed.lines.forEach((l) => { l.y -= dy; });
+      return true;
+    };
+    for (let pass = 0; pass < 8; pass++) {
+      let moved = false;
+      for (let i = 0; i < placements.length; i++) {
+        for (let j = i + 1; j < placements.length; j++) {
+          const A = placements[i], B = placements[j];
+          const boxesA = fanBoxes(A.placed, measure);
+          const boxesB = fanBoxes(B.placed, measure);
+          let hit = false;
+          boxesA.forEach((a) => boxesB.forEach((b) => { if (fanHits(a, b)) hit = true; }));
+          if (!hit) continue;
+          /* Prefer shortening the longer parent/sibling label; nudge Not-recorded up if needed. */
+          const parentish = !isNR(A) ? A : !isNR(B) ? B : null;
+          const nr = isNR(A) ? A : isNR(B) ? B : null;
+          if (parentish && dropLine(parentish)) { moved = true; continue; }
+          if (nr && nudgeUp(nr, fanLineH(nr.placed.fs) * 0.55)) { moved = true; continue; }
+          if (dropLine(A) || dropLine(B)) moved = true;
+        }
+      }
+      if (!moved) break;
+    }
+  }
+
   function fitTree() {
     if (fitting) return;
     fitting = true;
-    try { fitTreeNow(); } catch (e) { /* */ } finally { fitting = false; }
+    try {
+      fitTreeNow();
+      fitFanText();
+    } catch (e) { /* */ } finally {
+      setTimeout(() => { fitting = false; }, 0);
+    }
   }
   function fitTreeNow() {
     const root = document.querySelector('#breeding-view .b57[data-b57s]');
@@ -400,6 +1181,6 @@ ${pg.edit ? '<div class="b58-banner" role="status">Edit mode · tap any plant to
   const treeView = document.getElementById('breeding-view');
   if (treeView) new MutationObserver(() => { try { fitTree(); } catch (e) { /* */ } }).observe(treeView, { childList: true, subtree: true });
   window.addEventListener('resize', () => { try { fitTree(); } catch (e) { /* */ } });
-  setInterval(() => { try { addTab(); addSide(); profileBtn(); mark(); fitTree(); } catch (e) { console.warn('b57 entry', e); } }, 300);
+  setInterval(() => { try { addTab(); addSide(); profileBtn(); mark(); keepTitleGlyph(); fitTree(); } catch (e) { console.warn('b57 entry', e); } }, 300);
   window.B57 = { walk, detailKey, resolveKey, partners, rec, name, same, isUnk, ph, mono, rr: () => renderBreeding(), openLineage, lineageList, candidates, par2, stat, popOf, styles: STYLES, styleOf, assign, ancestors, siblings, kids, photo, fitTree };
 })();

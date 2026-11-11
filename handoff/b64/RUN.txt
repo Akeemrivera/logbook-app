@@ -1,0 +1,93 @@
+Build 64: b62-based family trees + B-11/13/15/16 ports, Logbook 1.0 (64)
+
+Base: PR 10 head f445cad6 (shipped build 63 source c4f486a5 + B-11 label fix).
+Build 63 is not changed by this package.
+
+Copy into the app, same bytes in root, www/, and ios/App/App/public/:
+  build57.js build57.css build60.js build60.css
+  build13.js build41.js build42.js mobile.js build41-ui.css
+  build63.css app.js service-worker.js
+Copy ios/App/App.xcodeproj/project.pbxproj over the app's project file.
+ios/App/LogbookQAUITests/LogbookQAUITests.swift is updated in place in this repo.
+www/ also needs the public, empty b63-repair.json (same as build 63; the
+build-www.js packing check reports it missing in build 63 too).
+
+What changed
+- Family tree: build57.js / build57.css are the approved b62-based tree
+  (8 styles: walnut, ceiba, roots, azulejo, mobile, cert, river, window),
+  straight lines only. build60.js / build60.css go back to the b62 files
+  (no curved connectors). The b63 tree-layout rules in build63.css are
+  removed; its non-tree rules (inspection table, 248px sidebar, Plants
+  header fit, sidebar theme-match) are unchanged.
+- B-11: Mothers & Fathers clicks are delegated on the document, so
+  "+ Add mother" works after mfpOpen() moves the list (build13.js). The
+  QA UI test dismisses the keyboard, scrolls like a user, and opens the
+  Mothers & Fathers page before "+ Add mother" (LogbookQAUITests.swift).
+  The long-name test value is now a generic name of the same length.
+- B-13: production plants do not get their own tree. A clone opens its
+  linked mother's tree; seed-started plants keep their own tree; crosses
+  and projects link to their mother's and father's trees. Optional
+  "Clone of" picker on a production clone. One approved, backed-up,
+  idempotent migration links one production clone to its mother
+  (record ids are matched by one-way hash, not stored). Siblings exclude
+  self and dedupe by id.
+- B-15: each plant keeps its own saved style (1-8), and the 8 styles are
+  structurally different (b62 layouts restored).
+- B-16: Archive on a mother/father profile is Retire, with a confirm and
+  Restore. Retired plants move to "Retired / Archived" and stay in trees.
+  The round title badge is aligned to the first line of the name
+  (build41.js, build41-ui.css, build42.js, mobile.js, build13.js).
+- Version: APP_BUILD 64, CURRENT_PROJECT_VERSION 64 (CFBundleVersion),
+  MARKETING_VERSION 1.0. Service-worker cache v108 -> v109.
+
+Real records and all real-data screenshots stay on the private machine.
+
+Status label (Elio, Nov 10, 3:37 PM ET): build57.js stat() returns "Retired" for a record whose
+status is Retired (a retired mother or father). No other wording changes: archived still reads
+"Culled · lineage kept", and a dx: parent still reads "Deleted plant (name kept)".
+
+Tree fixes (Elio, Nov 10, 3:44 PM ET), build57.js + build57.css only:
+1. Roots: when grandparent cards wrap under the other parent's row, that parent's line steps out to
+   the side (8 px clear) instead of running behind a card; the self (S1) card gets its line; lines
+   are placed correctly under the 1024 px zoom.
+2. Azulejo: with long names the fan widens/adjusts and the grandparent ring shows titles only (the
+   second-line role words are dropped) so no text crosses a line.
+3. Hanging mobile: a lone child ribbon spans the full row.
+No wording changes.
+
+Round 2 fixes (Elio, GO Nov 10, 4:58 PM ET), build57.js + build57.css + build49.js only:
+A. Hanging mobile: a lone child's heading moves beside its string (same offset rule as the Kids
+   heading); a parent's string reaches up only to a card it meets squarely; strings are measured in
+   unzoomed units at 1024 px so none end loose.
+B. Roots: with no partner and no kids, the Kids heading sits above this plant; the trunk keeps 4 px+
+   off every heading and empty-state line it passes, or the bracket sits above the heading with its
+   stems beside it; an upward kids bracket lands each upright on its circle at wide widths. River: the
+   "This plant" heading moves beside the line (same offset rule).
+C. Certificate and Window flags were checker false positives (column border rule, pane layout, rose
+   ring, small tree icon); no code change.
+D. A typed-in parent with no recorded deletion reads "Name only · not linked" (no tag). It reads
+   "Bought seeds, not linked" when the child's seed source says the seeds were bought, and the cross
+   line then adds "· bought seeds, not linked". "Deleted plant (name kept)" stays only for a parent
+   whose deletion is on record.
+E. A parent slot that only says "Not recorded" never makes Self/S1 or a backcross (build57 tree and
+   build49 generation label).
+Also: outer bands (siblings, candidates, kids) drop their second line when it cannot clear 4 px, as
+the grandparent ring already does; all line-snapping passes measure in unzoomed units under the
+1024 px zoom. Real-data previews stay on the private machine.
+
+Test replacements (check-replacements.md), tests only, no app file changed:
+scripts/b63-tree-visual.test.js: #1 one active tab = the tab the tree was opened from (Lineage and
+Breeding both exercised); #2/#3 b64 this-plant selectors, Certificate card-or-pair, ribbon only
+with a pair; #5 fan labels at least 11 CSS px added (4 px seam clearance stays with pixel_verify);
+#6 different labels 4 px apart, lines inside one label not compared; #7 full-page box for labels;
+#8 each empty grandparent slot reads "Not recorded" and no missing slot is Self (S1).
+Box-only scripts (ribbon, acceptance) got #9-#13 and #15; see the box gate logs.
+
+Round 3 (two fixes only, build57.js):
+1. Azulejo on a card narrower than 382 CSS px (375 x 667): the 13-unit second line would render at
+   10.6 px, so on that width every fan ring shows names only (the approved titles-only rule) and the
+   4 px clearance is checked at that scale. Names stay 14 units (11.4 px at 375). 390/430/1024 unchanged.
+2. Tree connectors: a freshly drawn tree runs its title, badge and connector passes in the same task,
+   before the first paint, repeating until the lines stop changing, so the first frame equals the
+   settled frame (no snap about half a second after opening).
+Tests: the tree tab check expects Lineage when a tree is opened from Lineage or Breeding.

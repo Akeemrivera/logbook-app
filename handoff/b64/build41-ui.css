@@ -1,0 +1,90 @@
+/* Build 41 (Elio 12:10 PM): profile grade chips with WCAG AA contrast (>= 4.5:1; these are >= 7:1) in dark and light,
+   on every one of the 9 designs; plus the Style picker for designs / accent / motif / character. */
+:root:root[data-theme] #plant-detail-view .b32-pill.k, :root:root[data-theme] #plant-detail-view .b32-pill.g, :root:root[data-theme] #plant-detail-view .b32-badge.b32-keep { background:#E3F3E6 !important; color:#174F25 !important; border:1.5px solid #4E9A5B !important; }
+:root:root[data-theme] #plant-detail-view .b32-pill.m, :root:root[data-theme] #plant-detail-view .b32-pill.y, :root:root[data-theme] #plant-detail-view .b32-badge.b32-maybe { background:#FFF3CC !important; color:#5C3F00 !important; border:1.5px solid #D19A1F !important; }
+:root:root[data-theme] #plant-detail-view .b32-pill.c, :root:root[data-theme] #plant-detail-view .b32-pill.r, :root:root[data-theme] #plant-detail-view .b32-badge.b32-cull { background:#FDE3E5 !important; color:#8E1520 !important; border:1.5px solid #C0392B !important; }
+:root:root[data-theme] #plant-detail-view .b32-pill:not(.k):not(.m):not(.c):not(.g):not(.y):not(.r):not(.med) { background:#ECEFF2 !important; color:#333B44 !important; border:1.5px solid #8A8F94 !important; }
+:root:root[data-theme='dark'] #plant-detail-view .b32-pill.k, :root:root[data-theme='dark'] #plant-detail-view .b32-pill.g, :root:root[data-theme='dark'] #plant-detail-view .b32-badge.b32-keep { background:#173D25 !important; color:#C9F2D3 !important; border-color:#5FB571 !important; }
+:root:root[data-theme='dark'] #plant-detail-view .b32-pill.m, :root:root[data-theme='dark'] #plant-detail-view .b32-pill.y, :root:root[data-theme='dark'] #plant-detail-view .b32-badge.b32-maybe { background:#3D300A !important; color:#FFE9A8 !important; border-color:#E0B040 !important; }
+:root:root[data-theme='dark'] #plant-detail-view .b32-pill.c, :root:root[data-theme='dark'] #plant-detail-view .b32-pill.r, :root:root[data-theme='dark'] #plant-detail-view .b32-badge.b32-cull { background:#4A1418 !important; color:#FFD6D9 !important; border-color:#E0606A !important; }
+:root:root[data-theme='dark'] #plant-detail-view .b32-pill:not(.k):not(.m):not(.c):not(.g):not(.y):not(.r):not(.med) { background:#252D36 !important; color:#E6EBF0 !important; border-color:#7D8792 !important; }
+:root:root[data-theme] #plant-detail-view .b32-pill .b39-ic, :root:root[data-theme] #plant-detail-view .b32-badge .b39-ic { color:currentColor !important; }
+
+/* Style picker */
+.b41-pick { display:grid; gap:8px; margin:6px 0 14px; }
+.b41-designs { grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); }
+.b41-row { grid-template-columns:repeat(auto-fill,minmax(64px,1fr)); }
+.b41-o { position:relative; display:flex; flex-direction:column; align-items:center; gap:4px; border:2px solid var(--bk-border, rgba(127,127,127,.3)); border-radius:14px; padding:6px; cursor:pointer; background:var(--bk-card, transparent); }
+.b41-o input { position:absolute; opacity:0; pointer-events:none; }
+.b41-o:has(input:checked) { border-color:#FFC72C; box-shadow:0 0 0 2px #FFC72C55; }
+.b41-o:focus-within { outline:2px solid #0A4FC4; outline-offset:2px; }
+.b41-o b { font-size:.78rem; line-height:1.2; text-align:center; }
+.b41-designs .b41-o { align-items:stretch; padding:0 0 6px; overflow:hidden; }
+.b41-designs .b41-o b { padding:0 6px; text-align:left; }
+.b41-o .sw { position:relative; display:block; height:56px; background-size:cover !important; }
+.b41-o .b41-flag { position:absolute; right:8px; top:10px; width:48px; height:32px; background:url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A//www.w3.org/2000/svg%27%20viewBox%3D%270%200%20300%20200%27%3E%3Crect%20y%3D%270%27%20width%3D%27300%27%20height%3D%2740%27%20fill%3D%27%23ED0000%27/%3E%3Crect%20y%3D%2740%27%20width%3D%27300%27%20height%3D%2740%27%20fill%3D%27%23FFFFFF%27/%3E%3Crect%20y%3D%2780%27%20width%3D%27300%27%20height%3D%2740%27%20fill%3D%27%23ED0000%27/%3E%3Crect%20y%3D%27120%27%20width%3D%27300%27%20height%3D%2740%27%20fill%3D%27%23FFFFFF%27/%3E%3Crect%20y%3D%27160%27%20width%3D%27300%27%20height%3D%2740%27%20fill%3D%27%23ED0000%27/%3E%3Cpath%20d%3D%27M0%200L173.21%20100L0%20200Z%27%20fill%3D%27%230050F0%27/%3E%3Cpolygon%20points%3D%2757.74%2C70.00%2064.79%2C90.29%2086.27%2C90.73%2069.14%2C103.71%2075.37%2C124.27%2057.74%2C112.00%2040.10%2C124.27%2046.33%2C103.71%2029.21%2C90.73%2050.68%2C90.29%27%20fill%3D%27%23FFFFFF%27/%3E%3C/svg%3E") center/contain no-repeat; }
+.b41-o .b41-cq { position:absolute; right:6px; top:4px; width:54px; height:48px; background:url("mascots/coqui-flag-icon.png") center/contain no-repeat; }
+.b41-o .dot { width:28px; height:28px; border-radius:50%; border:2px solid rgba(255,255,255,.8); box-shadow:0 0 0 1px rgba(0,0,0,.25); }
+.b41-o .mo { width:28px; height:28px; background:center/contain no-repeat; }
+.b41-o .mo[data-arr-i='0'] { background-image:url("mascots/coqui-flag-icon.png"); }
+.b41-o.ch img { width:48px; height:48px; border-radius:50%; background:#123B27; object-fit:cover; }
+.b41-o.ch img.cream { background:#FFF8EC; }
+.b41-o .sr { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); }
+.b41-o .mo[data-arr-i='1'] { background-image:url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A//www.w3.org/2000/svg%27%20viewBox%3D%270%200%2024%2024%27%20preserveAspectRatio%3D%27xMidYMid%20meet%27%3E%3Cpath%20d%3D%27M7%2021c0-7%202-13%207-14.5%203.5-1%206%201.5%206%204.5%200%202-1.5%203-3%203.2L14%2021Z%27%20fill%3D%27%232E9E4F%27/%3E%3Cpath%20d%3D%27M14%206.5c2-1.5%205-.5%206%202l-3%20.4Z%27%20fill%3D%27%23C8102E%27/%3E%3Ccircle%20cx%3D%2716.3%27%20cy%3D%279.4%27%20r%3D%27.9%27%20fill%3D%27%231F2A24%27/%3E%3C/svg%3E"); }
+.b41-o .mo[data-arr-i='2'] { background-image:url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A//www.w3.org/2000/svg%27%20viewBox%3D%270%200%2024%2024%27%20preserveAspectRatio%3D%27xMidYMid%20meet%27%3E%3Cpath%20d%3D%27M7%2011a5%205%200%200%201%2010%200Z%27%20fill%3D%27%23C9A06A%27/%3E%3Crect%20x%3D%276%27%20y%3D%2711%27%20width%3D%2712%27%20height%3D%279%27%20fill%3D%27%23E9CFA0%27/%3E%3Crect%20x%3D%2710.3%27%20y%3D%2713%27%20width%3D%273.4%27%20height%3D%275%27%20rx%3D%271.7%27%20fill%3D%27%2313294B%27/%3E%3C/svg%3E"); }
+.b41-o .mo[data-arr-i='3'] { background-image:url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A//www.w3.org/2000/svg%27%20viewBox%3D%270%200%2024%2024%27%20preserveAspectRatio%3D%27xMidYMid%20meet%27%3E%3Ccircle%20cx%3D%2712%27%20cy%3D%2712%27%20r%3D%275%27%20fill%3D%27%23FFC72C%27/%3E%3Crect%20x%3D%2711.2%27%20y%3D%271.5%27%20width%3D%271.6%27%20height%3D%274%27%20rx%3D%27.8%27%20fill%3D%27%23FFC72C%27%20transform%3D%27rotate%280%2012%2012%29%27/%3E%3Crect%20x%3D%2711.2%27%20y%3D%271.5%27%20width%3D%271.6%27%20height%3D%274%27%20rx%3D%27.8%27%20fill%3D%27%23FFC72C%27%20transform%3D%27rotate%2845%2012%2012%29%27/%3E%3Crect%20x%3D%2711.2%27%20y%3D%271.5%27%20width%3D%271.6%27%20height%3D%274%27%20rx%3D%27.8%27%20fill%3D%27%23FFC72C%27%20transform%3D%27rotate%2890%2012%2012%29%27/%3E%3Crect%20x%3D%2711.2%27%20y%3D%271.5%27%20width%3D%271.6%27%20height%3D%274%27%20rx%3D%27.8%27%20fill%3D%27%23FFC72C%27%20transform%3D%27rotate%28135%2012%2012%29%27/%3E%3Crect%20x%3D%2711.2%27%20y%3D%271.5%27%20width%3D%271.6%27%20height%3D%274%27%20rx%3D%27.8%27%20fill%3D%27%23FFC72C%27%20transform%3D%27rotate%28180%2012%2012%29%27/%3E%3Crect%20x%3D%2711.2%27%20y%3D%271.5%27%20width%3D%271.6%27%20height%3D%274%27%20rx%3D%27.8%27%20fill%3D%27%23FFC72C%27%20transform%3D%27rotate%28225%2012%2012%29%27/%3E%3Crect%20x%3D%2711.2%27%20y%3D%271.5%27%20width%3D%271.6%27%20height%3D%274%27%20rx%3D%27.8%27%20fill%3D%27%23FFC72C%27%20transform%3D%27rotate%28270%2012%2012%29%27/%3E%3Crect%20x%3D%2711.2%27%20y%3D%271.5%27%20width%3D%271.6%27%20height%3D%274%27%20rx%3D%27.8%27%20fill%3D%27%23FFC72C%27%20transform%3D%27rotate%28315%2012%2012%29%27/%3E%3C/svg%3E"); }
+
+/* Sidebar (Mac): the garita + palm art sits in the footer's own right-hand space, so it can never cover 'Help' or the
+   'Saved on this device / Last backup' text; brand text readable on the dark green, logo keeps clear space. */
+:root:root[data-theme] .w-side { background-image:none !important; }
+:root:root[data-theme] .w-side .w-foot { padding-right:100px !important; background-image:url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A//www.w3.org/2000/svg%27%20viewBox%3D%270%200%2024%2024%27%3E%3Cpath%20d%3D%27M7%2011a5%205%200%200%201%2010%200Z%27%20fill%3D%27%23E9C68E%27/%3E%3Ccircle%20cx%3D%2712%27%20cy%3D%275.6%27%20r%3D%271%27%20fill%3D%27%23E9C68E%27/%3E%3Crect%20x%3D%276%27%20y%3D%2711%27%20width%3D%2712%27%20height%3D%279%27%20rx%3D%27.6%27%20fill%3D%27%23F3DDB2%27/%3E%3Crect%20x%3D%2710.3%27%20y%3D%2713%27%20width%3D%273.4%27%20height%3D%275%27%20rx%3D%271.7%27%20fill%3D%27%230A4FC4%27/%3E%3Crect%20x%3D%275%27%20y%3D%2720%27%20width%3D%2714%27%20height%3D%272%27%20fill%3D%27%23C9A06A%27/%3E%3C/svg%3E"), url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A//www.w3.org/2000/svg%27%20viewBox%3D%270%200%2024%2024%27%3E%3Cpath%20d%3D%27M12%2022c.5-4%20.5-8-.5-12%27%20stroke%3D%27%238B5A2B%27%20stroke-width%3D%271.8%27%20fill%3D%27none%27%20stroke-linecap%3D%27round%27/%3E%3Cg%20fill%3D%27%232E9E4F%27%3E%3Cpath%20d%3D%27M11.5%2010C9%206%205%205%202%207c3%200%206%201%209.5%203Z%27/%3E%3Cpath%20d%3D%27M11.5%2010C14%206%2018%205%2022%207c-3.5%200-7%201-10.5%203Z%27/%3E%3Cpath%20d%3D%27M11.5%2010C10%206.5%2011%203.5%2013%202c-.5%203%200%205.5-1.5%208Z%27/%3E%3Cpath%20d%3D%27M11.5%2010C8%209%204.5%2011%204%2014c2-2%204.5-3%207.5-4Z%27/%3E%3Cpath%20d%3D%27M11.5%2010c3.5-1%207%201%207.5%204-2-2-4.5-3-7.5-4Z%27/%3E%3C/g%3E%3C/svg%3E") !important; background-repeat:no-repeat !important; background-position:right 54px center, right 6px center !important; background-size:38px 38px, 46px 46px !important; min-height:56px; box-sizing:border-box; }
+:root:root[data-theme] .w-side .w-brand b { color:#F5F1E4 !important; }
+:root:root[data-theme] .w-side .w-brand small { color:#BFD3C5 !important; }
+:root:root[data-theme] .w-side .w-brand img { background:#FFF8EC; border-radius:12px; padding:5px; box-sizing:content-box; margin-right:4px; }
+/* Plant name next to its character: never split a word; the character moves to the next line instead. */
+:root:root .w-dh-names h3, :root:root .pd-hero-names h3 { flex-wrap:wrap !important; overflow-wrap:normal !important; word-break:normal !important; row-gap:8px !important; }
+/* iPhone: the flag + word (Bandera 7a/7b) and the coquí (El Yunque) keep their own space at the top of the header; a long
+   plant name (or Large text) grows the header downwards instead of running into them. */
+@media (max-width:1023px) {
+  :root:root[data-popt='7'] #plant-detail-view .pd-hero-text { margin-top:142px !important; }
+  :root:root[data-popt='8'] #plant-detail-view .pd-hero-text { margin-top:128px !important; }
+}
+/* Build 41 (Elio 1:46 PM): Mac sidebar shows the logo only, centred, a little larger, with clear space (aria-label 'Logbook'). */
+:root:root .w-side .w-brand { display:flex !important; justify-content:center !important; align-items:center !important; padding:14px 0 12px !important; margin:0 !important; gap:0 !important; }
+:root:root[data-theme] .w-side .w-brand img { width:62px !important; height:auto !important; padding:10px !important; border-radius:18px !important; margin:0 !important; background:#FFF8EC; }
+/* Large / Largest text: the logo stays centred with clear space but a bit smaller, so the sidebar still fits (qa-b40). */
+:root:root[data-text-size='large'] .w-side .w-brand, :root:root[data-text-size='xlarge'] .w-side .w-brand { padding:8px 0 6px !important; }
+:root:root[data-text-size='large'][data-theme] .w-side .w-brand img, :root:root[data-text-size='xlarge'][data-theme] .w-side .w-brand img { width:44px !important; padding:7px !important; border-radius:14px !important; }
+
+/* B-16: round title badge sits on the first line, centered on the name. */
+:root:root #view-title,
+:root:root .b18-h1,
+:root:root .w-dh-names h3,
+:root:root .pd-hero-names h3,
+:root:root .mf-head h3,
+:root:root .pt-head h3 {
+  display: flex !important;
+  align-items: flex-start !important;
+  flex-wrap: nowrap !important;
+  column-gap: .45em;
+}
+:root:root #view-title > .b16-name,
+:root:root .b18-h1 > .b16-name,
+:root:root .w-dh-names h3 > .b16-name,
+:root:root .pd-hero-names h3 > .b16-name,
+:root:root .mf-head h3 > .b16-name,
+:root:root .pt-head h3 > .b16-name {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+:root:root #view-title > img.mz-inline,
+:root:root .b18-h1 > img.mz-inline,
+:root:root .w-dh-names h3 > img.mz-inline,
+:root:root .pd-hero-names h3 > img.mz-inline,
+:root:root .mf-head h3 > img.mz-inline,
+:root:root .pt-head h3 > img.mz-inline {
+  margin-left: 0;
+  flex: none;
+  align-self: flex-start;
+}
